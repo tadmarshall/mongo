@@ -42,6 +42,9 @@
     <Filter Include="thirdparty">
       <UniqueIdentifier>{5eca87ab-5987-4fb0-97be-e80cc721e328}</UniqueIdentifier>
     </Filter>
+    <Filter Include="SpiderMonkey">
+      <UniqueIdentifier>{17bd97a9-5dd3-42c2-9108-f6d0dfbcf288}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dbshell.cpp">
@@ -77,60 +80,6 @@
     </ClCompile>
     <ClCompile Include="..\..\db\nonce.cpp">
       <Filter>shared source files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_xclass.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_version.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_valid_utf8.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_ucp_searchfuncs.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_try_flipped.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_tables.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_study.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_refcount.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_ord2utf8.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_newline.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_maketables.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_info.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_globals.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_get.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_fullinfo.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_exec.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_dfa_exec.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcrecpp.cc">
-      <Filter>pcre</Filter>
     </ClCompile>
     <ClCompile Include="..\..\client\connpool.cpp">
       <Filter>client</Filter>
@@ -168,18 +117,6 @@
     <ClCompile Include="..\..\client\syncclusterconnection.cpp">
       <Filter>client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_stringpiece.cc">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_config.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_compile.c">
-      <Filter>pcre</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\pcre-7.4\pcre_chartables.c">
-      <Filter>shell</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\util\md5.c">
       <Filter>shell</Filter>
     </ClCompile>
@@ -205,9 +142,6 @@
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="..\mongo_vstudio.cpp">
-      <Filter>shell\generated_from_js</Filter>
-    </ClCompile>
-    <ClCompile Include="..\mongo-server.cpp">
       <Filter>shell\generated_from_js</Filter>
     </ClCompile>
     <ClCompile Include="..\..\util\log.cpp">
@@ -240,6 +174,78 @@
     <ClCompile Include="..\..\util\net\message_port.cpp">
       <Filter>util</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_refcount.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_stringpiece.cc">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcrecpp.cc">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_chartables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_compile.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_config.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_dfa_exec.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_exec.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_info.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_fullinfo.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_get.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_globals.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_maketables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_newline.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_ord2utf8.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_study.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_tables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_try_flipped.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_ucp_searchfuncs.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_valid_utf8.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_version.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\pcre-7.4\pcre_xclass.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\ramlog.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\mongo-server.cpp">
+      <Filter>shell\generated_from_js</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\SConstruct" />
@@ -266,17 +272,48 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Library Include="..\..\..\js\js32d.lib" />
-    <Library Include="..\..\..\js\js32r.lib" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\..\db\lasterror.h">
       <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\js-1.7\jstypes.h">
+      <Filter>thirdparty</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\matcher.h">
+      <Filter>shared source files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\projection.h">
+      <Filter>shared source files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scripting\engine.h">
+      <Filter>scripting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\pcre-7.4\pcrecpp.h">
+      <Filter>pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\dbclient_rs.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\linenoise\linenoise.h">
+      <Filter>thirdparty</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\..\db\db.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\..\js\js64d.lib">
+      <Filter>SpiderMonkey</Filter>
+    </Library>
+    <Library Include="..\..\..\js\js32d.lib">
+      <Filter>SpiderMonkey</Filter>
+    </Library>
+    <Library Include="..\..\..\js\js64r.lib">
+      <Filter>SpiderMonkey</Filter>
+    </Library>
+    <Library Include="..\..\..\js\js32r.lib">
+      <Filter>SpiderMonkey</Filter>
+    </Library>
   </ItemGroup>
 </Project>

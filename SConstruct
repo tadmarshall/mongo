@@ -575,7 +575,7 @@ elif "win32" == os.sys.platform:
     env.Append( CPPDEFINES=[ "_UNICODE" ] )
     env.Append( CPPDEFINES=[ "UNICODE" ] )
 
-    winSDKHome = findVersion( [ "C:/Program Files/Microsoft SDKs/Windows/", "C:/Program Files (x86)/Microsoft SDKs/Windows/" ] ,
+    winSDKHome = findVersion( [ "G:/Program Files/Microsoft SDKs/Windows/", "G:/Program Files (x86)/Microsoft SDKs/Windows/", "C:/Program Files/Microsoft SDKs/Windows/", "C:/Program Files (x86)/Microsoft SDKs/Windows/" ] ,
                               [ "v7.1", "v7.0A", "v7.0", "v6.1", "v6.0a", "v6.0" ] )
     print( "Windows SDK Root '" + winSDKHome + "'" )
 
