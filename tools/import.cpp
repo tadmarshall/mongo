@@ -76,7 +76,8 @@ class Import : public Tool {
 
                 if (element == ',' && !inQuotes) {
                     if (!tokenQuoted) { // If token was quoted, it's already been added
-                        tokens.push_back(trimWhitespace(curtoken));
+                        boost::trim(curtoken);
+                        tokens.push_back(curtoken);
                     }
                     curtoken = "";
                     tokenQuoted = false;
@@ -86,7 +87,8 @@ class Import : public Tool {
             }
         }
         if (!tokenQuoted || (inQuotes && prevWasQuote)) {
-            tokens.push_back(trimWhitespace(curtoken));
+            boost::trim(curtoken);
+            tokens.push_back(curtoken);
         }
     }
 
@@ -274,6 +276,7 @@ public:
     int run() {
         string filename = getParam( "file" );
         long long fileSize = 0;
+        int headerRows = 0;
 
         istream * in = &cin;
 
@@ -352,8 +355,12 @@ public:
 
         if ( _type == CSV || _type == TSV ) {
             _headerLine = hasParam( "headerline" );
-            if ( ! _headerLine )
+            if ( _headerLine ) {
+                headerRows = 1;
+            }
+            else {
                 needFields();
+            }
         }
 
         if (_type == JSON && hasParam("jsonArray")) {
@@ -434,7 +441,7 @@ public:
             }
         }
 
-        cout << "imported " << num << " objects" << endl;
+        cout << "imported " << ( num - headerRows ) << " objects" << endl;
 
         conn().getLastError();
 

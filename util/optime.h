@@ -102,7 +102,7 @@ namespace mongo {
         // Waits for global OpTime to be different from *this
         // Must be atLeastReadLocked
         // Defined in instance.cpp (only current user) as it needs dbtemprelease
-        void waitForDifferent(unsigned long long millis);
+        void waitForDifferent(unsigned millis);
 
         /* We store OpTime's in the database as BSON Date datatype -- we needed some sort of
          64 bit "container" for these values.  While these are not really "Dates", that seems a
@@ -163,8 +163,8 @@ namespace mongo {
     private:
 
         // The following functions are to get around the need to define class-level statics in a cpp
-        static boost::condition_variable& notifier() {
-            static boost::condition_variable* holder = new boost::condition_variable();
+        static boost::condition& notifier() {
+            static boost::condition* holder = new boost::condition();
             return *holder;
         };
         static boost::mutex& notifyMutex() {
