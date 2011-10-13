@@ -119,19 +119,16 @@
         int             promptExtraLines;
         int             promptIndentation;
         int             promptLastLinePosition;
-#ifdef _WIN32
-        size_t          promptPreviousInputLen;
-        size_t          promptScreenBufferRow;
-#else
-        size_t          promptCursorRowOffset;
-#endif
+        int          promptPreviousInputLen;
+        int          promptScreenBufferRow;
+        int          promptCursorRowOffset;
     } PROMPTINFO;
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
 
 // make control-characters more readable
-#define __ctrlChar(upperCaseASCII) (upperCaseASCII - 0x40)
+#define ctrlChar(upperCaseASCII) (upperCaseASCII - 0x40)
 
 static const char *unsupported_term[] = {"dumb","cons25",NULL};
 static linenoiseCompletionCallback *completionCallback = NULL;
@@ -202,7 +199,7 @@ static int enableRawMode(int fd) {
     //raw.c_oflag &= ~(OPOST);
     /* control modes - set 8 bit chars */
     raw.c_cflag |= (CS8);
-    /* local modes - choing off, canonical off, no extended functions,
+    /* local modes - echoing off, canonical off, no extended functions,
      * no signal chars (^Z,^C) */
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     /* control chars - set return condition: min number of bytes and timer.
@@ -251,16 +248,150 @@ static int getColumns(void) {
 #endif
 }
 
-#ifdef _WIN32
-static void output(const char* str, size_t len, int x, int y)
-{
-    COORD pos = { (SHORT)x, (SHORT)y };
-    DWORD count = 0;
-    WriteConsoleOutputCharacterA(console_out, str, len, pos, &count);
+/**
+ * Calculate a new screen position given a starting position, screen width and character count
+ * @param x             initial x position (zero-based)
+ * @param y             initial y position (zero-based)
+ * @param screenColumns screen column count
+ * @param charCount     character positions to advance
+ * @param xOut          returned x position (zero-based)
+ * @param yOut          returned y position (zero-based)
+ */
+static void calculateScreenPosition(int x, int y, int screenColumns, int charCount, int& xOut, int& yOut) {
+    xOut = x;
+    yOut = y;
+    int charsRemaining = charCount;
+    while( charsRemaining > 0 ) {
+        int charsThisRow = (x + charsRemaining < screenColumns) ? charsRemaining : screenColumns - x;
+        xOut = x + charsThisRow;
+        yOut = y;
+        charsRemaining -= charsThisRow;
+        x = 0;
+        y++;
+    }
+    if( xOut == screenColumns ) {  // have to special-case line wrap
+        xOut = 0;
+        yOut++;
+    }
 }
+
+static void refreshLine(int fd, PROMPTINFO & pi, char *buf, int len, int pos, int cols) {
+
+
+#if 1
+
+
+    int highlight = -1;
+    if (pos < len) {
+        /* this scans for a brace matching buf[pos] to highlight */
+        int scanDirection = 0;
+        if (strchr("}])", buf[pos]))
+            scanDirection = -1; /* backwards */
+        else if (strchr("{[(", buf[pos]))
+            scanDirection = 1; /* forwards */
+
+        if (scanDirection) {
+            int unmatched = scanDirection;
+            int i;
+            for(i = pos + scanDirection; i >= 0 && i < (int)len; i += scanDirection){
+                /* TODO: the right thing when inside a string */
+                if (strchr("}])", buf[i]))
+                    unmatched--;
+                else if (strchr("{[(", buf[i]))
+                    unmatched++;
+
+                if (unmatched == 0) {
+                    highlight = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    // calculate the position of the end of input
+    int xEndOfInput;
+    int yEndOfInput;
+    calculateScreenPosition(pi.promptIndentation, 0, cols, len, xEndOfInput, yEndOfInput);
+
+    // calculate the final position of the cursor
+    int xCursorPos;
+    int yCursorPos;
+    calculateScreenPosition(pi.promptIndentation, 0, cols, pos, xCursorPos, yCursorPos);
+
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO inf;
+#else
+    char seq[64];
+#endif
+    int cursorRowMovement = pi.promptCursorRowOffset - pi.promptExtraLines;
+    if (cursorRowMovement > 0) {
+        // move the cursor up as required
+#ifdef _WIN32
+        GetConsoleScreenBufferInfo(console_out, &inf);
+        inf.dwCursorPosition.Y -= cursorRowMovement;
+        SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+#else
+        snprintf(seq, sizeof seq, "\x1b[%dA", cursorRowMovement);
+        if (write(fd,seq,strlen(seq)) == -1) return;
+#endif
+    }
+    // position at the end of the prompt, clear to end of screen (or previous input)
+#ifdef _WIN32
+    GetConsoleScreenBufferInfo(console_out, &inf);
+    inf.dwCursorPosition.X = pi.promptIndentation;  // 0-based on Win32
+    SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+    if (len < pi.promptPreviousInputLen) {
+        DWORD count;
+        FillConsoleOutputCharacterA(console_out, ' ', pi.promptPreviousInputLen, inf.dwCursorPosition, &count);
+    }
+    pi.promptPreviousInputLen = len;
+#else
+    snprintf(seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1);  // 1-based on VT100
+    if (write(fd,seq,strlen(seq)) == -1) return;
 #endif
 
-static void refreshLine(int fd, PROMPTINFO & pi, char *buf, size_t len, size_t pos, size_t cols) {
+#ifdef _WIN32
+    if (write(1,buf,len) == -1) return;
+#else
+    if (highlight == -1) {
+        if (write(fd,buf,len) == -1) return;
+    } else {
+        if (write(fd,buf,highlight) == -1) return;
+        if (write(fd,"\x1b[1;34m",7) == -1) return; /* bright blue (visible with both B&W bg) */
+        if (write(fd,&buf[highlight],1) == -1) return;
+        if (write(fd,"\x1b[0m",4) == -1) return; /* reset */
+        if (write(fd,buf+highlight+1,len-highlight-1) == -1) return;
+    }
+#endif
+
+    /* Move cursor to final position. */
+    cursorRowMovement = yEndOfInput - yCursorPos;
+    if (cursorRowMovement > 0) {
+        // move the cursor up as required
+#ifdef _WIN32
+        CONSOLE_SCREEN_BUFFER_INFO inf;
+        GetConsoleScreenBufferInfo(console_out, &inf);
+        inf.dwCursorPosition.Y -= cursorRowMovement;
+        SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+#else
+        snprintf(seq, sizeof seq, "\x1b[%dA", cursorRowMovement);
+        if (write(fd,seq,strlen(seq)) == -1) return;
+#endif
+    }
+    // position the cursor within the line
+#ifdef _WIN32
+    GetConsoleScreenBufferInfo(console_out, &inf);
+    inf.dwCursorPosition.X = xCursorPos;  // 0-based on Win32
+    SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+#else
+    snprintf(seq, sizeof seq, "\x1b[%dG", xCursorPos + 1);  // 1-based on VT100
+    if (write(fd,seq,strlen(seq)) == -1) return;
+#endif
+    pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;
+
+
+#else // if 1/0
+
 
     int highlight = -1;
     if (pos < len) {
@@ -424,6 +555,11 @@ static void refreshLine(int fd, PROMPTINFO & pi, char *buf, size_t len, size_t p
         pi.promptCursorRowOffset = pi.promptExtraLines + yLastPosition;
     }
 #endif
+
+
+#endif // if 1/0
+
+
 }
 
 /* Note that this should parse some special keys into their emacs ctrl-key combos
@@ -441,13 +577,13 @@ static char linenoiseReadChar(int fd){
         if (rec.Event.KeyEvent.uChar.AsciiChar == 0) {
             /* handle keys that aren't converted to ASCII */
             switch (rec.Event.KeyEvent.wVirtualKeyCode) {
-                case VK_LEFT:   return __ctrlChar('B');  // EMACS character (B)ack
-                case VK_RIGHT:  return __ctrlChar('F');  // EMACS character (F)orward
-                case VK_UP:     return __ctrlChar('P');  // EMACS (P)revious line
-                case VK_DOWN:   return __ctrlChar('N');  // EMACS (N)ext line
+                case VK_LEFT:   return ctrlChar('B');  // EMACS character (B)ack
+                case VK_RIGHT:  return ctrlChar('F');  // EMACS character (F)orward
+                case VK_UP:     return ctrlChar('P');  // EMACS (P)revious line
+                case VK_DOWN:   return ctrlChar('N');  // EMACS (N)ext line
                 case VK_DELETE: return 127;              // ASCII DEL byte
-                case VK_HOME:   return __ctrlChar('A');  // EMACS beginning-of-line
-                case VK_END:    return __ctrlChar('E');  // EMACS (E)nd-of-line
+                case VK_HOME:   return ctrlChar('A');  // EMACS beginning-of-line
+                case VK_END:    return ctrlChar('E');  // EMACS (E)nd-of-line
                 default: continue;                       // in raw mode, ReadConsoleInput shows shift, ctrl ...
             }                                            //  ... ignore them
         } else {
@@ -556,7 +692,7 @@ static void freeCompletions(linenoiseCompletions *lc) {
         free(lc->cvec);
 }
 
-static int completeLine(int fd, PROMPTINFO & pi, char *buf, size_t buflen, size_t *len, size_t *pos, size_t cols) {
+static int completeLine(int fd, PROMPTINFO & pi, char *buf, int buflen, int *len, int *pos, int cols) {
     linenoiseCompletions lc = { 0, NULL };
     int nwritten;
     char c = 0;
@@ -566,7 +702,7 @@ static int completeLine(int fd, PROMPTINFO & pi, char *buf, size_t buflen, size_
         beep();
     } else {
         size_t stop = 0, i = 0;
-        size_t clen;
+        int clen;
 
         while(!stop) {
             /* Show completion or original buffer */
@@ -612,7 +748,7 @@ static int completeLine(int fd, PROMPTINFO & pi, char *buf, size_t buflen, size_
     return c; /* Return last read character */
 }
 
-static void linenoiseClearScreen(int fd, PROMPTINFO & pi, char *buf, size_t len, size_t pos, size_t cols) {
+static void linenoiseClearScreen(int fd, PROMPTINFO & pi, char *buf, int len, int pos, int cols) {
 
 #ifdef _WIN32
     COORD coord = {0, 0};
@@ -622,22 +758,18 @@ static void linenoiseClearScreen(int fd, PROMPTINFO & pi, char *buf, size_t len,
     DWORD count;
     FillConsoleOutputCharacterA(console_out, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count);
     pi.promptScreenBufferRow = 0;
-    if (write(1, pi.promptText, pi.promptChars) == -1) return;
-    refreshLine(fd, pi, buf, len, pos, cols);
 #else
-    if (write(1,"\x1b[H\x1b[2J",7) <= 0) {
-        /* nothing to do, just to avoid warning. */
-    }
+    if( write(1,"\x1b[H\x1b[2J",7) <= 0 ) return;
+#endif
     if (write(1, pi.promptText, pi.promptChars) == -1) return;
     pi.promptCursorRowOffset = pi.promptExtraLines;
     refreshLine(fd, pi, buf, len, pos, cols);
-#endif
 }
 
-static int linenoisePrompt(int fd, char *buf, size_t buflen, PROMPTINFO & pi) {
-    size_t pos = 0;
-    size_t len = 0;
-    size_t cols = getColumns();
+static int linenoisePrompt(int fd, char *buf, int buflen, PROMPTINFO & pi) {
+    int pos = 0;
+    int len = 0;
+    int cols = getColumns();
     // cols is 0 in certain circumstances like inside debugger, which creates further issues
     cols = cols > 0 ? cols : 80;
 
@@ -655,10 +787,9 @@ static int linenoisePrompt(int fd, char *buf, size_t buflen, PROMPTINFO & pi) {
     CONSOLE_SCREEN_BUFFER_INFO inf;
     GetConsoleScreenBufferInfo(console_out, &inf);
     pi.promptScreenBufferRow = inf.dwCursorPosition.Y - pi.promptExtraLines;
-#else
+#endif
     // the cursor starts out at the end of the prompt
     pi.promptCursorRowOffset = pi.promptExtraLines;
-#endif
     while(1) {
         char c = linenoiseReadChar(fd);
 
@@ -775,11 +906,8 @@ static int linenoisePrompt(int fd, char *buf, size_t buflen, PROMPTINFO & pi) {
                     len++;
                     buf[len] = '\0';
                     if ( (pi.promptIndentation + len) < cols) {
-#ifdef _WIN32
-                        if (len > pi.promptPreviousInputLen) {
+                        if( len > pi.promptPreviousInputLen )
                             pi.promptPreviousInputLen = len;
-                        }
-#endif
                         /* Avoid a full update of the line in the
                          * trivial case. */
                         if (write(1,&c,1) == -1) return -1;
@@ -822,7 +950,7 @@ static int linenoisePrompt(int fd, char *buf, size_t buflen, PROMPTINFO & pi) {
     return len;
 }
 
-static int linenoiseRaw(char *buf, size_t buflen, PROMPTINFO & pi) {
+static int linenoiseRaw(char *buf, int buflen, PROMPTINFO & pi) {
     int fd = STDIN_FILENO;
     int count;
 
@@ -868,11 +996,9 @@ char *linenoise(const char *prompt) {
     pi.promptChars = strlen(pi.promptText);
     pi.promptExtraLines = 0;
     pi.promptLastLinePosition = 0;
-#ifdef _WIN32
     pi.promptPreviousInputLen = 0;
-#endif
-    size_t x = 0;
-    size_t cols = getColumns();
+    int x = 0;
+    int cols = getColumns();
     // cols is 0 in certain circumstances like inside debugger, which creates further issues
     cols = cols > 0 ? cols : 80;
     for (int i = 0; i < pi.promptChars; ++i) {
@@ -893,7 +1019,7 @@ char *linenoise(const char *prompt) {
     pi.promptIndentation = pi.promptChars - pi.promptLastLinePosition;
 
     if (isUnsupportedTerm()) {
-        size_t len;
+        int len;
 
         printf("%s", pi.promptText);
         fflush(stdout);
@@ -925,7 +1051,7 @@ void linenoiseSetCompletionCallback(linenoiseCompletionCallback *fn) {
 }
 
 void linenoiseAddCompletion(linenoiseCompletions *lc, const char *str) {
-    size_t len = strlen(str);
+    int len = strlen(str);
     char *copy = (char*)malloc(len+1);
     memcpy(copy,str,len+1);
     lc->cvec = (char**)realloc(lc->cvec,sizeof(char*)*(lc->len+1));
