@@ -362,6 +362,10 @@ static void refreshLine(int fd, PROMPTINFO & pi, char *buf, int len, int pos, in
         if (write(fd,"\x1b[0m",4) == -1) return; /* reset */
         if (write(fd,buf+highlight+1,len-highlight-1) == -1) return;
     }
+
+    // we have to generate our own newline on line wrap
+    if( xCursorPos == 0 && yCursorPos > 0 )
+        if( write( fd, "\n", 1 ) == -1) return;
 #endif
 
     /* Move cursor to final position. */
