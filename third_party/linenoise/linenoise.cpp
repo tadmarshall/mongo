@@ -364,10 +364,8 @@ static void refreshLine(int fd, PROMPTINFO & pi, char *buf, int len, int pos, in
     }
 
     // we have to generate our own newline on line wrap
-    if( xCursorPos == 0 && yCursorPos > 0 ) {
+    if( xEndOfInput == 0 && yEndOfInput > 0 )
         if( write( fd, "\n", 1 ) == -1) return;
-        pi.promptCursorRowOffset++;
-    }
 #endif
 
     /* Move cursor to final position. */
