@@ -114,14 +114,14 @@
 #include "linenoise.h"
 
     typedef struct tag_PROMPTINFO {
-        char *          promptText;
-        int             promptChars;
-        int             promptExtraLines;
-        int             promptIndentation;
-        int             promptLastLinePosition;
-        int          promptPreviousInputLen;
-        int          promptScreenBufferRow;
-        int          promptCursorRowOffset;
+        char *  promptText;
+        int     promptChars;
+        int     promptExtraLines;
+        int     promptIndentation;
+        int     promptLastLinePosition;
+        int     promptPreviousInputLen;
+        int     promptScreenBufferRow;
+        int     promptCursorRowOffset;
     } PROMPTINFO;
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -364,8 +364,10 @@ static void refreshLine(int fd, PROMPTINFO & pi, char *buf, int len, int pos, in
     }
 
     // we have to generate our own newline on line wrap
-    if( xCursorPos == 0 && yCursorPos > 0 )
+    if( xCursorPos == 0 && yCursorPos > 0 ) {
         if( write( fd, "\n", 1 ) == -1) return;
+        pi.promptCursorRowOffset++;
+    }
 #endif
 
     /* Move cursor to final position. */
