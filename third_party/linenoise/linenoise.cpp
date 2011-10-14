@@ -83,6 +83,8 @@
  */
 
 #include <memory>
+#include <boost/scoped_array.hpp>
+//#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
 
 #ifdef _WIN32
 
@@ -355,8 +357,9 @@ static void refreshLine(int fd, PROMPTINFO & pi, char *buf, int len, int pos, in
     snprintf(seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1);  // 1-based on VT100
     if( write(fd,seq,strlen(seq)) == -1 ) return;
 
-    if( highlight == -1 )
+    if( highlight == -1 ) {
         if( write(fd,buf,len) == -1 ) return;
+    }
     else {
         if( write(fd, buf, highlight) == -1 ) return;
         if( write(fd, "\x1b[1;34m", 7) == -1 ) return; /* bright blue (visible with both B&W bg) */
@@ -819,10 +822,30 @@ char *linenoise(const char *prompt) {
 
     PROMPTINFO pi;
 
+#if 1
+
+#define USE_UNIQUE_PTR 1
+    // promptCopy owns the memory, pi.promptText is just a ptr to it
+    boost::scoped_array<char> promptCopy(new char[strlen(prompt)+1]);
+    strcpy(&promptCopy[0], prompt);
+    pi.promptText = &promptCopy[0];
+
+#else
+
+    // having no luck getting gcc 4.5 to build with std::unique_ptr<>, may require 4.6
+#if defined(_WIN32) && (_MSC_VER >= 1600) // works fine in Visual Studio 2010
+#define USE_UNIQUE_PTR 1
+#endif
+#ifdef USE_UNIQUE_PTR
     // promptCopy owns the memory, pi.promptText is just a ptr to it
     std::unique_ptr<char[]> promptCopy(new char[strlen(prompt)+1]);
     strcpy(&promptCopy[0], prompt);
     pi.promptText = &promptCopy[0];
+#else
+    pi.promptText = strdup(prompt);
+#endif
+
+#endif
 
     // strip evil characters from the prompt -- we do allow newline
     unsigned char * pIn = reinterpret_cast<unsigned char *>(pi.promptText);
@@ -866,6 +889,9 @@ char *linenoise(const char *prompt) {
         int len;
 
         printf("%s", pi.promptText);
+#ifndef USE_UNIQUE_PTR
+        free(pi.promptText);
+#endif
         fflush(stdout);
         if( fgets(buf, LINENOISE_MAX_LINE, stdin) == NULL )
             return NULL;
@@ -878,6 +904,9 @@ char *linenoise(const char *prompt) {
     }
     else {
         count = linenoiseRaw(buf, LINENOISE_MAX_LINE, pi);
+#ifndef USE_UNIQUE_PTR
+        free(pi.promptText);
+#endif
         if( count == -1 )
             return NULL;
         return strdup(buf);
