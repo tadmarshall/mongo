@@ -1,3 +1,5 @@
+third_party/js-1.7/mt.dep
+third_party/js-1.7/BuildLog.htm
 .jsdbshell
 .dbshell
 .sconsign.dblite
@@ -86,7 +88,6 @@ bsondump
 *.zip
 *.tar.gz
 
-mongodb-*
 mongo-cxx-driver-*
 
 #libs
