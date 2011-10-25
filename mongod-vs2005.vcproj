@@ -357,6 +357,22 @@
 			<File
 				RelativePath=".\db\geo\2d.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\util\alignedbuilder.cpp"
@@ -619,6 +635,7 @@
 					<Tool
 						Name="VCCLCompilerTool"
 						UsePrecompiledHeader="0"
+						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
 				<FileConfiguration
@@ -635,6 +652,7 @@
 					<Tool
 						Name="VCCLCompilerTool"
 						UsePrecompiledHeader="0"
+						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
 			</File>
@@ -701,6 +719,22 @@
 			<File
 				RelativePath=".\db\compact.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\util\compress.cpp"
@@ -901,6 +935,22 @@
 			<File
 				RelativePath=".\s\d_split.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\s\d_state.cpp"
@@ -1105,6 +1155,22 @@
 			<File
 				RelativePath=".\db\dbeval.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\db\dbhelpers.cpp"
@@ -1203,6 +1269,7 @@
 					<Tool
 						Name="VCCLCompilerTool"
 						UsePrecompiledHeader="0"
+						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
 				<FileConfiguration
@@ -1219,6 +1286,7 @@
 					<Tool
 						Name="VCCLCompilerTool"
 						UsePrecompiledHeader="0"
+						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
 			</File>
@@ -1465,6 +1533,22 @@
 			<File
 				RelativePath=".\db\commands\find_and_modify.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\s\grid.cpp"
@@ -1489,10 +1573,42 @@
 			<File
 				RelativePath=".\db\commands\group.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\db\geo\haystack.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\db\repl\health.cpp"
@@ -2001,6 +2117,22 @@
 			<File
 				RelativePath=".\db\modules\mms.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\client\model.cpp"
@@ -2033,6 +2165,22 @@
 			<File
 				RelativePath=".\db\commands\mr.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\db\namespace.cpp"
@@ -2089,6 +2237,22 @@
 			<File
 				RelativePath=".\client\parallel.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\pch.cpp"
@@ -2235,6 +2399,22 @@
 			<File
 				RelativePath=".\db\queryoptimizercursor.cpp"
 				>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						DisableSpecificWarnings="4244"
+					/>
+				</FileConfiguration>
 			</File>
 			<File
 				RelativePath=".\db\querypattern.cpp"
@@ -2963,11 +3143,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\db\background.h"
+				RelativePath=".\util\background.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\background.h"
+				RelativePath=".\db\background.h"
 				>
 			</File>
 			<File
@@ -3023,11 +3203,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\util\checksum.h"
+				RelativePath=".\util\mongoutils\checksum.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\mongoutils\checksum.h"
+				RelativePath=".\util\checksum.h"
 				>
 			</File>
 			<File
