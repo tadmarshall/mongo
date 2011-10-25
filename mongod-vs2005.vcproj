@@ -355,6 +355,10 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
+				RelativePath=".\db\geo\2d.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\util\alignedbuilder.cpp"
 				>
 			</File>
@@ -599,6 +603,42 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\commands\cloud.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath=".\db\cmdline.cpp"
 				>
 				<FileConfiguration
@@ -657,6 +697,10 @@
 						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\db\compact.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\util\compress.cpp"
@@ -853,6 +897,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\s\d_split.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\s\d_state.cpp"
@@ -1195,42 +1243,6 @@
 				</FileConfiguration>
 			</File>
 			<File
-				RelativePath=".\client\distlock_test.cpp"
-				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Debug|x64"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|x64"
-					ExcludedFromBuild="true"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-					/>
-				</FileConfiguration>
-			</File>
-			<File
 				RelativePath=".\db\dur.cpp"
 				>
 				<FileConfiguration
@@ -1479,6 +1491,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\db\geo\haystack.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\db\repl\health.cpp"
 				>
 				<FileConfiguration
@@ -1517,6 +1533,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\util\net\httpclient.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\index.cpp"
@@ -1977,6 +1997,14 @@
 						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\db\modules\mms.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\client\model.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\module.cpp"
@@ -2935,6 +2963,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\db\background.h"
+				>
+			</File>
+			<File
 				RelativePath=".\util\background.h"
 				>
 			</File>
@@ -3052,6 +3084,10 @@
 			</File>
 			<File
 				RelativePath=".\client\constants.h"
+				>
+			</File>
+			<File
+				RelativePath=".\db\geo\core.h"
 				>
 			</File>
 			<File
@@ -3228,6 +3264,10 @@
 			</File>
 			<File
 				RelativePath=".\util\mongoutils\html.h"
+				>
+			</File>
+			<File
+				RelativePath=".\util\net\httpclient.h"
 				>
 			</File>
 			<File
