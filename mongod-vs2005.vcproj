@@ -46,14 +46,13 @@
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;C:\boost;&quot;$(ProjectDir)third_party\pcre-7.4&quot;;&quot;$(ProjectDir)third_party\js-1.7&quot;"
 				PreprocessorDefinitions="MONGO_EXPOSE_MACROS;HAVE_CONFIG_H;XP_WIN;_CRT_SECURE_NO_WARNINGS"
-				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="pch.h"
 				WarningLevel="3"
 				SuppressStartupBanner="false"
-				DebugInformationFormat="4"
+				DebugInformationFormat="3"
 				DisableSpecificWarnings="4800"
 			/>
 			<Tool
@@ -68,6 +67,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="psapi.lib ws2_32.lib"
+				LinkIncremental="1"
 				SuppressStartupBanner="false"
 				AdditionalLibraryDirectories="C:\boost\lib\vs2010_32"
 				GenerateDebugInformation="true"
@@ -128,7 +128,6 @@
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(ProjectDir)&quot;;C:\boost;&quot;$(ProjectDir)third_party\pcre-7.4&quot;;&quot;$(ProjectDir)third_party\js-1.7&quot;"
 				PreprocessorDefinitions="MONGO_EXPOSE_MACROS;HAVE_CONFIG_H;XP_WIN;_CRT_SECURE_NO_WARNINGS"
-				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
 				UsePrecompiledHeader="2"
@@ -150,6 +149,7 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="psapi.lib ws2_32.lib"
+				LinkIncremental="1"
 				SuppressStartupBanner="false"
 				AdditionalLibraryDirectories="C:\boost\lib\vs2010_64"
 				GenerateDebugInformation="true"
@@ -213,6 +213,7 @@
 				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="pch.h"
 				WarningLevel="3"
+				SuppressStartupBanner="false"
 				DebugInformationFormat="3"
 				DisableSpecificWarnings="4800"
 			/>
@@ -228,6 +229,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="psapi.lib ws2_32.lib"
+				LinkIncremental="1"
+				SuppressStartupBanner="false"
 				AdditionalLibraryDirectories="C:\boost\lib\vs2010_32"
 				GenerateDebugInformation="true"
 				OptimizeReferences="2"
@@ -293,6 +296,7 @@
 				UsePrecompiledHeader="2"
 				PrecompiledHeaderThrough="pch.h"
 				WarningLevel="3"
+				SuppressStartupBanner="false"
 				DebugInformationFormat="3"
 				DisableSpecificWarnings="4800"
 			/>
@@ -308,6 +312,8 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="psapi.lib ws2_32.lib"
+				LinkIncremental="1"
+				SuppressStartupBanner="false"
 				AdditionalLibraryDirectories="C:\boost\lib\vs2010_64"
 				GenerateDebugInformation="true"
 				OptimizeReferences="2"
@@ -1049,6 +1055,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\dbeval.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\db\dbhelpers.cpp"
 				>
 				<FileConfiguration
@@ -1129,6 +1139,42 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\commands\distinct.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath=".\client\distlock.cpp"
 				>
 				<FileConfiguration
@@ -1145,6 +1191,42 @@
 					<Tool
 						Name="VCCLCompilerTool"
 						DisableSpecificWarnings="4267"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\client\distlock_test.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
 					/>
 				</FileConfiguration>
 			</File>
@@ -1369,6 +1451,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\commands\find_and_modify.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\s\grid.cpp"
 				>
 				<FileConfiguration
@@ -1387,6 +1473,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\db\commands\group.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\repl\health.cpp"
@@ -1913,6 +2003,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\commands\mr.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\db\namespace.cpp"
 				>
 				<FileConfiguration
@@ -1963,6 +2057,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\client\parallel.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\pch.cpp"
@@ -2105,6 +2203,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\db\queryoptimizercursor.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\querypattern.cpp"
@@ -3241,6 +3343,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\db\commands\mr.h"
+				>
+			</File>
+			<File
 				RelativePath=".\util\concurrency\msg.h"
 				>
 			</File>
@@ -3294,6 +3400,10 @@
 			</File>
 			<File
 				RelativePath=".\bson\ordering.h"
+				>
+			</File>
+			<File
+				RelativePath=".\client\parallel.h"
 				>
 			</File>
 			<File
