@@ -479,7 +479,10 @@ namespace mongo {
         snapshotThread.go();
         clientCursorMonitor.go();
         PeriodicTask::theRunner->go();
-
+        
+#ifndef _WIN32
+        CmdLine::launchOk();
+#endif
         listen(listenPort);
 
         // listen() will return when exit code closes its socket.

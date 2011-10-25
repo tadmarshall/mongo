@@ -109,6 +109,11 @@ namespace mongo {
 
         bool keyFile;
 
+#ifndef _WIN32
+        pid_t parentProc;       // --fork pid of initial process
+        pid_t leaderProc;       // --fork pid of leader process
+#endif
+
 #ifdef MONGO_SSL
         bool sslOnNormalPorts;      // --sslOnNormalPorts
         string sslPEMKeyFile;       // --sslPEMKeyFile
@@ -116,6 +121,8 @@ namespace mongo {
 
         SSLManager* sslServerManager; // currently leaks on close
 #endif
+        
+        static void launchOk();
 
         static void addGlobalOptions( boost::program_options::options_description& general ,
                                       boost::program_options::options_description& hidden );
@@ -165,6 +172,7 @@ namespace mongo {
             
     extern CmdLine cmdLine;
 
+    void setupLaunchSignals();
     void setupCoreSignals();
 
     string prettyHostName();
