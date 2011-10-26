@@ -238,15 +238,29 @@ namespace mongo {
 
         Convertor c( cx );
 
-        string ns = c.toString( argv[0] );
+        string ns;
+        BSONObj q;
+        BSONObj f;
+        int nToReturn;
+        int nToSkip;
+        int batchSize;
+        int options;
 
-        BSONObj q = c.toObject( argv[1] );
-        BSONObj f = c.toObject( argv[2] );
+        try {
+            ns = c.toString( argv[0] );
 
-        int nToReturn = (int) c.toNumber( argv[3] );
-        int nToSkip = (int) c.toNumber( argv[4] );
-        int batchSize = (int) c.toNumber( argv[5] );
-        int options = (int)c.toNumber( argv[6] );
+            q = c.toObject( argv[1] );
+            f = c.toObject( argv[2] );
+
+            nToReturn = (int) c.toNumber( argv[3] );
+            nToSkip = (int) c.toNumber( argv[4] );
+            batchSize = (int) c.toNumber( argv[5] );
+            options = (int)c.toNumber( argv[6] );
+        }
+        catch ( ... ) {
+            JS_ReportError( cx , "error doing query: invalid parameter" );
+            return JS_FALSE;
+        }
 
         try {
 
