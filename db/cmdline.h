@@ -25,8 +25,6 @@ namespace mongo {
     class SSLManager;
 #endif
 
-
-
     /* command line options
     */
     /* concurrency: OK/READ */
@@ -181,7 +179,7 @@ namespace mongo {
     void printCommandLineOpts();
 
     /**
-     * used for setParameter
+     * used for setParameter command
      * so you can write validation code that lives with code using it
      * rather than all in the command place
      * also lets you have mongos or mongod specific code
@@ -192,15 +190,13 @@ namespace mongo {
         ParameterValidator( const string& name );
         virtual ~ParameterValidator() {}
 
-        virtual bool isValid( BSONElement e , string& errmsg ) = 0;
+        virtual bool isValid( BSONElement e , string& errmsg ) const = 0;
 
         static ParameterValidator * get( const string& name );
 
     private:
-        string _name;
-
-        // don't need to lock since this is all done in static init
-        static map<string,ParameterValidator*> * _all;
+        const string _name;
     };
 
 }
+
