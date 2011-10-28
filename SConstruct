@@ -135,6 +135,8 @@ add_option( "staticlibpath", "comma separated list of dirs to search for staticl
 add_option( "boost-compiler", "compiler used for boost (gcc41)" , 1 , True , "boostCompiler" )
 add_option( "boost-version", "boost version for linking(1_38)" , 1 , True , "boostVersion" )
 
+add_option( "no-glibc-check" , "don't check for new versions of glibc" , 0 , False )
+
 # experimental features
 add_option( "mm", "use main memory instead of memory mapped files" , 0 , True )
 add_option( "asio" , "Use Asynchronous IO (NOT READY YET)" , 0 , True )
@@ -343,7 +345,7 @@ coreDbFiles = [ "db/commands.cpp" ]
 coreServerFiles = [ "util/net/message_server_port.cpp" , 
                     "client/parallel.cpp" , "db/common.cpp", 
                     "util/net/miniwebserver.cpp" , "db/dbwebserver.cpp" , 
-                    "db/matcher.cpp" , "db/dbcommands_generic.cpp" , "db/dbmessage.cpp" ]
+                    "db/matcher.cpp" , "db/dbcommands_generic.cpp" , "db/commands/cloud.cpp", "db/dbmessage.cpp" ]
 
 mmapFiles = [ "util/mmap.cpp" ]
 
@@ -391,7 +393,7 @@ elif usev8:
 else:
     scriptingFiles += [ "scripting/engine_none.cpp" ]
 
-coreShardFiles = [ "db/commands/cloud.cpp", "s/config.cpp" , "s/grid.cpp" , "s/chunk.cpp" , "s/shard.cpp" , "s/shardkey.cpp" ]
+coreShardFiles = [ "s/config.cpp" , "s/grid.cpp" , "s/chunk.cpp" , "s/shard.cpp" , "s/shardkey.cpp" ]
 shardServerFiles = coreShardFiles + Glob( "s/strategy*.cpp" ) + [ "s/commands_admin.cpp" , "s/commands_public.cpp" , "s/request.cpp" , "s/client.cpp" , "s/cursors.cpp" ,  "s/server.cpp" , "s/config_migrate.cpp" , "s/s_only.cpp" , "s/stats.cpp" , "s/balance.cpp" , "s/balancer_policy.cpp" , "db/cmdline.cpp" , "s/writeback_listener.cpp" , "s/shard_version.cpp", "s/mr_shard.cpp", "s/security.cpp" ]
 serverOnlyFiles += coreShardFiles + [ "s/d_logic.cpp" , "s/d_writeback.cpp" , "s/d_migrate.cpp" , "s/d_state.cpp" , "s/d_split.cpp" , "client/distlock_test.cpp" , "s/d_chunk_manager.cpp" ]
 
@@ -1435,7 +1437,7 @@ def installBinary( e , name ):
     if (solaris or linux) and (not has_option("nostrip")):
         e.AddPostAction( inst, e.Action( 'strip ' + fullInstallName ) )
 
-    if linux and len( COMMAND_LINE_TARGETS ) == 1 and str( COMMAND_LINE_TARGETS[0] ) == "s3dist":
+    if not has_option( "no-glibc-check" ) and linux and len( COMMAND_LINE_TARGETS ) == 1 and str( COMMAND_LINE_TARGETS[0] ) == "s3dist":
         e.AddPostAction( inst , checkGlibc )
 
     if nix:
