@@ -198,12 +198,12 @@ namespace mongo {
 
     BSONObj Chunk::singleSplit( bool force , BSONObj& res ) const {
         vector<BSONObj> splitPoint;
-
+        vector<BSONObj> candidates;
+        
         // if splitting is not obligatory we may return early if there are not enough data
         // we cap the number of objects that would fall in the first half (before the split point)
         // the rationale is we'll find a split point without traversing all the data
         if ( ! force ) {
-            vector<BSONObj> candidates;
             const int maxPoints = 2;
             pickSplitVector( candidates , getManager()->getCurrentDesiredChunkSize() , maxPoints , MaxObjectPerChunk );
             if ( candidates.size() <= 1 ) {
@@ -213,7 +213,7 @@ namespace mongo {
                 LOG(1) << "chunk not full enough to trigger auto-split" << endl;
                 return BSONObj();
             }
-
+            
             splitPoint.push_back( candidates.front() );
 
         }
@@ -237,10 +237,19 @@ namespace mongo {
 
         }
         else if ( maxIsInf() ) {
-            splitPoint.clear();
-            BSONObj key = _getExtremeKey( -1 );
-            if ( ! key.isEmpty() ) {
-                splitPoint.push_back( key );
+
+            if ( candidates.size() > 1 ) {
+                // this is so that we don't end up with a chunnk 
+                // that is larger than the max chunk size
+                splitPoint.clear();
+                splitPoint.push_back( candidates[1] );
+            }
+            else {
+                BSONObj key = _getExtremeKey( -1 );
+                if ( ! key.isEmpty() ) {
+                    splitPoint.clear();
+                    splitPoint.push_back( key );
+                }
             }
         }
 
@@ -365,11 +374,11 @@ namespace mongo {
             }
 
             log() << "autosplitted " << _manager->getns() << " shard: " << toString()
-                  << " on: " << splitPoint << "(splitThreshold " << splitThreshold << ")"
+                  << " on: " << splitPoint << " (splitThreshold " << splitThreshold << ")"
 #ifdef _DEBUG
                   << " size: " << getPhysicalSize() // slow - but can be useful when debugging
 #endif
-                  << endl;
+                  << ( res["shouldMigrate"].eoo() ? "" : " (migrate suggested)" ) << endl;
 
             BSONElement shouldMigrate = res["shouldMigrate"]; // not in mongod < 1.9.1 but that is ok
             if (!shouldMigrate.eoo() && grid.shouldBalance()){

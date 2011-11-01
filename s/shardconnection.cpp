@@ -37,6 +37,10 @@ namespace mongo {
         return false;
     }
 
+    bool defaultForceRemoteCheckShardVersion( const string& ns ){
+        return true;
+    }
+
     bool defaultCheckShardVersion( DBClientBase & conn , const string& ns , bool authoritative , int tryNumber ) {
         // no-op in mongod
         return false;
@@ -48,6 +52,7 @@ namespace mongo {
 
     boost::function1<bool, DBClientBase* > isVersionableCB = defaultIsVersionable;
     boost::function2<bool, DBClientBase&, BSONObj& > initShardVersionCB = defaultInitShardVersion;
+    boost::function1<bool, const string& > forceRemoteCheckShardVersionCB = defaultForceRemoteCheckShardVersion;
     boost::function4<bool, DBClientBase&, const string&, bool, int> checkShardVersionCB = defaultCheckShardVersion;
     boost::function1<void, DBClientBase*> resetShardVersionCB = defaultResetShardVersion;
 
@@ -270,12 +275,9 @@ namespace mongo {
         assert( _conn );
         bool ok = _conn->runCommand( db , cmd , res );
         if ( ! ok ) {
-            if ( res["code"].numberInt() == StaleConfigInContextCode ) {
-                string big = res["errmsg"].String();
-                string ns,raw;
-                massert( 13409 , (string)"can't parse ns from: " + big  , StaleConfigException::parse( big , ns , raw ) );
+            if ( res["code"].numberInt() == SendStaleConfigCode ) {
                 done();
-                throw StaleConfigException( ns , raw );
+                throw RecvStaleConfigException( res["ns"].String() , res["errmsg"].String() );
             }
         }
         return ok;
