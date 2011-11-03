@@ -429,7 +429,12 @@ namespace mongo {
 
         {
             stringstream ss;
-            ss << "dbpath (" << dbpath << ") does not exist";
+            ss << endl;
+            ss << "*********************************************************************" << endl;
+            ss << " ERROR: dbpath (" << dbpath << ") does not exist." << endl;
+            ss << " Create this directory or give existing directory in --dbpath." << endl;
+            ss << " See http://www.mongodb.org/display/DOCS/Starting+and+Stopping+Mongo" << endl;
+            ss << "*********************************************************************" << endl;
             uassert( 10296 ,  ss.str().c_str(), boost::filesystem::exists( dbpath ) );
         }
         {
@@ -939,7 +944,7 @@ int main(int argc, char* argv[]) {
         }
         if (params.count("pairwith") || params.count("arbiter") || params.count("opIdMem")) {
             out() << "****" << endl;
-            out() << "Replica Pairs have been deprecated." << endl;
+            out() << "Replica Pairs have been deprecated. Invalid options: --pairwith, --arbiter, and/or --opIdMem" << endl;
             out() << "<http://www.mongodb.org/display/DOCS/Replica+Pairs>" << endl;
             out() << "****" << endl;
             dbexit( EXIT_BADOPTIONS );
