@@ -1,37 +1,158 @@
 /* 
    How to build and run:
 
-    g++ -o mongoperf -I .. mongoperf.cpp mongo_client_lib.cpp -lboost_thread-mt -lboost_filesystem
+   (out of date) : g++ -o mongoperf -I .. mongoperf.cpp mongo_client_lib.cpp -lboost_thread-mt -lboost_filesystem
 */
 
 #include <iostream>
 #include "../dbclient.h" // the mongo c++ driver
 #include "../../util/mmap.h"
 #include <assert.h>
+#include "../../util/logfile.h"
+#include "../../util/time_support.h"
+#include "../../bson/util/atomic_int.h"
 
 using namespace std;
 using namespace mongo;
 using namespace bson;
 
-MemoryMappedFile m;
+int dummy;
+LogFile *lf = 0;
+MemoryMappedFile *mmfFile;
+char *mmf = 0;
 bo options;
+unsigned long long len; // file len
+const unsigned PG = 4096;
+unsigned nThreadsRunning = 0;
 
-void writer() { 
+// as this is incremented A LOT, at some point this becomes a bottleneck if very high ops/second (in cache) things are happening.
+AtomicUInt iops;
+
+SimpleMutex m("mperf");
+
+char* round(char* x) {
+    size_t f = (size_t) x;
+    char *p = (char *) ((f+PG-1)/PG*PG);
+    return p;
+}
+
+struct Aligned {
+    char x[8192];
+    char* addr() { return round(x); }
+}; 
+
+unsigned long long rrand() { 
+    // RAND_MAX is very small on windows
+    return (static_cast<unsigned long long>(rand()) << 15) ^ rand();
+}
+
+void workerThread() {
+    bool r = options["r"].trueValue();
+    bool w = options["w"].trueValue();
+    long long su = options["sleepMicros"].numberLong();
+    Aligned a;
+    while( 1 ) { 
+        unsigned long long rofs = (rrand() * PG) % len;
+        unsigned long long wofs = (rrand() * PG) % len;
+        if( mmf ) { 
+            if( r ) {
+                dummy += mmf[rofs];
+                iops++;
+            }
+            if( w ) {
+                mmf[wofs] = 3;
+                iops++;
+            }
+        }
+        else {
+            if( r ) {
+                lf->readAt(rofs, a.addr(), PG);
+                iops++;
+            }
+            if( w ) {
+                lf->writeAt(wofs, a.addr(), PG);
+                iops++;
+            }
+        }
+        long long micros = su / nThreadsRunning;
+        if( micros ) {
+            sleepmicros(micros);
+        }
+    }
 }
 
 void go() {
-    cout << "create test file" << endl;
-    unsigned long long len = options["fileSizeMB"].numberLong();
+    assert( options["r"].trueValue() || options["w"].trueValue() );
+    MemoryMappedFile f;
+    cout << "creating test file size:";
+    len = options["fileSizeMB"].numberLong();
     if( len == 0 ) len = 1;
-    void *p = m.create("mongoperf__testfile__tmp", len * 1024 * 1024, true);
-    assert(p);
+    cout << len << "MB ..." << endl;
+
+    if( 0 && len > 2000 && !options["mmf"].trueValue() ) { 
+        // todo make tests use 64 bit offsets in their i/o -- i.e. adjust LogFile::writeAt and such
+        cout << "\nsizes > 2GB not yet supported with mmf:false" << endl; 
+        return;
+    }
+    len *= 1024 * 1024;
+    const char *fname = "./mongoperf__testfile__tmp";
+    try {
+        boost::filesystem::remove(fname);
+    }
+    catch(...) { 
+        cout << "error deleting file " << fname << endl;
+        return;
+    }
+    lf = new LogFile(fname,true);
+    const unsigned sz = 1024 * 1024 * 32; // needs to be big as we are using synchronousAppend.  if we used a regular MongoFile it wouldn't have to be
+    char *buf = (char*) malloc(sz+4096);
+    const char *p = round(buf);
+    for( unsigned long long i = 0; i < len; i += sz ) { 
+        lf->synchronousAppend(p, sz);
+        if( i % (1024ULL*1024*1024) == 0 && i ) {
+            cout << i / (1024ULL*1024*1024) << "GB..." << endl;
+        }
+    }
+    BSONObj& o = options;
+
+    if( o["mmf"].trueValue() ) { 
+        delete lf;
+        lf = 0;
+        mmfFile = new MemoryMappedFile();
+        mmf = (char *) mmfFile->map(fname);
+        assert( mmf );
+    }
 
     cout << "testing..."<< endl;
 
-    BSONObj& o = options;
-    int w = o["w"].Int();
-    for( int i = 0; i < w; i++ ) { 
-        boost::thread w(writer);
+    unsigned wthr = (unsigned) o["nThreads"].Int();
+    if( wthr < 1 ) { 
+        cout << "bad threads field value" << endl;
+        return;
+    }
+    unsigned i = 0;
+    unsigned d = 1;
+    unsigned &nthr = nThreadsRunning;
+    while( 1 ) {
+        if( i++ % 4 == 0 ) {
+            if( nthr < wthr ) {
+                while( nthr < wthr && nthr < d ) {
+                    nthr++;
+                    boost::thread w(workerThread);
+                }
+                cout << "new thread, total running : " << nthr << endl;
+                d *= 2;
+            }
+        }
+        sleepsecs(4);
+        unsigned long long w = iops.get();
+        iops.zero();
+        w /= 4; // 4 secs
+        cout << w << " ops/sec ";
+        if( mmf == 0 ) 
+            // only writing 4 bytes with mmf so we don't say this
+            cout << (w * PG / 1024 / 1024) << " MB/sec";
+        cout << endl;
     }
 }
 
@@ -41,20 +162,35 @@ int main(int argc, char *argv[]) {
         cout << "mongoperf" << endl;
 
         if( argc > 1 ) { 
-            cout << "help\n" 
-                "  usage:\n"
-                "    cat myjsonconfigfile | mongoperf\n"
-                "  where myjsonconfigfile contains a json document which specifies the test to run.\n"
-                "  json config doc fields:\n"
-                "    w:<n> number of write threads\n"
-                "    fileSizeMB:<n> test file size. if the file is small the heads will not move much\n"
-                "                   thus making the test not terribly informative.\n"
-                << endl;
+cout <<
+
+"\n"
+"usage:\n"
+"\n"
+"  mongoperf < myjsonconfigfile\n"
+"\n"
+"  {\n"
+"    nThreads:<n>,     // number of threads (default 1)\n"
+"    fileSizeMB:<n>,   // test file size (default 1MB)\n"
+"    sleepMicros:<n>,  // pause for sleepMicros/nThreads between each operation (default 0)\n"
+"    mmf:<bool>,       // if true do i/o's via memory mapped files (default false)\n"
+"    r:<bool>,         // do reads (default false)\n"
+"    w:<bool>          // do writes (default false)\n"
+"  }\n"
+"\n"
+"mongoperf is a performance testing tool. the initial tests are of disk subsystem performance; \n"
+"  tests of mongos and mongod will be added later.\n"
+"most fields are optional.\n"
+"non-mmf io is direct io (no caching). use a large file size to test making the heads\n"
+"  move significantly and to avoid i/o coalescing\n"
+"mmf io uses caching (the file system cache).\n"
+"\n"
+
+<< endl;
             return 0;
         }
 
         cout << "use -h for help" << endl;
-        cout << "enter json operations object:" << endl;
 
         char input[1024];
         memset(input, 0, sizeof(input));
@@ -66,7 +202,14 @@ int main(int argc, char *argv[]) {
 
         string s = input;
         str::stripTrailing(s, "\n\r\0x1a");
-        options = fromjson(s);
+        try { 
+            options = fromjson(s);
+        }
+        catch(...) { 
+            cout << s << endl;
+            cout << "couldn't parse json options" << endl;
+            return -1;
+        }
         cout << "options:\n" << options.toString() << endl;
 
         go();

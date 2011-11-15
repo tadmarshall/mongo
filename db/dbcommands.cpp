@@ -66,8 +66,6 @@ namespace mongo {
         return false;
     }
 
-    void flushDiagLog();
-
     /* reset any errors so that getlasterror comes back clean.
 
        useful before performing a long series of operations where we want to
@@ -665,9 +663,9 @@ namespace mongo {
         virtual LockType locktype() const { return WRITE; }
         bool run(const string& dbname , BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool) {
             int was = _diaglog.setLevel( cmdObj.firstElement().numberInt() );
-            flushDiagLog();
+            _diaglog.flush();
             if ( !cmdLine.quiet )
-                tlog() << "CMD: diagLogging set to " << _diaglog.level << " from: " << was << endl;
+                tlog() << "CMD: diagLogging set to " << _diaglog.getLevel() << " from: " << was << endl;
             result.append( "was" , was );
             return true;
         }
@@ -1360,7 +1358,7 @@ namespace mongo {
 
             return true;
         }
-    } cmdCollectionStatis;
+    } cmdCollectionStats;
 
     class DBStats : public Command {
     public:
@@ -1853,18 +1851,20 @@ namespace mongo {
         bool retval = false;
         if ( c->locktype() == Command::NONE ) {
             // we also trust that this won't crash
+            retval = true;
 
             if ( c->requiresAuth() ) {
                 // test that the user at least as read permissions
                 if ( ! client.getAuthenticationInfo()->isAuthorizedReads( dbname ) ) {
                     result.append( "errmsg" , "need to login" );
-                    return false;
+                    retval = false;
                 }
             }
 
-            client.curop()->ensureStarted();
-
-            retval = _execCommand(c, dbname , cmdObj , queryOptions, result , fromRepl );
+            if (retval) {
+                client.curop()->ensureStarted();
+                retval = _execCommand(c, dbname , cmdObj , queryOptions, result , fromRepl );
+            }
         }
         else {
             bool needWriteLock = c->locktype() == Command::WRITE;

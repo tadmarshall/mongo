@@ -44,8 +44,8 @@
 
 namespace mongo {
 
-    inline void opread(Message& m) { if( _diaglog.level & 2 ) _diaglog.readop((char *) m.singleData(), m.header()->len); }
-    inline void opwrite(Message& m) { if( _diaglog.level & 1 ) _diaglog.write((char *) m.singleData(), m.header()->len); }
+    inline void opread(Message& m) { if( _diaglog.getLevel() & 2 ) _diaglog.readop((char *) m.singleData(), m.header()->len); }
+    inline void opwrite(Message& m) { if( _diaglog.getLevel() & 1 ) _diaglog.write((char *) m.singleData(), m.header()->len); }
 
     void receivedKillCursors(Message& m);
     void receivedUpdate(Message& m, CurOp& op);
@@ -63,13 +63,6 @@ namespace mongo {
     bool useCursors = true;
     bool useHints = true;
 
-    void flushDiagLog() {
-        if( _diaglog.f && _diaglog.f->is_open() ) {
-            log() << "flushing diag log" << endl;
-            _diaglog.flush();
-        }
-    }
-
     KillCurrentOp killCurrentOp;
 
     int lockFile = 0;
@@ -84,7 +77,6 @@ namespace mongo {
         BSONObjBuilder b;
 
         if( ! cc().isAdmin() ) {
-            BSONObjBuilder b;
             b.append("err", "unauthorized");
         }
         else {
@@ -95,6 +87,7 @@ namespace mongo {
             {
                 Client& me = cc();
                 scoped_lock bl(Client::clientsMutex);
+                auto_ptr<Matcher> m(new Matcher(q.query));
                 for( set<Client*>::iterator i = Client::clients.begin(); i != Client::clients.end(); i++ ) {
                     Client *c = *i;
                     assert( c );
@@ -103,8 +96,12 @@ namespace mongo {
                         continue;
                     }
                     assert( co );
-                    if( all || co->active() )
-                        vals.push_back( co->infoNoauth() );
+                    if( all || co->active() ) {
+                        BSONObj info = co->infoNoauth();
+                        if ( all || m->matches( info )) {
+                            vals.push_back( info );
+                        }
+                    }
                 }
             }
             b.append("inprog", vals);
@@ -808,7 +805,7 @@ namespace mongo {
         ListeningSockets::get()->closeAll();
 
         log() << "shutdown: going to flush diaglog..." << endl;
-        flushDiagLog();
+        _diaglog.flush();
 
         /* must do this before unmapping mem or you may get a seg fault */
         log() << "shutdown: going to close sockets..." << endl;

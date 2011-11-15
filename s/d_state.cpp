@@ -318,6 +318,7 @@ namespace mongo {
         if (!done) {
             LOG(1) << "adding sharding hook" << endl;
             pool.addHook(new ShardingConnectionHook(false));
+            shardConnectionPool.addHook(new ShardingConnectionHook(true));
             done = true;
         }
     }
@@ -517,8 +518,19 @@ namespace mongo {
                 if ( version == globalVersion ) {
                     // mongos and mongod agree!
                     if ( oldVersion != version ) {
-                        assert( oldVersion < globalVersion );
-                        info->setVersion( ns , version );
+                        if ( oldVersion < globalVersion ) {
+                            info->setVersion( ns , version );
+                        }
+                        else if ( authoritative ) {
+                            // this means there was a drop and our version is reset
+                            info->setVersion( ns , version );
+                        }
+                        else {
+                            result.append( "ns" , ns );
+                            result.appendBool( "need_authoritative" , true );
+                            errmsg = "verifying drop on '" + ns + "'";
+                            return false;
+                        }
                     }
                     return true;
                 }
