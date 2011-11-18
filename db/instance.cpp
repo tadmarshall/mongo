@@ -41,6 +41,7 @@
 #include "ops/update.h"
 #include "ops/delete.h"
 #include "ops/query.h"
+#include "d_concurrency.h"
 
 namespace mongo {
 
@@ -473,7 +474,8 @@ namespace mongo {
 
         writelock lk;
 
-        // writelock is used to synchronize stepdowns w/ writes
+        // void ReplSetImpl::relinquish() uses big write lock so 
+        // this is thus synchronized given our lock above.
         uassert( 10054 ,  "not master", isMasterNs( ns ) );
         
         // if this ever moves to outside of lock, need to adjust check Client::Context::_finishInit
@@ -666,7 +668,9 @@ namespace mongo {
         }
 
         writelock lk(ns);
+        //LockCollectionExclusively lk(ns);
 
+        // CONCURRENCY TODO: is being read locked in big log sufficient here?
         // writelock is used to synchronize stepdowns w/ writes
         uassert( 10058 , "not master", isMasterNs(ns) );
 
@@ -1032,7 +1036,7 @@ namespace mongo {
         // Not related to lock file, but this is where we handle unclean shutdown
         if( !cmdLine.dur && dur::haveJournalFiles() ) {
             cout << "**************" << endl;
-            cout << "Error: journal files are present in journal directory, yet starting without --journal enabled." << endl;
+            cout << "Error: journal files are present in journal directory, yet starting without journaling enabled." << endl;
             cout << "It is recommended that you start with journaling enabled so that recovery may occur." << endl;
             cout << "**************" << endl;
             uasserted(13597, "can't start without --journal enabled when journal/ files are present");
