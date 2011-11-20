@@ -11,6 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Other files", "Other files"
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
 		APACHE-2.0.txt = APACHE-2.0.txt
+		shell\msvc\createCPPfromJavaScriptFiles.js = shell\msvc\createCPPfromJavaScriptFiles.js
 		doxygenConfig = doxygenConfig
 		gch.py = gch.py
 		GNU-AGPL-3.0.txt = GNU-AGPL-3.0.txt

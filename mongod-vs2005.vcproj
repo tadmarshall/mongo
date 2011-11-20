@@ -26,8 +26,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				Description="Build jsautokw.h for SpiderMonkey"
-				CommandLine="&quot;$(SolutionDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(SolutionDir)third_party\js-1.7\jsautokw.h&quot;"
+				Description="Build jsautokw.h for SpiderMonkey, create mongo.cpp and mongo-server.cpp from JavaScript source files"
+				CommandLine="&quot;$(ProjectDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(ProjectDir)third_party\js-1.7\jsautokw.h&quot;&#x0D;&#x0A;cscript //Nologo &quot;$(ProjectDir)\shell\msvc\createCPPfromJavaScriptFiles.js&quot; &quot;$(ProjectDir)&quot;&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -107,8 +107,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				Description="Build jsautokw.h for SpiderMonkey"
-				CommandLine="&quot;$(SolutionDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(SolutionDir)third_party\js-1.7\jsautokw.h&quot;"
+				Description="Build jsautokw.h for SpiderMonkey, create mongo.cpp and mongo-server.cpp from JavaScript source files"
+				CommandLine="&quot;$(ProjectDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(ProjectDir)third_party\js-1.7\jsautokw.h&quot;&#x0D;&#x0A;cscript //Nologo &quot;$(ProjectDir)\shell\msvc\createCPPfromJavaScriptFiles.js&quot; &quot;$(ProjectDir)&quot;&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -190,8 +190,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				Description="Build jsautokw.h for SpiderMonkey"
-				CommandLine="&quot;$(SolutionDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(SolutionDir)third_party\js-1.7\jsautokw.h&quot;"
+				Description="Build jsautokw.h for SpiderMonkey, create mongo.cpp and mongo-server.cpp from JavaScript source files"
+				CommandLine="&quot;$(ProjectDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(ProjectDir)third_party\js-1.7\jsautokw.h&quot;&#x0D;&#x0A;cscript //Nologo &quot;$(ProjectDir)\shell\msvc\createCPPfromJavaScriptFiles.js&quot; &quot;$(ProjectDir)&quot;&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -272,8 +272,8 @@
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
-				Description="Build jsautokw.h for SpiderMonkey"
-				CommandLine="&quot;$(SolutionDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(SolutionDir)third_party\js-1.7\jsautokw.h&quot;"
+				Description="Build jsautokw.h for SpiderMonkey, create mongo.cpp and mongo-server.cpp from JavaScript source files"
+				CommandLine="&quot;$(ProjectDir)third_party\js-1.7\jskwgen.exe&quot; &quot;$(ProjectDir)third_party\js-1.7\jsautokw.h&quot;&#x0D;&#x0A;cscript //Nologo &quot;$(ProjectDir)\shell\msvc\createCPPfromJavaScriptFiles.js&quot; &quot;$(ProjectDir)&quot;&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
@@ -3143,11 +3143,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\db\background.h"
+				RelativePath=".\util\background.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\background.h"
+				RelativePath=".\db\background.h"
 				>
 			</File>
 			<File
@@ -3203,11 +3203,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\util\checksum.h"
+				RelativePath=".\util\mongoutils\checksum.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\mongoutils\checksum.h"
+				RelativePath=".\util\checksum.h"
 				>
 			</File>
 			<File
@@ -6121,7 +6121,7 @@
 			Name="Generated from JavaScript source"
 			>
 			<File
-				RelativePath=".\shell\mongo_vstudio.cpp"
+				RelativePath=".\shell\mongo.cpp"
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
