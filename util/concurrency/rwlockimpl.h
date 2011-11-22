@@ -9,11 +9,12 @@
 namespace mongo { 
     class RWLockBase : boost::noncopyable {
         SRWLOCK _lock;
-    protected:
+    public: // Tad did this to create a one-off build for Vishy
         RWLockBase() { InitializeSRWLock(&_lock); }
         ~RWLockBase() {
             // no special action needed to destroy a SRWLOCK
         }
+    protected:
         void lock()          { AcquireSRWLockExclusive(&_lock); }
         void unlock()        { ReleaseSRWLockExclusive(&_lock); }
         void lock_shared()   { AcquireSRWLockShared(&_lock); }
