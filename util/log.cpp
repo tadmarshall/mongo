@@ -25,6 +25,7 @@ using namespace std;
 
 #ifdef _WIN32
 # include <io.h>
+# include <fcntl.h>
 #else
 # include <cxxabi.h>
 # include <sys/file.h>
@@ -85,27 +86,33 @@ namespace mongo {
             }
 
             if ( _file ) {
-#ifdef _WIN32
-                cout << "log rotation net yet supported on windows" << endl;
-                return;
-#else
 
 #ifdef POSIX_FADV_DONTNEED
                 posix_fadvise(fileno(_file), 0, 0, POSIX_FADV_DONTNEED);
 #endif
 
-                struct tm t;
-                localtime_r( &_opened , &t );
-
                 stringstream ss;
                 ss << _path << "." << terseCurrentTime(false);
                 string s = ss.str();
                 rename( _path.c_str() , s.c_str() );
-#endif
             }
 
-
+#if _WIN32
+            HANDLE h = CreateFileA(
+                    _path.c_str(),
+                    GENERIC_READ | GENERIC_WRITE,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                    NULL,
+                    OPEN_ALWAYS,
+                    FILE_ATTRIBUTE_NORMAL,
+                    NULL
+            );
+            int fd = _open_osfhandle((long int)h, _O_CREAT | _O_RDWR | _O_TEMPORARY);
+            FILE* tmp;
+            tmp = freopen(_path.c_str(), (_append ? "a" : "w"), stdout);
+#else
             FILE* tmp = freopen(_path.c_str(), (_append ? "a" : "w"), stdout);
+#endif
             if (!tmp) {
                 cerr << "can't open: " << _path.c_str() << " for log file" << endl;
                 dbexit( EXIT_BADOPTIONS );
@@ -128,17 +135,13 @@ namespace mongo {
 #endif
 
             _file = tmp;
-            _opened = time(0);
         }
 
     private:
-
         bool _enabled;
         string _path;
         bool _append;
-
         FILE * _file;
-        time_t _opened;
 
     } loggingManager;
 
