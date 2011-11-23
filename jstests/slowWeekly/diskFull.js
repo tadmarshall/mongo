@@ -1,6 +1,6 @@
 x = 1
 
-t = db.foo;
+t = db.diskFullUpdates;
 t.drop();
 
 assert.eq( 0 , t.count() );
@@ -14,6 +14,7 @@ while ( true ) {
     t.insert( { _id : N++ , x : [] , s : s } );
     err = db.getLastError();
     if ( err ) {
+        assert.eq("Can't take a write lock while out of disk space", err);
         print( err );
         break;
     }
