@@ -53,6 +53,7 @@ settings.py
 buildinfo.cpp
 tags
 TAGS
+failfile.smoke
 
 #temp dirs
 dump
