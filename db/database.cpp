@@ -232,7 +232,8 @@ namespace mongo {
             while ( n >= (int) _files.size() ) {
                 DEV if( !dbMutex.isWriteLocked() ) { 
                     log() << "error: getFile() called in a read lock, yet file to return is not yet open" << endl;
-                    log() << "       getFile(" << n << ") " <<_files.size() << ' ' << fileName(n).string() << endl; 
+                    log() << "       getFile(" << n << ") _files.size:" <<_files.size() << ' ' << fileName(n).string() << endl;
+                    log() << "       context ns: " << cc().ns() << " openallfiles:" << _openAllFiles << endl;
                 }
                 assertDbWriteLocked(this);
                 _files.push_back(0);
@@ -411,9 +412,7 @@ namespace mongo {
         if( logLevel >= 1 || m.size() > 40 || cant || DEBUG_BUILD ) {
             log() << "opening db: " << (path==dbpath?"":path) << ' ' << dbname << endl;
         }
-        if( cant ) { 
-            uasserted(15927, "can't open database in a read lock. consider retrying the query");
-        }
+        massert(15927, "can't open database in a read lock. if db was just closed, consider retrying the query. might otherwise indicate an internal error", !cant);
         
         Database *db = new Database( dbname.c_str() , justCreated , path );
         m[dbname] = db;
