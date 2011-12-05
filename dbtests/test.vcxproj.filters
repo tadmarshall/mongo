@@ -329,6 +329,7 @@
     <ClInclude Include="..\db\databaseholder.h">
       <Filter>db\h</Filter>
     </ClInclude>
+    <ClInclude Include="framework.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="..\..\js\js64r.lib">
@@ -899,6 +900,12 @@
     </ClCompile>
     <ClCompile Include="..\db\d_concurrency.cpp">
       <Filter>db\cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="d_chunk_manager_tests.cpp">
+      <Filter>shard</Filter>
+    </ClCompile>
+    <ClCompile Include="queryoptimizercursortests.cpp">
+      <Filter>dbtests</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -196,8 +196,7 @@ namespace mongo {
     {
         assert( db == 0 || db->isOk() );
         _client->_context = this;
-        if ( doauth )
-            _auth();
+        checkNsAccess( doauth );
         _client->checkLocks();
     }
 
@@ -219,7 +218,7 @@ namespace mongo {
     Client::ReadContext::ReadContext(const string& ns, string path, bool doauth ) {
         {
             lk.reset( new readlock() );
-            Database *db = dbHolder.get(ns, path);
+            Database *db = dbHolder().get(ns, path);
             if( db ) {
                 c.reset( new Context(path, ns, db, doauth) );
                 return;
@@ -285,68 +284,23 @@ namespace mongo {
         checkNotStale();
         _client->_context = this;
         _client->_curOp->enter( this );
-        if ( doauth )
-            _auth( dbMutex.getState() );
-        _client->checkLocks();        
+        checkNsAccess( doauth, dbMutex.getState() );
+        _client->checkLocks();
     }
        
     void Client::Context::_finishInit( bool doauth ) {
         int lockState = dbMutex.getState();
-        assert( lockState );
-        
+        assert( lockState );        
         if ( lockState > 0 && FileAllocator::get()->hasFailed() ) {
             uassert(14031, "Can't take a write lock while out of disk space", false);
         }
-
-        _db = dbHolder.getOrCreate( _ns , _path , _justCreated );        
+        
+        _db = dbHolderUnchecked().getOrCreate( _ns , _path , _justCreated );
         assert(_db);
-        /*
-        _db = dbHolder.get( _ns , _path );
-        if ( _db ) {
-            _justCreated = false;
-        }
-        else if ( lockState > 0 ) {
-            // already in a write lock
-            _db = dbHolder.getOrCreate( _ns , _path , _justCreated );
-            assert( _db );
-        }
-        else if ( lockState < -1 ) {
-            // nested read lock :(
-            assert( _lock );
-            _lock->releaseAndWriteLock();
-            _db = dbHolder.getOrCreate( _ns , _path , _justCreated );
-            assert( _db );
-        }
-        else {
-            // we have a read lock, but need to get a write lock for a bit
-            // we need to be in a write lock since we're going to create the DB object
-            // to do that, we're going to unlock, then get a write lock
-            // this is so that if this is the first query and its long doesn't block db
-            // we just have to check that the db wasn't closed in the interim where we unlock
-            for ( int x=0; x<2; x++ ) {
-                {
-                    dbtemprelease unlock;
-                    writelock lk( _ns );
-                    dbHolder.getOrCreate( _ns , _path , _justCreated );
-                }
-
-                _db = dbHolder.get( _ns , _path );
-
-                if ( _db )
-                    break;
-
-                log() << "db was closed on us right after we opened it: " << _ns << endl;
-            }
-
-            uassert( 13005 , "can't create db, keeps getting closed" , _db );
-        }
-        */
-
         checkNotStale();
         _client->_context = this;
         _client->_curOp->enter( this );
-        if ( doauth )
-            _auth( lockState );
+        checkNsAccess( doauth, lockState );
     }
 
     void Client::Context::_auth( int lockState ) {
@@ -360,7 +314,7 @@ namespace mongo {
         ss << "unauthorized db:" << _db->name << " lock type:" << lockState << " client:" << _client->clientAddress();
         uasserted( 10057 , ss.str() );
     }
-
+    
     Client::Context::~Context() {
         DEV assert( _client == currentClient.get() );
         _client->_curOp->leave( this );
@@ -379,6 +333,13 @@ namespace mongo {
             return false;
 
         return  _ns[db.size()] == '.';
+    }
+    
+    void Client::Context::checkNsAccess( bool doauth, int lockState ) {
+        uassert( 15929, "client access to index backing namespace prohibited", NamespaceString::normal( _ns.c_str() ) );
+        if ( doauth ) {
+            _auth( lockState );
+        }
     }
 
     void Client::appendLastOp( BSONObjBuilder& b ) const {
