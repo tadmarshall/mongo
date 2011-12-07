@@ -735,12 +735,93 @@ static int completeLine( int fd, PromptInfo& pi, char *buf, int buflen, int *len
 static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
 
 #ifdef _WIN32
+#define JUST_ERASE_ENTIRE_SCREEN_BUFFER
+#ifdef JUST_ERASE_ENTIRE_SCREEN_BUFFER
     COORD coord = {0, 0};
     CONSOLE_SCREEN_BUFFER_INFO inf;
     GetConsoleScreenBufferInfo( console_out, &inf );
     SetConsoleCursorPosition( console_out, coord );
     DWORD count;
     FillConsoleOutputCharacterA( console_out, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count );
+#else // JUST_ERASE_ENTIRE_SCREEN_BUFFER
+#if 1
+    // game plan -- if possible, we would like to simply move the console's window
+    // into the screen buffer, which has the desired visual effect and preserves
+    // all scrollback memory.  we can't do that if the window size is equal to the
+    // screen buffer size, and we need to be careful when scrolling to never let
+    // the existing console window become invalid
+    CONSOLE_SCREEN_BUFFER_INFO inf;
+    GetConsoleScreenBufferInfo(console_out, &inf);
+    int windowHeight = inf.srWindow.Bottom - inf.srWindow.Top;
+    if (windowHeight == inf.dwSize.Y - 1) {
+        // we can't scroll, so just clear the window, move the cursor and redraw
+        COORD coord = {0, 0};
+        SetConsoleCursorPosition(console_out, coord);
+        DWORD count;
+        FillConsoleOutputCharacterA(console_out, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count);
+        pi.promptScreenBufferRow = 0;
+        if (write(1, pi.promptText, pi.promptChars) == -1) return;
+        refreshLine(fd, pi, buf, len, pos, cols);
+    } else {
+        // scroll the screen buffer and/or the console window to position the prompt
+        // at the top of the window
+        int linesPromptToEnd = inf.dwSize.Y - pi.promptScreenBufferRow;
+        int scrollLines = 1 + windowHeight - linesPromptToEnd;
+        if (scrollLines > 0) {
+            // there aren't enough rows in the screen buffer to just slide the window,
+            // so scroll the screen buffer first to create new empty space at the end.
+            // we can't scroll the screen buffer in such a way that the window into the
+            // buffer becomes invalid, which can happen if scrollLines > windowHeight
+            SMALL_RECT sr = { 0, scrollLines, inf.dwSize.X - 1, inf.dwSize.Y - 1 };
+            COORD coord = { 0 };
+            CHAR_INFO charInfo;
+            charInfo.Char.AsciiChar = ' ';
+            charInfo.Attributes = inf.wAttributes;
+            //int scrollsLeftToDo = scrollLines;
+            //while (scrollsLeftToDo > 0) {
+            //    int thisScroll = (scrollsLeftToDo < windowHeight) ? scrollsLeftToDo : windowHeight;
+            //}
+            ScrollConsoleScreenBufferA(console_out, &sr, NULL, coord, &charInfo);
+            pi.promptScreenBufferRow -= scrollLines;
+            inf.dwCursorPosition.Y -= scrollLines;
+            SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+        }
+        if ( (int)pi.promptScreenBufferRow > inf.srWindow.Top ) {
+            // scroll the window to position the prompt at the top
+            inf.srWindow.Top = pi.promptScreenBufferRow;
+            inf.srWindow.Bottom = inf.srWindow.Top + windowHeight;
+            SetConsoleWindowInfo(console_out, TRUE, &inf.srWindow);
+        }
+    }
+#else // 0/1
+    // scroll the screen buffer and/or the console window to position the prompt
+    // at the top of the window
+    CONSOLE_SCREEN_BUFFER_INFO inf;
+    GetConsoleScreenBufferInfo(console_out, &inf);
+    int windowHeight = inf.srWindow.Bottom - inf.srWindow.Top;
+    int linesPromptToEnd = inf.dwSize.Y - pi.promptScreenBufferRow;
+    int scrollLines = 1 + windowHeight - linesPromptToEnd;
+    if (scrollLines > 0) {
+        // there aren't enough rows in the screen buffer to just slide the window,
+        // so scroll the screen buffer first to create new empty space at the end
+        SMALL_RECT sr = { 0, scrollLines, inf.dwSize.X - 1, inf.dwSize.Y - 1 };
+        COORD coord = { 0 };
+        CHAR_INFO charInfo;
+        charInfo.Char.AsciiChar = ' ';
+        charInfo.Attributes = inf.wAttributes;
+        ScrollConsoleScreenBufferA(console_out, &sr, NULL, coord, &charInfo);
+        pi.promptScreenBufferRow -= scrollLines;
+        inf.dwCursorPosition.Y -= scrollLines;
+        SetConsoleCursorPosition(console_out, inf.dwCursorPosition);
+    }
+    if ( (int)pi.promptScreenBufferRow > inf.srWindow.Top ) {
+        // scroll the window to position the prompt at the top
+        inf.srWindow.Top = pi.promptScreenBufferRow;
+        inf.srWindow.Bottom = inf.srWindow.Top + windowHeight;
+        SetConsoleWindowInfo(console_out, TRUE, &inf.srWindow);
+    }
+#endif // if 0/1
+#endif // JUST_ERASE_ENTIRE_SCREEN_BUFFER
 #else
     if ( write( fd, "\x1b[H\x1b[2J", 7 ) <= 0 ) return;
 #endif
