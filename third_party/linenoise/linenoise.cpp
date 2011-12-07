@@ -509,7 +509,7 @@ static char linenoiseReadChar( int fd ){
     if ( nread <= 0 )
         return 0;
 
-#if defined(_DEBUG)
+//#if defined(_DEBUG)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
         printf( "\x1b[1G\n" ); /* go to first column of new line */
         while ( true ) {
@@ -519,9 +519,56 @@ static char linenoiseReadChar( int fd ){
             if ( ret <= 0 ) {
                 printf( "\nret: %d\n", ret );
             }
+            if ( ret <= 0 ) {
+                int key = xxx;
+                char * friendlyTextPtr;
+                char friendlyTextBuf[10];
+                char * prefixText = (key < 0x80) ? "" : "highbit-";
+                int keyCopy = (key < 0x80) ? key : key - 0x80;
+                if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
+                    friendlyTextBuf[0] = keyCopy;
+                    friendlyTextBuf[1] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                } else if ( keyCopy == ' ' ) {
+                    friendlyTextPtr = "space";
+                } else if (keyCopy == 0 ) {
+                    friendlyTextPtr = "NUL";
+                } else if (keyCopy == 127 ) {
+                    friendlyTextPtr = "DEL";
+                } else {
+                    keyCopy -= 0x40;
+                    friendlyTextBuf[0] = '^';
+                    friendlyTextBuf[1] = key;
+                    friendlyTextBuf[2] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                }
+                printf( "\nret: %d\n (%s'%s')", ret, prefixText, friendlyTextPtr );
+            }
 
             for ( int i = 0; i < ret; ++i ) {
-                printf( "%d ", static_cast<int>( keys[i] ) );
+                int key = static_cast<int>( keys[i] );
+                char * friendlyTextPtr;
+                char friendlyTextBuf[10];
+                char * prefixText = (key < 0x80) ? "" : "highbit-";
+                int keyCopy = (key < 0x80) ? key : key - 0x80;
+                if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
+                    friendlyTextBuf[0] = keyCopy;
+                    friendlyTextBuf[1] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                } else if ( keyCopy == ' ' ) {
+                    friendlyTextPtr = "space";
+                } else if (keyCopy == 0 ) {
+                    friendlyTextPtr = "NUL";
+                } else if (keyCopy == 127 ) {
+                    friendlyTextPtr = "DEL";
+                } else {
+                    keyCopy -= 0x40;
+                    friendlyTextBuf[0] = '^';
+                    friendlyTextBuf[1] = keyCopy;
+                    friendlyTextBuf[2] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                }
+                printf( "%d (%s'%s') ", key, prefixText, friendlyTextPtr );
             }
             printf( "\x1b[1G\n" ); /* go to first column of new line */
 
@@ -529,7 +576,7 @@ static char linenoiseReadChar( int fd ){
                 return -1;
         }
     }
-#endif
+//#endif
 
     // This is rather sloppy escape sequence processing, since we're not paying attention to what the
     // actual TERM is set to and are processing all key sequences for all terminals, but it works with
