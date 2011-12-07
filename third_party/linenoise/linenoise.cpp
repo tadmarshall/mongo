@@ -509,66 +509,44 @@ static char linenoiseReadChar( int fd ){
     if ( nread <= 0 )
         return 0;
 
-//#if defined(_DEBUG)
+#define _DEBUG_LINUX_KEYBOARD
+#if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
         printf( "\x1b[1G\n" ); /* go to first column of new line */
         while ( true ) {
-            char keys[10];
+            unsigned char keys[10];
             int ret = read( fd, keys, 10 );
 
             if ( ret <= 0 ) {
                 printf( "\nret: %d\n", ret );
             }
-            if ( ret <= 0 ) {
-                int key = xxx;
-                char * friendlyTextPtr;
-                char friendlyTextBuf[10];
-                char * prefixText = (key < 0x80) ? "" : "highbit-";
-                int keyCopy = (key < 0x80) ? key : key - 0x80;
-                if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
-                    friendlyTextBuf[0] = keyCopy;
-                    friendlyTextBuf[1] = 0;
-                    friendlyTextPtr = friendlyTextBuf;
-                } else if ( keyCopy == ' ' ) {
-                    friendlyTextPtr = "space";
-                } else if (keyCopy == 0 ) {
-                    friendlyTextPtr = "NUL";
-                } else if (keyCopy == 127 ) {
-                    friendlyTextPtr = "DEL";
-                } else {
-                    keyCopy -= 0x40;
-                    friendlyTextBuf[0] = '^';
-                    friendlyTextBuf[1] = key;
-                    friendlyTextBuf[2] = 0;
-                    friendlyTextPtr = friendlyTextBuf;
-                }
-                printf( "\nret: %d\n (%s'%s')", ret, prefixText, friendlyTextPtr );
-            }
-
             for ( int i = 0; i < ret; ++i ) {
-                int key = static_cast<int>( keys[i] );
+                unsigned int key = static_cast<unsigned int>( keys[i] );
                 char * friendlyTextPtr;
                 char friendlyTextBuf[10];
-                char * prefixText = (key < 0x80) ? "" : "highbit-";
-                int keyCopy = (key < 0x80) ? key : key - 0x80;
+                const char * prefixText = (key < 0x80) ? "" : "highbit-";
+                unsigned int keyCopy = (key < 0x80) ? key : key - 0x80;
                 if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
-                    friendlyTextBuf[0] = keyCopy;
-                    friendlyTextBuf[1] = 0;
+                    friendlyTextBuf[0] = '\'';
+                    friendlyTextBuf[1] = keyCopy;
+                    friendlyTextBuf[2] = '\'';
+                    friendlyTextBuf[3] = 0;
                     friendlyTextPtr = friendlyTextBuf;
                 } else if ( keyCopy == ' ' ) {
-                    friendlyTextPtr = "space";
+		  friendlyTextPtr = (char *)"space";
+                } else if (keyCopy == 27 ) {
+		  friendlyTextPtr = (char *)"ESC";
                 } else if (keyCopy == 0 ) {
-                    friendlyTextPtr = "NUL";
+		  friendlyTextPtr = (char *)"NUL";
                 } else if (keyCopy == 127 ) {
-                    friendlyTextPtr = "DEL";
+		  friendlyTextPtr = (char *)"DEL";
                 } else {
-                    keyCopy -= 0x40;
                     friendlyTextBuf[0] = '^';
-                    friendlyTextBuf[1] = keyCopy;
+                    friendlyTextBuf[1] = keyCopy + 0x40;
                     friendlyTextBuf[2] = 0;
                     friendlyTextPtr = friendlyTextBuf;
                 }
-                printf( "%d (%s'%s') ", key, prefixText, friendlyTextPtr );
+                printf( "%d (%s%s)  ", key, prefixText, friendlyTextPtr );
             }
             printf( "\x1b[1G\n" ); /* go to first column of new line */
 
@@ -576,7 +554,7 @@ static char linenoiseReadChar( int fd ){
                 return -1;
         }
     }
-//#endif
+#endif
 
     // This is rather sloppy escape sequence processing, since we're not paying attention to what the
     // actual TERM is set to and are processing all key sequences for all terminals, but it works with
@@ -796,6 +774,8 @@ static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, in
     refreshLine( fd, pi, buf, len, pos );
 }
 
+static const int UP_ARROW = 0x101;
+
 static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
     int pos = 0;
     int len = 0;
@@ -841,7 +821,12 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             // deliberate fall-through here, so we use the terminating character
         }
 
-        switch ( c ) {
+        switch ( static_cast<int>(c) ) {
+
+        case UP_ARROW: // testing ...
+            pos = 0;
+            refreshLine( fd, pi ,buf, len, pos );
+            break;
 
         case ctrlChar( 'A' ):   // ctrl-A, move cursor to start of line
             pos = 0;
