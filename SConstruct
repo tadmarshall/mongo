@@ -350,7 +350,8 @@ if has_option( "full" ):
 # ------    SOURCE FILE SETUP -----------
 
 commonFiles = Split( "pch.cpp buildinfo.cpp db/indexkey.cpp db/jsobj.cpp bson/oid.cpp db/json.cpp db/lasterror.cpp db/nonce.cpp db/queryutil.cpp db/querypattern.cpp db/projection.cpp shell/mongo.cpp" )
-commonFiles += [ "util/background.cpp" , "util/util.cpp" , "util/file_allocator.cpp" ,
+commonFiles += [ "util/background.cpp" , "util/intrusive_counter.cpp",
+                 "util/util.cpp" , "util/file_allocator.cpp" ,
                  "util/assert_util.cpp" , "util/log.cpp" , "util/ramlog.cpp" , "util/md5main.cpp" , "util/base64.cpp", "util/concurrency/vars.cpp", "util/concurrency/task.cpp", "util/debug_util.cpp",
                  "util/concurrency/thread_pool.cpp", "util/password.cpp", "util/version.cpp", "util/signal_handlers.cpp",  
                  "util/histogram.cpp", "util/concurrency/spin_lock.cpp", "util/text.cpp" , "util/stringutils.cpp" ,
@@ -378,6 +379,7 @@ else:
 
 coreServerFiles += mmapFiles
 
+# handle processinfo*
 processInfoFiles = [ "util/processinfo.cpp" ]
 
 if os.path.exists( "util/processinfo_" + os.sys.platform + ".cpp" ):
@@ -389,6 +391,18 @@ else:
 
 coreServerFiles += processInfoFiles
 
+# handle systeminfo*
+systemInfoFiles = [ ]
+if os.path.exists( "util/systeminfo_" + os.sys.platform + ".cpp" ):
+    systemInfoFiles += [ "util/systeminfo_" + os.sys.platform + ".cpp" ]
+elif os.sys.platform == "linux3":
+    systemInfoFiles += [ "util/systeminfo_linux2.cpp" ]
+else:
+    systemInfoFiles += [ "util/systeminfo_none.cpp" ]
+
+coreServerFiles += systemInfoFiles
+
+
 if has_option( "asio" ):
     coreServerFiles += [ "util/net/message_server_asio.cpp" ]
 
@@ -398,8 +412,23 @@ serverOnlyFiles = Split( "util/compress.cpp db/d_concurrency.cpp db/key.cpp db/b
 serverOnlyFiles += [ "db/index.cpp" , "db/scanandorder.cpp" ] + Glob( "db/geo/*.cpp" ) + Glob( "db/ops/*.cpp" )
 
 serverOnlyFiles += [ "db/dbcommands.cpp" , "db/dbcommands_admin.cpp" ]
-serverOnlyFiles += [ "db/commands/%s.cpp" % x for x in ["distinct","find_and_modify","group","mr"] ]
+
+# most commands are only for mongod
+serverOnlyFiles += [
+    "db/commands/distinct.cpp",
+    "db/commands/find_and_modify.cpp",
+    "db/commands/group.cpp",
+    "db/commands/mr.cpp",
+    "db/commands/pipeline_command.cpp",
+    "db/commands/document_source_cursor.cpp" ]
+#    "db/commands/isself.cpp",
+#serverOnlyFiles += [ "db/commands/%s.cpp" % x for x in ["distinct","find_and_modify","group","mr"] ]
+
 serverOnlyFiles += [ "db/driverHelpers.cpp" ]
+
+# but the pipeline command works everywhere
+coreServerFiles += [ "db/commands/pipeline.cpp" ]
+coreServerFiles += Glob("db/pipeline/*.cpp")
 
 coreServerFiles += Glob( "db/stats/*.cpp" )
 coreServerFiles += [ "db/commands/isself.cpp", "db/security_common.cpp", "db/security_commands.cpp" ]

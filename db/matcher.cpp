@@ -527,7 +527,7 @@ namespace mongo {
         }
     }
 
-    inline int Matcher::valuesMatch(const BSONElement& l, const BSONElement& r, int op, const ElementMatcher& bm) {
+    inline int Matcher::valuesMatch(const BSONElement& l, const BSONElement& r, int op, const ElementMatcher& bm) const {
         assert( op != BSONObj::NE && op != BSONObj::NIN );
 
         if ( op == BSONObj::Equality ) {
@@ -583,7 +583,7 @@ namespace mongo {
         return (op & z);
     }
 
-    int Matcher::inverseMatch(const char *fieldName, const BSONElement &toMatch, const BSONObj &obj, const ElementMatcher& bm , MatchDetails * details ) {
+    int Matcher::inverseMatch(const char *fieldName, const BSONElement &toMatch, const BSONObj &obj, const ElementMatcher& bm , MatchDetails * details ) const {
         int inverseRet = matchesDotted( fieldName, toMatch, obj, bm.inverseOfNegativeCompareOp(), bm , false , details );
         if ( bm.negativeCompareOpContainsNull() ) {
             return ( inverseRet <= 0 ) ? 1 : 0;
@@ -614,7 +614,7 @@ namespace mongo {
         0 missing element
         1 match
     */
-    int Matcher::matchesDotted(const char *fieldName, const BSONElement& toMatch, const BSONObj& obj, int compareOp, const ElementMatcher& em , bool isArr, MatchDetails * details ) {
+    int Matcher::matchesDotted(const char *fieldName, const BSONElement& toMatch, const BSONObj& obj, int compareOp, const ElementMatcher& em , bool isArr, MatchDetails * details ) const {
         DEBUGMATCHER( "\t matchesDotted : " << fieldName << " hasDetails: " << ( details ? "yes" : "no" ) );
         if ( compareOp == BSONObj::opALL ) {
 
@@ -814,8 +814,7 @@ namespace mongo {
 
     /* See if an object matches the query.
     */
-    bool Matcher::matches(const BSONObj& jsobj , MatchDetails * details ) {
-
+    bool Matcher::matches(const BSONObj& jsobj , MatchDetails * details ) const {
         LOG(5) << "Matcher::matches() " << jsobj.toString() << endl;
 
         /* assuming there is usually only one thing to match.  if more this
@@ -823,8 +822,8 @@ namespace mongo {
 
         // check normal non-regex cases:
         for ( unsigned i = 0; i < _basics.size(); i++ ) {
-            ElementMatcher& bm = _basics[i];
-            BSONElement& m = bm._toMatch;
+            const ElementMatcher& bm = _basics[i];
+            const BSONElement& m = bm._toMatch;
             // -1=mismatch. 0=missing element. 1=match
             int cmp = matchesDotted(m.fieldName(), m, jsobj, bm._compareOp, bm , false , details );
             if ( cmp == 0 && bm._compareOp == BSONObj::opEXISTS ) {

@@ -1,6 +1,5 @@
 // s/commands_public.cpp
 
-
 /**
 *    Copyright (C) 2008 10gen Inc.
 *
@@ -23,9 +22,13 @@
 #include "../client/connpool.h"
 #include "../client/parallel.h"
 #include "../db/commands.h"
+#include "../db/commands/pipeline.h"
+#include "../db/pipeline/document_source.h"
+#include "../db/pipeline/expression_context.h"
 #include "../db/queryutil.h"
 #include "../scripting/engine.h"
 #include "../util/timer.h"
+
 
 #include "config.h"
 #include "chunk.h"
@@ -1252,38 +1255,25 @@ namespace mongo {
 
                     // group chunks per shard
                     ChunkManagerPtr cm = confOut->getChunkManager( finalColLong );
-                    map<Shard, vector<ChunkPtr> > rangesList;
-                    const ChunkMap& chunkMap = cm->getChunkMap();
-                    for ( ChunkMap::const_iterator it = chunkMap.begin(); it != chunkMap.end(); ++it ) {
-                        ChunkPtr chunk = it->second;
-                        rangesList[chunk->getShard()].push_back(chunk);
-                    }
+                    set<Shard> outShards;
+                    cm->getShardsForQuery(outShards, BSONObj());
 
                     // spawn sharded finish jobs on each shard
                     // command will fetch appropriate results from other shards, do final reduce and post processing
                     futures.clear();
                     BSONObj finalCmdObj = finalCmd.obj();
 
-                    for ( map<Shard, vector<ChunkPtr> >::iterator i=rangesList.begin(), end=rangesList.end() ; i != end ; i++ ) {
-                        Shard shard = i->first;
-                        BSONObjBuilder b;
-                        b.appendElements(finalCmdObj);
-                        BSONArrayBuilder ranges;
-                        for (vector<ChunkPtr>::iterator it = i->second.begin(); it != i->second.end(); ++it) {
-                            ranges.append((*it)->getMin().firstElement());
-                            ranges.append((*it)->getMax().firstElement());
-                        }
-                        b.append("ranges", ranges.arr());
+                    for ( set<Shard>::iterator i=outShards.begin(), end=outShards.end() ; i != end ; i++ ) {
+                        Shard shard = *i;
                         shared_ptr<ShardConnection> temp( new ShardConnection( shard.getConnString() , finalColLong ) );
                         assert( temp->get() );
-                        futures.push_back( Future::spawnCommand( shard.getConnString() , outDB , b.obj() , 0 , temp->get() ) );
+                        futures.push_back( Future::spawnCommand( shard.getConnString() , outDB , finalCmdObj , 0 , temp->get() ) );
                         shardConns.push_back(temp);
                     }
 
                     // now wait for the result of all shards
                     ok = true;
-                    map<Shard, vector<ChunkPtr> >::iterator rangeIt=rangesList.begin();
-                    for ( list< shared_ptr<Future::CommandResult> >::iterator i=futures.begin(); i!=futures.end(); ++i, ++rangeIt ) {
+                    for ( list< shared_ptr<Future::CommandResult> >::iterator i=futures.begin(); i!=futures.end(); ++i ) {
                         string server;
                         try {
                             shared_ptr<Future::CommandResult> res = *i;
@@ -1304,13 +1294,19 @@ namespace mongo {
 
                             // check on splitting, now that results are in the final collection
                             if (singleResult.hasField("chunkSizes")) {
+                                const ChunkMap& chunkMap = cm->getChunkMap();
                                 vector<BSONElement> chunkSizes = singleResult.getField("chunkSizes").Array();
-                                vector<ChunkPtr> chunks = rangeIt->second;
-                                for (unsigned int i = 0; i < chunkSizes.size(); ++i) {
-                                    long long size = chunkSizes[i].numberLong();
-                                    ChunkPtr c = chunks[i];
+                                for (unsigned int i = 0; i < chunkSizes.size(); i += 2) {
+                                    BSONObj key = chunkSizes[i].Obj();
+                                    long long size = chunkSizes[i+1].numberLong();
                                     assert( size < 0x7fffffff );
-                                    c->splitIfShould(static_cast<int>(size));
+
+                                    if (chunkMap.count(key) <= 0) {
+                                        warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
+                                    } else {
+                                        ChunkPtr c = chunkMap.at(key);
+                                        c->splitIfShould(static_cast<int>(size));
+                                    }
                                 }
                             }
                         }
@@ -1380,6 +1376,7 @@ namespace mongo {
             }
         } applyOpsCmd;
 
+
         class CompactCmd : public PublicGridCommand {
         public:
             CompactCmd() : PublicGridCommand( "compact" ) {}
@@ -1389,7 +1386,133 @@ namespace mongo {
             }
         } compactCmd;
 
-    }
+
+	/*
+	  Note these are in the pub_grid_cmds namespace, so they don't
+	  conflict with those in db/commands/pipeline_command.cpp.
+	 */
+	class PipelineCommand :
+	    public PublicGridCommand {
+	public:
+	    PipelineCommand();
+
+	    // virtuals from Command
+	    virtual bool run(const string &dbName , BSONObj &cmdObj,
+			     int options, string &errmsg,
+			     BSONObjBuilder &result, bool fromRepl);
+
+	private:
+	    
+	};
+
+
+	/* -------------------- PipelineCommand ----------------------------- */
+
+	static const PipelineCommand pipelineCommand;
+
+	PipelineCommand::PipelineCommand():
+	    PublicGridCommand(Pipeline::commandName) {
+	}
+
+	bool PipelineCommand::run(const string &dbName , BSONObj &cmdObj,
+				  int options, string &errmsg,
+				  BSONObjBuilder &result, bool fromRepl) {
+	    //const string shardedOutputCollection = getTmpName( collection );
+
+	    intrusive_ptr<ExpressionContext> pCtx(
+		ExpressionContext::create());
+	    pCtx->setInRouter(true);
+
+	    /* parse the pipeline specification */
+	    boost::shared_ptr<Pipeline> pPipeline(
+		Pipeline::parseCommand(errmsg, cmdObj, pCtx));
+	    if (!pPipeline.get())
+		return false; // there was some parsing error
+
+	    string fullns(dbName + "." + pPipeline->getCollectionName());
+
+	    /*
+	      If the system isn't running sharded, or the target collection
+	      isn't sharded, pass this on to a mongod.
+	    */
+	    DBConfigPtr conf(grid.getDBConfig(dbName , false));
+	    if (!conf || !conf->isShardingEnabled() || !conf->isSharded(fullns))
+		return passthrough(conf, cmdObj, result);
+
+	    /* split the pipeline into pieces for mongods and this mongos */
+	    boost::shared_ptr<Pipeline> pShardPipeline(
+		pPipeline->splitForSharded());
+
+	    /* create the command for the shards */
+	    BSONObjBuilder commandBuilder;
+	    pShardPipeline->toBson(&commandBuilder);
+	    BSONObj shardedCommand(commandBuilder.done());
+
+	    BSONObjBuilder shardQueryBuilder;
+	    BSONObjBuilder shardSortBuilder;
+	    pShardPipeline->getCursorMods(
+		&shardQueryBuilder, &shardSortBuilder);
+	    BSONObj shardQuery(shardQueryBuilder.done());
+	    BSONObj shardSort(shardSortBuilder.done());
+
+	    ChunkManagerPtr cm(conf->getChunkManager(fullns));
+	    set<Shard> shards;
+	    cm->getShardsForQuery(shards, shardQuery);
+
+	    /*
+	      From MRCmd::Run: "we need to use our connections to the shard
+	      so filtering is done correctly for un-owned docs so we allocate
+	      them in our thread and hand off"
+	    */
+	    vector<boost::shared_ptr<ShardConnection> > shardConns;
+	    list<boost::shared_ptr<Future::CommandResult> > futures;
+	    for (set<Shard>::iterator i=shards.begin(), end=shards.end();
+		 i != end; i++) {
+		boost::shared_ptr<ShardConnection> temp(
+		    new ShardConnection(i->getConnString(), fullns));
+		assert(temp->get());
+		futures.push_back(
+		    Future::spawnCommand(i->getConnString(), dbName,
+					 shardedCommand , 0, temp->get()));
+		shardConns.push_back(temp);
+	    }
+                    
+	    /* wrap the list of futures with a source */
+	    intrusive_ptr<DocumentSourceCommandFutures> pSource(
+		DocumentSourceCommandFutures::create(errmsg, &futures));
+
+	    /* run the pipeline */
+	    bool failed = pPipeline->run(result, errmsg, pSource);
+
+/*
+	    BSONObjBuilder shardresults;
+	    for (list<boost::shared_ptr<Future::CommandResult> >::iterator i(
+		     futures.begin()); i!=futures.end(); ++i) {
+		boost::shared_ptr<Future::CommandResult> res(*i);
+		if (!res->join()) {
+		    error() << "sharded pipeline failed on shard: " <<
+			res->getServer() << " error: " << res->result() << endl;
+		    result.append( "cause" , res->result() );
+		    errmsg = "mongod pipeline failed: ";
+		    errmsg += res->result().toString();
+		    failed = true;
+		    continue;
+		}
+
+		shardresults.append( res->getServer() , res->result() );
+	    }
+*/
+
+	    for(unsigned i = 0; i < shardConns.size(); ++i)
+		shardConns[i]->done();
+
+	    if (failed && (errmsg.length() > 0))
+		return false;
+
+	    return true;
+	}
+
+    } // namespace pub_grid_cmds
 
     bool Command::runAgainstRegistered(const char *ns, BSONObj& jsobj, BSONObjBuilder& anObjBuilder, int queryOptions) {
         const char *p = strchr(ns, '.');
@@ -1467,4 +1590,6 @@ namespace mongo {
 
         return false;
     }
-}
+
+} // namespace mongo
+
