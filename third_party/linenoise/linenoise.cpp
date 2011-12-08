@@ -95,6 +95,7 @@
 #define isatty _isatty
 #define write _write
 #define STDIN_FILENO 0
+#define STDOUT_FILENO 1
 
 #else /* _WIN32 */
 #include <signal.h>
@@ -735,7 +736,7 @@ static int completeLine( int fd, PromptInfo& pi, char *buf, int buflen, int *len
 static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
 
 #ifdef _WIN32
-#define JUST_ERASE_ENTIRE_SCREEN_BUFFER
+//#define JUST_ERASE_ENTIRE_SCREEN_BUFFER
 #ifdef JUST_ERASE_ENTIRE_SCREEN_BUFFER
     COORD coord = {0, 0};
     CONSOLE_SCREEN_BUFFER_INFO inf;
@@ -758,10 +759,10 @@ static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, in
         COORD coord = {0, 0};
         SetConsoleCursorPosition(console_out, coord);
         DWORD count;
-        FillConsoleOutputCharacterA(console_out, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count);
+        FillConsoleOutputCharacterA( console_out, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count );
         pi.promptScreenBufferRow = 0;
-        if (write(1, pi.promptText, pi.promptChars) == -1) return;
-        refreshLine(fd, pi, buf, len, pos, cols);
+        if ( write( fd, pi.promptText, pi.promptChars ) == -1 ) return;
+        refreshLine( fd, pi, buf, len, pos );
     } else {
         // scroll the screen buffer and/or the console window to position the prompt
         // at the top of the window
@@ -1043,7 +1044,7 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
 }
 
 static int linenoiseRaw( char* buf, int buflen, PromptInfo& pi ) {
-    int fd = STDIN_FILENO;
+    int fd = STDOUT_FILENO;
     int count;
 
     if ( buflen == 0 ) {
