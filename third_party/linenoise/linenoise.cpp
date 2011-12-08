@@ -175,6 +175,42 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
     }
 };
 
+// Special codes for keyboard input:
+//
+// Between Windows and the various Linux "terminal" programs, there is some
+// pretty diverse behavior in the "scan codes" and escape sequences we are
+// presented with.  So ... we'll translate them all into our own pidgin
+// pseudocode, trying to stay out of the way of UTF-8 and international
+// characters.  Here's the general plan.
+//
+// "User input keystrokes" (key chords, whatever) will be encoded as a single
+// value.  The low 8 bits are reserved for ASCII and UTF-8 characters.
+// Popular function-type keys get their own codes in the range 0x101 to (if
+// needed) 0x1FF, currently just arrow keys, Home and End, so 0x101 to 0x106.
+// Keypresses with Ctrl get or-ed with 0x200, with Alt get or-ed with 0x400
+// and with Shift get or-ed with 0x800.  So, Ctrl+Alt+Shift+Home is encoded
+// as 0x200 + 0x400 + 0x800 + 0x105 == 0xF05.  To keep things complicated,
+// the Alt key is equivalent to prefixing the keystroke with ESC, so ESC
+// followed by D is treated the same as Alt + D ... we'll just use Emacs
+// terminology and call this "Meta".  So, we will encode both ESC followed
+// by D and Alt held down while D is pressed the same, as Meta-D, encoded
+// as 0x464.  "Normal" characters like "a" get the normal ASCII encoding
+// for Ctrl and Shift (for now) unless Meta is added, so Shift + "a" is
+// just "A" (0x41) and Ctrl + "a" is just "^A" (0x1).
+//
+// Here are the definitions of our component constants:
+//
+static const int UP_ARROW_KEY       = 0x101;
+static const int DOWN_ARROW_KEY     = 0x102;
+static const int RIGHT_ARROW_KEY    = 0x103;
+static const int LEFT_ARROW_KEY     = 0x104;
+static const int HOME_KEY           = 0x105;
+static const int END_KEY            = 0x106;
+
+static const int CTRL               = 0x200;
+static const int META               = 0x400;
+static const int SHIFT              = 0x800;
+
 static const char* unsupported_term[] = { "dumb", "cons25", NULL };
 static linenoiseCompletionCallback* completionCallback = NULL;
 
@@ -471,10 +507,13 @@ static void refreshLine( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
 
-/* Note that this should parse some special keys into their emacs ctrl-key combos
- * Return of -1 signifies unrecognized code
- */
-static char linenoiseReadChar( int fd ){
+// linenoiseReadChar -- read a keystroke or keychord from the keyboard, and translate it
+// into an encoded "keystroke".  When convenient, extended keys are translated into their
+// simpler Emacs keystrokes, so an unmodified "left arrow" becomes Ctrl-B.
+//
+// A return value of zero means "no input available", and a return value of -1 means "invalid key".
+//
+static int linenoiseReadChar( int fd ){
 #ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
@@ -509,6 +548,10 @@ static char linenoiseReadChar( int fd ){
     if ( nread <= 0 )
         return 0;
 
+    // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
+    // where we print out decimal and decoded values for whatever the "terminal" program
+    // gives us on different keystrokes.  Hit ctrl-C to exit this mode.
+    //
 #define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
@@ -532,15 +575,20 @@ static char linenoiseReadChar( int fd ){
                     friendlyTextBuf[2] = '\'';
                     friendlyTextBuf[3] = 0;
                     friendlyTextPtr = friendlyTextBuf;
-                } else if ( keyCopy == ' ' ) {
-		  friendlyTextPtr = (char *)"space";
-                } else if (keyCopy == 27 ) {
-		  friendlyTextPtr = (char *)"ESC";
-                } else if (keyCopy == 0 ) {
-		  friendlyTextPtr = (char *)"NUL";
-                } else if (keyCopy == 127 ) {
-		  friendlyTextPtr = (char *)"DEL";
-                } else {
+                }
+                else if ( keyCopy == ' ' ) {
+                    friendlyTextPtr = (char *)"space";
+                }
+                else if (keyCopy == 27 ) {
+                    friendlyTextPtr = (char *)"ESC";
+                }
+                else if (keyCopy == 0 ) {
+                    friendlyTextPtr = (char *)"NUL";
+                }
+                else if (keyCopy == 127 ) {
+                    friendlyTextPtr = (char *)"DEL";
+                }
+                else {
                     friendlyTextBuf[0] = '^';
                     friendlyTextBuf[1] = keyCopy + 0x40;
                     friendlyTextBuf[2] = 0;
@@ -548,13 +596,15 @@ static char linenoiseReadChar( int fd ){
                 }
                 printf( "%d (%s%s)  ", key, prefixText, friendlyTextPtr );
             }
-            printf( "\x1b[1G\n" ); /* go to first column of new line */
+            printf( "\x1b[1G\n" );  // go to first column of new line
 
-            if ( keys[0] == ctrlChar( 'C' ) ) /* ctrl-c. may cause signal instead */
+            // drop out of this loop on ctrl-C
+            if ( keys[0] == ctrlChar( 'C' ) ) {
                 return -1;
+            }
         }
     }
-#endif
+#endif  // _DEBUG_LINUX_KEYBOARD
 
     // This is rather sloppy escape sequence processing, since we're not paying attention to what the
     // actual TERM is set to and are processing all key sequences for all terminals, but it works with
@@ -774,8 +824,6 @@ static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, in
     refreshLine( fd, pi, buf, len, pos );
 }
 
-static const int UP_ARROW = 0x101;
-
 static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
     int pos = 0;
     int len = 0;
@@ -821,12 +869,7 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             // deliberate fall-through here, so we use the terminating character
         }
 
-        switch ( static_cast<int>(c) ) {
-
-        case UP_ARROW: // testing ...
-            pos = 0;
-            refreshLine( fd, pi ,buf, len, pos );
-            break;
+        switch ( c ) {
 
         case ctrlChar( 'A' ):   // ctrl-A, move cursor to start of line
             pos = 0;
