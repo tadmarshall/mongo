@@ -175,6 +175,42 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
     }
 };
 
+// Special codes for keyboard input:
+//
+// Between Windows and the various Linux "terminal" programs, there is some
+// pretty diverse behavior in the "scan codes" and escape sequences we are
+// presented with.  So ... we'll translate them all into our own pidgin
+// pseudocode, trying to stay out of the way of UTF-8 and international
+// characters.  Here's the general plan.
+//
+// "User input keystrokes" (key chords, whatever) will be encoded as a single
+// value.  The low 8 bits are reserved for ASCII and UTF-8 characters.
+// Popular function-type keys get their own codes in the range 0x101 to (if
+// needed) 0x1FF, currently just arrow keys, Home and End, so 0x101 to 0x106.
+// Keypresses with Ctrl get or-ed with 0x200, with Alt get or-ed with 0x400
+// and with Shift get or-ed with 0x800.  So, Ctrl+Alt+Shift+Home is encoded
+// as 0x200 + 0x400 + 0x800 + 0x105 == 0xF05.  To keep things complicated,
+// the Alt key is equivalent to prefixing the keystroke with ESC, so ESC
+// followed by D is treated the same as Alt + D ... we'll just use Emacs
+// terminology and call this "Meta".  So, we will encode both ESC followed
+// by D and Alt held down while D is pressed the same, as Meta-D, encoded
+// as 0x464.  "Normal" characters like "a" get the normal ASCII encoding
+// for Ctrl and Shift (for now) unless Meta is added, so Shift + "a" is
+// just "A" (0x41) and Ctrl + "a" is just "^A" (0x1).
+//
+// Here are the definitions of our component constants:
+//
+static const int UP_ARROW_KEY       = 0x101;
+static const int DOWN_ARROW_KEY     = 0x102;
+static const int RIGHT_ARROW_KEY    = 0x103;
+static const int LEFT_ARROW_KEY     = 0x104;
+static const int HOME_KEY           = 0x105;
+static const int END_KEY            = 0x106;
+
+static const int CTRL               = 0x200;
+static const int META               = 0x400;
+static const int SHIFT              = 0x800;
+
 static const char* unsupported_term[] = { "dumb", "cons25", NULL };
 static linenoiseCompletionCallback* completionCallback = NULL;
 
@@ -471,10 +507,13 @@ static void refreshLine( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
 
-/* Note that this should parse some special keys into their emacs ctrl-key combos
- * Return of -1 signifies unrecognized code
- */
-static char linenoiseReadChar( int fd ){
+// linenoiseReadChar -- read a keystroke or keychord from the keyboard, and translate it
+// into an encoded "keystroke".  When convenient, extended keys are translated into their
+// simpler Emacs keystrokes, so an unmodified "left arrow" becomes Ctrl-B.
+//
+// A return value of zero means "no input available", and a return value of -1 means "invalid key".
+//
+static int linenoiseReadChar( int fd ){
 #ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
@@ -509,27 +548,63 @@ static char linenoiseReadChar( int fd ){
     if ( nread <= 0 )
         return 0;
 
-#if defined(_DEBUG)
+    // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
+    // where we print out decimal and decoded values for whatever the "terminal" program
+    // gives us on different keystrokes.  Hit ctrl-C to exit this mode.
+    //
+//#define _DEBUG_LINUX_KEYBOARD
+#if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
         printf( "\x1b[1G\n" ); /* go to first column of new line */
         while ( true ) {
-            char keys[10];
+            unsigned char keys[10];
             int ret = read( fd, keys, 10 );
 
             if ( ret <= 0 ) {
                 printf( "\nret: %d\n", ret );
             }
-
             for ( int i = 0; i < ret; ++i ) {
-                printf( "%d ", static_cast<int>( keys[i] ) );
+                unsigned int key = static_cast<unsigned int>( keys[i] );
+                char * friendlyTextPtr;
+                char friendlyTextBuf[10];
+                const char * prefixText = (key < 0x80) ? "" : "highbit-";
+                unsigned int keyCopy = (key < 0x80) ? key : key - 0x80;
+                if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
+                    friendlyTextBuf[0] = '\'';
+                    friendlyTextBuf[1] = keyCopy;
+                    friendlyTextBuf[2] = '\'';
+                    friendlyTextBuf[3] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                }
+                else if ( keyCopy == ' ' ) {
+                    friendlyTextPtr = (char *)"space";
+                }
+                else if (keyCopy == 27 ) {
+                    friendlyTextPtr = (char *)"ESC";
+                }
+                else if (keyCopy == 0 ) {
+                    friendlyTextPtr = (char *)"NUL";
+                }
+                else if (keyCopy == 127 ) {
+                    friendlyTextPtr = (char *)"DEL";
+                }
+                else {
+                    friendlyTextBuf[0] = '^';
+                    friendlyTextBuf[1] = keyCopy + 0x40;
+                    friendlyTextBuf[2] = 0;
+                    friendlyTextPtr = friendlyTextBuf;
+                }
+                printf( "%d (%s%s)  ", key, prefixText, friendlyTextPtr );
             }
-            printf( "\x1b[1G\n" ); /* go to first column of new line */
+            printf( "\x1b[1G\n" );  // go to first column of new line
 
-            if ( keys[0] == ctrlChar( 'C' ) ) /* ctrl-c. may cause signal instead */
+            // drop out of this loop on ctrl-C
+            if ( keys[0] == ctrlChar( 'C' ) ) {
                 return -1;
+            }
         }
     }
-#endif
+#endif  // _DEBUG_LINUX_KEYBOARD
 
     // This is rather sloppy escape sequence processing, since we're not paying attention to what the
     // actual TERM is set to and are processing all key sequences for all terminals, but it works with
