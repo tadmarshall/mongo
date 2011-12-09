@@ -560,7 +560,7 @@ static int linenoiseReadChar( int fd ){
     // where we print out decimal and decoded values for whatever the "terminal" program
     // gives us on different keystrokes.  Hit ctrl-C to exit this mode.
     //
-//#define _DEBUG_LINUX_KEYBOARD
+#define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
         printf( "\x1b[1G\n" ); /* go to first column of new line */
@@ -622,34 +622,34 @@ static int linenoiseReadChar( int fd ){
         if ( read( fd, seq, 2 ) == -1 ) return 0;
         if ( seq[0] == '[' ) {              // left square bracket
             if ( seq[1] == 'A' ) {          // ESC [ A, VT100 up arrow key
-                return ctrlChar( 'P' );     // translate to ctrl-P
+                return UP_ARROW_KEY;
             }
             else if ( seq[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                return ctrlChar( 'N' );     // translate to ctrl-N
+                return DOWN_ARROW_KEY;
             }
             else if ( seq[1] == 'C' ) {     // ESC [ C, VT100 right arrow key
-                return ctrlChar( 'F' );     // translate to ctrl-F
+                return RIGHT_ARROW_KEY;
             }
             else if ( seq[1] == 'D' ) {     // ESC [ D, VT100 left arrow key
-                return ctrlChar( 'B' );     // translate to ctrl-B
+                return LEFT_ARROW_KEY;
             }
             else if ( seq[1] == 'F' ) {     // ESC [ F, konsole End key
-                return ctrlChar( 'E' );     // translate to ctrl-E
+                return END_KEY;
             }
             else if ( seq[1] == 'H' ) {     // ESC [ H, konsole Home key
-                return ctrlChar( 'A' );     // translate to ctrl-A
+                return HOME_KEY;
             }
             else if ( seq[1] > '0' && seq[1] < '9' ) {      // Linux console and rxvt, ESC [ 1 ~ through ESC [ 8 ~
                 if ( read( fd, seq2, 2 ) == -1 ) return 0;
                 if ( seq2[0] == '~' ) {                             // ESC [ <n> ~
                     if ( seq[1] == '1' || seq[1] == '7' ) {         // ESC [ 1 ~ (Linux console) / ESC [ 7 ~ (rxvt) Home key
-                        return ctrlChar( 'A' );                     // translate to ctrl-A
+                        return HOME_KEY;
                     }
                     else if ( seq[1] == '4' || seq[1] == '8' ) {    // ESC [ 4 ~ (Linux console) / ESC [ 8 ~ (rxvt) End key
-                        return ctrlChar( 'E' );                     // translate to ctrl-E
+                        return END_KEY;
                     }
                     else if ( seq[1] == '3' ) {                     // ESC [ 3 ~ (either) Delete key
-                        return 127;                                 // translate to ASCII DEL
+                        return DELETE_KEY;
                     }
                     else {
                         return -1;
@@ -665,10 +665,10 @@ static int linenoiseReadChar( int fd ){
         }
         else if ( seq[0] == 'O' ) {         // ESC O F and ESC O H (xterm Home and End)
             if ( seq[1] == 'F' ) {          // ESC O F, xterm End key
-                return ctrlChar( 'E' );     // translate to ctrl-E
+                return END_KEY;
             }
             else if ( seq[1] == 'H' ) {     // ESC O H, xterm Home key
-                return ctrlChar( 'A' );     // translate to ctrl-A
+                return HOME_KEY;
             }
             else {
                 return -1;
