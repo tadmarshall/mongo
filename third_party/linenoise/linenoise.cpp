@@ -206,10 +206,11 @@ static const int RIGHT_ARROW_KEY    = 0x103;
 static const int LEFT_ARROW_KEY     = 0x104;
 static const int HOME_KEY           = 0x105;
 static const int END_KEY            = 0x106;
+static const int DELETE_KEY         = 0x107;
 
 static const int CTRL               = 0x200;
 static const int META               = 0x400;
-static const int SHIFT              = 0x800;
+//static const int SHIFT              = 0x800;
 
 static const char* unsupported_term[] = { "dumb", "cons25", NULL };
 static linenoiseCompletionCallback* completionCallback = NULL;
@@ -517,20 +518,31 @@ static int linenoiseReadChar( int fd ){
 #ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
+    int modifierKeys = 0;
     do {
         ReadConsoleInputA( console_in, &rec, 1, &count );
         if ( rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown ) {
             continue;
         }
+        modifierKeys = 0;
+        if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED ) ) {
+            modifierKeys |= CTRL;
+        }
+        if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED ) ) {
+            modifierKeys |= META;
+        }
+        //if ( rec.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED ) {
+        //    modifierKeys |= SHIFT;
+        //}
         if ( rec.Event.KeyEvent.uChar.AsciiChar == 0 ) {
             switch ( rec.Event.KeyEvent.wVirtualKeyCode ) {
-                case VK_LEFT:   return ctrlChar( 'B' ); // EMACS character (B)ack
-                case VK_RIGHT:  return ctrlChar( 'F' ); // EMACS character (F)orward
-                case VK_UP:     return ctrlChar( 'P' ); // EMACS (P)revious line
-                case VK_DOWN:   return ctrlChar( 'N' ); // EMACS (N)ext line
-                case VK_DELETE: return 127;             // ASCII DEL byte
-                case VK_HOME:   return ctrlChar( 'A' ); // EMACS beginning-of-line
-                case VK_END:    return ctrlChar( 'E' ); // EMACS (E)nd-of-line
+                case VK_LEFT:   return modifierKeys | LEFT_ARROW_KEY;
+                case VK_RIGHT:  return modifierKeys | RIGHT_ARROW_KEY;
+                case VK_UP:     return modifierKeys | UP_ARROW_KEY;
+                case VK_DOWN:   return modifierKeys | DOWN_ARROW_KEY;
+                case VK_DELETE: return modifierKeys | DELETE_KEY;
+                case VK_HOME:   return modifierKeys | HOME_KEY;
+                case VK_END:    return modifierKeys | END_KEY;
                 default: continue;                      // in raw mode, ReadConsoleInput shows shift, ctrl ...
             }                                           //  ... ignore them
         }
@@ -538,7 +550,7 @@ static int linenoiseReadChar( int fd ){
             break;  // we got a real character, return it
         }
     } while ( true );
-    return rec.Event.KeyEvent.uChar.AsciiChar;
+    return modifierKeys | rec.Event.KeyEvent.uChar.AsciiChar;
 #else
     char c;
     int nread;
@@ -774,7 +786,7 @@ static int completeLine( int fd, PromptInfo& pi, char *buf, int buflen, int *len
                     break;
 
 #if 0 // SERVER-4011 -- Escape only works to end command completion in Windows
-      // leaving code here for now in case this is where we will add Ctrl-R (revert-line) later
+      // leaving code here for now in case this is where we will add Meta-R (revert-line) later
                 case 27: /* escape */
                     /* Re-show original buffer */
                     if ( i < lc.len )
@@ -827,6 +839,25 @@ static void linenoiseClearScreen( int fd, PromptInfo& pi, char *buf, int len, in
     refreshLine( fd, pi, buf, len, pos );
 }
 
+// convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
+// leave META alone
+//
+static int cleanupCtrl( int c ) {
+    if ( c & CTRL ) {
+        int d = c & 0x1FF;
+        if ( d >= 'a' && d <= 'z' ) {
+            c = ( c + ( 'a' - ctrlChar( 'A' ) ) ) & ~CTRL;
+        }
+        if ( d >= 'A' && d <= 'Z' ) {
+            c = ( c + ( 'A' - ctrlChar( 'A' ) ) ) & ~CTRL;
+        }
+        if ( d >= ctrlChar( 'A' ) && d <= ctrlChar( 'Z' ) ) {
+            c = c & ~CTRL;
+        }
+    }
+    return c;
+}
+
 static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
     int pos = 0;
     int len = 0;
@@ -847,12 +878,13 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
 
     // loop collecting characters, responding to ctrl characters
     while ( true ) {
-        char c = linenoiseReadChar( fd );
+        int c = linenoiseReadChar( fd );
+        c = cleanupCtrl( c );
 
         if ( c == 0 )
             return len;
 
-        if ( c == static_cast<char>( -1 ) ) {
+        if ( c == -1 ) {
             refreshLine( fd, pi, buf, len, pos );
             continue;
         }
@@ -875,13 +907,29 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
         switch ( c ) {
 
         case ctrlChar( 'A' ):   // ctrl-A, move cursor to start of line
+        case HOME_KEY:
             pos = 0;
             refreshLine( fd, pi ,buf, len, pos );
             break;
 
         case ctrlChar( 'B' ):   // ctrl-B, move cursor left by one character
+        case LEFT_ARROW_KEY:
             if ( pos > 0 ) {
                 --pos;
+                refreshLine( fd, pi, buf, len, pos );
+            }
+            break;
+
+        case META + 'b':        // meta-B, move cursor left by one "word"
+        case META + 'B':
+        case CTRL + LEFT_ARROW_KEY:
+            if( pos > 0 ) {
+                while ( pos > 0 && !isalnum( buf[pos - 1] ) ) {
+                    --pos;
+                }
+                while ( pos > 0 && isalnum( buf[pos - 1] ) ) {
+                    --pos;
+                }
                 refreshLine( fd, pi, buf, len, pos );
             }
             break;
@@ -896,14 +944,15 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             if ( write( 1, "^C", 2 ) == -1 ) return -1;    // Display the ^C we got
             return -1;
 
-        case 127:               // DEL and ctrl-d both delete the character under the cursor
-        case ctrlChar( 'D' ):   // on an empty line, DEL does nothing while ctrl-d will exit the shell
+        // ctrl-D, delete the character under the cursor
+        // on an empty line, exit the shell
+        case ctrlChar( 'D' ):
             if( len > 0 && pos < len ) {
                 memmove( buf + pos, buf + pos + 1, len - pos );
                 --len;
                 refreshLine( fd, pi, buf, len, pos );
             }
-            else if( c == ctrlChar( 'D' ) && len == 0 ) {
+            else if( len == 0 ) {
                 history_len--;
                 free( history[history_len] );
                 return -1;
@@ -911,14 +960,30 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             break;
 
         case ctrlChar( 'E' ):   // ctrl-E, move cursor to end of line
+        case END_KEY:
             pos = len;
             refreshLine( fd, pi, buf, len, pos );
             break;
 
         case ctrlChar( 'F' ):   // ctrl-F, move cursor right by one character
+        case RIGHT_ARROW_KEY:
             if ( pos < len ) {
                 ++pos;
                 refreshLine( fd, pi ,buf, len, pos );
+            }
+            break;
+
+        case META + 'f':        // meta-F, move cursor right by one "word"
+        case META + 'F':
+        case CTRL + RIGHT_ARROW_KEY:
+            if( pos < len ) {
+                while ( pos < len && !isalnum( buf[pos] ) ) {
+                    ++pos;
+                }
+                while ( pos < len && isalnum( buf[pos] ) ) {
+                    ++pos;
+                }
+                refreshLine( fd, pi, buf, len, pos );
             }
             break;
 
@@ -952,12 +1017,17 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
 
         case ctrlChar( 'N' ):   // ctrl-N, recall next line in history
         case ctrlChar( 'P' ):   // ctrl-P, recall previous line in history
+        case DOWN_ARROW_KEY:
+        case UP_ARROW_KEY:
             if ( history_len > 1 ) {
                 /* Update the current history entry before we
                  * overwrite it with the next one. */
                 free( history[history_index] );
                 history[history_index] = strdup (buf );
                 /* Show the new entry */
+                if ( c == UP_ARROW_KEY ) {
+                    c = ctrlChar( 'P' );
+                }
                 history_index += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
                 if ( history_index < 0 ) {
                     history_index = 0;
@@ -995,6 +1065,23 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
+        // ctrl-W, delete the "word" to the left of the cursor
+        case ctrlChar( 'W' ):
+        case META + ctrlChar( 'H' ):
+            if( pos > 0 ) {
+                int startingPos = pos;
+                while ( pos > 0 && buf[pos - 1] == ' ' ) {
+                    --pos;
+                }
+                while ( pos > 0 && buf[pos - 1] != ' ' ) {
+                    --pos;
+                }
+                memmove( buf + pos, buf + startingPos, len - startingPos + 1 );
+                len -= startingPos - pos;
+                refreshLine( fd, pi, buf, len, pos );
+            }
+            break;
+
 #ifndef _WIN32
         case ctrlChar( 'Z' ):   // ctrl-Z, job control
             disableRawMode( fd );                   // Returning to Linux (whatever) shell, leave raw mode
@@ -1005,10 +1092,22 @@ static int linenoisePrompt( int fd, char *buf, int buflen, PromptInfo& pi ) {
             break;
 #endif
 
-        case 27:    /* escape sequence */
-            break; /* should be handled by linenoiseReadChar */
+        // DEL, delete the character under the cursor
+        case 127:
+        case DELETE_KEY:
+            if( len > 0 && pos < len ) {
+                memmove( buf + pos, buf + pos + 1, len - pos );
+                --len;
+                refreshLine( fd, pi, buf, len, pos );
+            }
+            break;
 
-        default:    // not one of our special characters, maybe insert it in the buffer
+        // not one of our special characters, maybe insert it in the buffer
+        default:
+            if ( c > 0xFF ) {   // beep on unknown Ctrl and/or Meta keys
+                beep();
+                break;
+            }
             if ( len < buflen ) {
                 if ( static_cast<unsigned char>( c ) < 32 ) {   // don't insert control characters
                     beep();
