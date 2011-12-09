@@ -108,6 +108,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <cctype>
 
 #endif /* _WIN32 */
 
@@ -186,17 +187,16 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
 // "User input keystrokes" (key chords, whatever) will be encoded as a single
 // value.  The low 8 bits are reserved for ASCII and UTF-8 characters.
 // Popular function-type keys get their own codes in the range 0x101 to (if
-// needed) 0x1FF, currently just arrow keys, Home and End, so 0x101 to 0x106.
-// Keypresses with Ctrl get or-ed with 0x200, with Alt get or-ed with 0x400
-// and with Shift get or-ed with 0x800.  So, Ctrl+Alt+Shift+Home is encoded
-// as 0x200 + 0x400 + 0x800 + 0x105 == 0xF05.  To keep things complicated,
-// the Alt key is equivalent to prefixing the keystroke with ESC, so ESC
-// followed by D is treated the same as Alt + D ... we'll just use Emacs
-// terminology and call this "Meta".  So, we will encode both ESC followed
-// by D and Alt held down while D is pressed the same, as Meta-D, encoded
-// as 0x464.  "Normal" characters like "a" get the normal ASCII encoding
-// for Ctrl and Shift (for now) unless Meta is added, so Shift + "a" is
-// just "A" (0x41) and Ctrl + "a" is just "^A" (0x1).
+// needed) 0x1FF, currently just arrow keys, Home, End and Delete.
+// Keypresses with Ctrl get or-ed with 0x200, with Alt get or-ed with 0x400.
+// So, Ctrl+Alt+Home is encoded as 0x200 + 0x400 + 0x105 == 0xF05.  To keep
+// things complicated, the Alt key is equivalent to prefixing the keystroke
+// with ESC, so ESC followed by D is treated the same as Alt + D ... we'll
+// just use Emacs terminology and call this "Meta".  So, we will encode both
+// ESC followed by D and Alt held down while D is pressed the same, as Meta-D,
+//  encoded as 0x464.  "Normal" characters like "a" get the normal ASCII encoding
+// for Ctrl and Shift (for now) unless Meta is added, so Shift + "a" is just "A"
+// (0x41) and Ctrl + "a" is just "^A" (0x1).
 //
 // Here are the definitions of our component constants:
 //
@@ -210,7 +210,6 @@ static const int DELETE_KEY         = 0x107;
 
 static const int CTRL               = 0x200;
 static const int META               = 0x400;
-//static const int SHIFT              = 0x800;
 
 static const char* unsupported_term[] = { "dumb", "cons25", NULL };
 static linenoiseCompletionCallback* completionCallback = NULL;
@@ -531,9 +530,6 @@ static int linenoiseReadChar( int fd ){
         if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED ) ) {
             modifierKeys |= META;
         }
-        //if ( rec.Event.KeyEvent.dwControlKeyState & SHIFT_PRESSED ) {
-        //    modifierKeys |= SHIFT;
-        //}
         if ( rec.Event.KeyEvent.uChar.AsciiChar == 0 ) {
             switch ( rec.Event.KeyEvent.wVirtualKeyCode ) {
                 case VK_LEFT:   return modifierKeys | LEFT_ARROW_KEY;
