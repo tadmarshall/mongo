@@ -507,6 +507,143 @@ static void refreshLine( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
 
+// This is a typedef for the routine called by doDispatch().  It takes the current character
+// as input, does any required processing including reading more characters and calling other
+// dispatch routines,, then eventually returns the final (possibly extended or special) character.
+//
+typedef int ( *CharacterDispatchRoutine )( int );
+
+// This structure is used by doDispatch() to hold a list of characters to test for and
+// a list of routines to call if the character matches.  The dispatch routine list is one
+// longer than the character list; the final entry is used if no charater matches.
+//
+struct CharacterDispatch {
+    int                         len;        // length of the dispatch list
+    char*                       chars;      // chars to test, one fewer than dispatch size
+    CharacterDispatchRoutine*   dispatch;   // routine to call
+};
+
+// This dispatch routine is given a dispatch table and then farms work out to routines
+// listed in the table based on the character it is called with.  The dispatch routines can
+// read more input characters to decide what should eventually be returned.  Eventually,
+// a called routine returns either a character or -1 to indicate parsing failure.
+//
+int doDispatch( int c, CharacterDispatch * dispatchTable ) {
+    for ( int i = 0; i < dispatchTable->len ; ++i ) {
+        if ( dispatchTable->chars[i] == c ) {
+            return dispatchTable->dispatch[i]( c );
+        }
+    }
+    return dispatchTable->dispatch[dispatchTable->len]( c );
+}
+
+// Esc sequence dispatch routines
+//
+int escLeftBracketRoutine( int c ) {
+    return '[';
+}
+int escORoutine( int c ) {
+    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    //return doDispatch( c, escDispatch );
+    return 'O';
+}
+int escFailureRoutine( int c ) {
+    return -1;
+}
+
+// Escape sequence dispatch -- process an escape sequence
+//
+char escSequenceChars[] = "[O";
+CharacterDispatchRoutine escSequenceRoutines[] = {
+    escLeftBracketRoutine,
+    escORoutine,
+    escFailureRoutine
+};
+CharacterDispatch escSequenceDispatch[] = {
+    2,
+    escSequenceChars,
+    escSequenceRoutines
+};
+
+// Esc sequence dispatch routines
+//
+int escLeftBracketRoutine( int c ) {
+    return '[';
+}
+int escORoutine( int c ) {
+    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    //return doDispatch( c, escDispatch );
+    return 'O';
+}
+int escFailureRoutine( int c ) {
+    return -1;
+}
+
+// Escape sequence dispatch -- process an escape sequence
+//
+char escSequenceChars[] = "[O";
+CharacterDispatchRoutine escSequenceRoutines[] = {
+    escLeftBracketRoutine,
+    escORoutine,
+    escFailureRoutine
+};
+CharacterDispatch escSequenceDispatch[] = {
+    2,
+    escSequenceChars,
+    escSequenceRoutines
+};
+
+// Esc dispatch routines
+//
+//int setMetaRoutine( int c ) {
+//    return 'M';
+//}
+int escSequenceRoutine( int c ) {
+    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escSequenceDispatch );
+}
+
+// Esc dispatch -- could be a Meta prefix or the start of an escape sequence
+//
+char escChars[] = "";
+//char escChars[] = "\x1B";
+CharacterDispatchRoutine escRoutines[] = {
+    //setMetaRoutine,
+    escSequenceRoutine
+};
+CharacterDispatch escDispatch[] = {
+    0,
+    escChars,
+    escRoutines
+};
+
+// Initial dispatch routines
+//
+int escRoutine( int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escDispatch );
+}
+int delRoutine( int c ) {
+    return ctrlChar( 'H' );
+}
+int normalRoutine( int c ) {
+    return c;
+}
+
+// Initial dispatch -- we are not in the middle of anything yet
+//
+char initialChars[] = "\x1B\x7F";
+CharacterDispatchRoutine initialRoutines[] = {
+    escRoutine,
+    delRoutine,
+    normalRoutine
+};
+CharacterDispatch initialDispatch[] = {
+    2,
+    initialChars,
+    initialRoutines
+};
+
 // linenoiseReadChar -- read a keystroke or keychord from the keyboard, and translate it
 // into an encoded "keystroke".  When convenient, extended keys are translated into their
 // simpler Emacs keystrokes, so an unmodified "left arrow" becomes Ctrl-B.
@@ -514,7 +651,8 @@ static void refreshLine( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
 // A return value of zero means "no input available", and a return value of -1 means "invalid key".
 //
 static int linenoiseReadChar( int fd ){
-#ifdef _WIN32
+#ifndef _WIN32
+//#ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
     int modifierKeys = 0;
@@ -550,9 +688,9 @@ static int linenoiseReadChar( int fd ){
 #else
     char c;
     int nread;
-    char seq[2], seq2[2];
 
-    nread = read( fd, &c, 1 );
+    nread = _read( 0, &c, 1 );
+    //nread = read( 0, &c, 1 );
     if ( nread <= 0 )
         return 0;
 
@@ -566,7 +704,8 @@ static int linenoiseReadChar( int fd ){
         printf( "\x1b[1G\n" ); /* go to first column of new line */
         while ( true ) {
             unsigned char keys[10];
-            int ret = read( fd, keys, 10 );
+            int ret = _read( fd, keys, 10 );
+            //int ret = read( fd, keys, 10 );
 
             if ( ret <= 0 ) {
                 printf( "\nret: %d\n", ret );
@@ -614,47 +753,97 @@ static int linenoiseReadChar( int fd ){
     }
 #endif  // _DEBUG_LINUX_KEYBOARD
 
+    // The better way to do this is with a state machine and dispatch tables, which would enable
+    // parsing on-the-fly without this clumsiness.  Instead, we're continuing the old style and
+    // reading the escape sequences in parts.  The problem is that you don't want to read too much,
+    // because then if you guess wrong about what you're reading you will eat characters from the
+    // next escape sequence (which you might have understood) and end up treating portions of
+    // escape sequences as if they were user-entered text.  When you see "D" or "[D" on a left
+    // arrow, this is what has happened.
+    //
+    // We'll read the escape sequence in up to 3 parts depending on what we find at intermediate
+    // stages.
+    //
+    //char chars_12[2], char_3, chars_45[2];  // char 0 is ESC, then 2 more, then 1 more, then 2 more
+
+    return doDispatch( c, initialDispatch );
+
+#if 0
+
     // This is rather sloppy escape sequence processing, since we're not paying attention to what the
     // actual TERM is set to and are processing all key sequences for all terminals, but it works with
     // the most common keystrokes on the most common terminals ... VT100-like, xterm, rxvt and konsole.
     //
     if ( c == 27 ) {    // ESC character, start of ESC sequence
-        if ( read( fd, seq, 2 ) == -1 ) return 0;
-        if ( seq[0] == '[' ) {              // left square bracket
-            if ( seq[1] == 'A' ) {          // ESC [ A, VT100 up arrow key
+        if ( read( fd, chars_12, 2 ) == -1 ) return 0;
+        if ( chars_12[0] == '[' ) {              // left square bracket
+            if ( chars_12[1] == 'A' ) {          // ESC [ A, VT100 up arrow key
                 return UP_ARROW_KEY;
             }
-            else if ( seq[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+            else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
                 return DOWN_ARROW_KEY;
             }
-            else if ( seq[1] == 'C' ) {     // ESC [ C, VT100 right arrow key
+            else if ( chars_12[1] == 'C' ) {     // ESC [ C, VT100 right arrow key
                 return RIGHT_ARROW_KEY;
             }
-            else if ( seq[1] == 'D' ) {     // ESC [ D, VT100 left arrow key
+            else if ( chars_12[1] == 'D' ) {     // ESC [ D, VT100 left arrow key
                 return LEFT_ARROW_KEY;
             }
-            else if ( seq[1] == 'F' ) {     // ESC [ F, konsole End key
+            else if ( chars_12[1] == 'F' ) {     // ESC [ F, xterm/konsole End key
                 return END_KEY;
             }
-            else if ( seq[1] == 'H' ) {     // ESC [ H, konsole Home key
+            else if ( chars_12[1] == 'H' ) {     // ESC [ H, xterm/konsole Home key
                 return HOME_KEY;
             }
-            else if ( seq[1] > '0' && seq[1] < '9' ) {      // Linux console and rxvt, ESC [ 1 ~ through ESC [ 8 ~
-                if ( read( fd, seq2, 2 ) == -1 ) return 0;
-                if ( seq2[0] == '~' ) {                             // ESC [ <n> ~
-                    if ( seq[1] == '1' || seq[1] == '7' ) {         // ESC [ 1 ~ (Linux console) / ESC [ 7 ~ (rxvt) Home key
+            else if ( chars_12[1] > '0' && chars_12[1] < '9' ) {            // Linux console and rxvt, ESC [ 1 ~ through ESC [ 8 ~
+                if ( read( fd, char_3, 1 ) == -1 ) return 0;                // get another char
+                if ( char_3 == '~' ) {                                      // ESC [ <n> ~
+                    if ( chars_12[1] == '1' || chars_12[1] == '7' ) {       // ESC [ 1 ~ (Linux console) / ESC [ 7 ~ (rxvt) Home key
                         return HOME_KEY;
                     }
-                    else if ( seq[1] == '4' || seq[1] == '8' ) {    // ESC [ 4 ~ (Linux console) / ESC [ 8 ~ (rxvt) End key
+                    else if ( chars_12[1] == '4' || chars_12[1] == '8' ) {  // ESC [ 4 ~ (Linux console) / ESC [ 8 ~ (rxvt) End key
                         return END_KEY;
                     }
-                    else if ( seq[1] == '3' ) {                     // ESC [ 3 ~ (either) Delete key
+                    else if ( chars_12[1] == '3' ) {                        // ESC [ 3 ~ (either) Delete key
                         return DELETE_KEY;
                     }
                     else {
                         return -1;
                     }
                 }
+                //else if ( char_3 == ';' ) {                         // gnome/xterm/konsole/yakuake Ctrl or Alt arrow
+                //    if ( read( fd, chars_45, 2 ) == -1 ) return 0;  // we need 2 more chars
+                //    //if () {
+                //    //}
+                //    //else if () {
+                //    //}
+                //    //else {
+                //    //}
+                //    if ( chars_34[1] == 'A' ) {         // ESC [ 1 ; 3 A, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    if ( chars_34[1] == 'A' ) {         // ESC [ 1 ; 3 A, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
+                //        return DOWN_ARROW_KEY;
+                //    }
+                //}
                 else {
                     return -1;
                 }
@@ -663,11 +852,11 @@ static int linenoiseReadChar( int fd ){
                 return -1;
             }
         }
-        else if ( seq[0] == 'O' ) {         // ESC O F and ESC O H (xterm Home and End)
-            if ( seq[1] == 'F' ) {          // ESC O F, xterm End key
+        else if ( chars_12[0] == 'O' ) {         // ESC O F and ESC O H (gnome terminal Home and End)
+            if ( chars_12[1] == 'F' ) {          // ESC O F, gnome terminal End key
                 return END_KEY;
             }
-            else if ( seq[1] == 'H' ) {     // ESC O H, xterm Home key
+            else if ( chars_12[1] == 'H' ) {     // ESC O H, gnome terminal Home key
                 return HOME_KEY;
             }
             else {
@@ -683,6 +872,9 @@ static int linenoiseReadChar( int fd ){
     }
 
     return c; /* normalish character */
+
+#endif // #if 0
+
 #endif
 }
 
