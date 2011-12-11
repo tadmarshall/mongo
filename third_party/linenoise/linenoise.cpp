@@ -560,9 +560,9 @@ static unsigned int ctrlUpArrowKeyRoutine( unsigned int c )       { return thisK
 static unsigned int ctrlDownArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | DOWN_ARROW_KEY; }
 static unsigned int ctrlRightArrowKeyRoutine( unsigned int c )    { return thisKeyMetaCtrl | CTRL | RIGHT_ARROW_KEY; }
 static unsigned int ctrlLeftArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | LEFT_ARROW_KEY; }
-static unsigned int escFailureRoutine( unsigned int c )           { return -1; }
+static unsigned int escFailureRoutine( unsigned int c )           { beep(); return -1; }
 
-// Handle ESC [ 1 ; 3 <more stuff> escape sequences
+// Handle ESC [ 1 ; 3 (or 5) <more stuff> escape sequences
 //
 static CharacterDispatchRoutine escLeftBracket1Semicolon3or5Routines[] = { upArrowKeyRoutine, downArrowKeyRoutine, rightArrowKeyRoutine, leftArrowKeyRoutine, escFailureRoutine };
 static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "ABCD", escLeftBracket1Semicolon3or5Routines };
@@ -743,7 +743,8 @@ static int linenoiseReadChar( void ){
     INPUT_RECORD rec;
     DWORD count;
     int modifierKeys = 0;
-    do {
+    bool escSeen = false;
+    while ( true ) {
         ReadConsoleInputA( console_in, &rec, 1, &count );
         if ( rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown ) {
             continue;
@@ -753,6 +754,9 @@ static int linenoiseReadChar( void ){
             modifierKeys |= CTRL;
         }
         if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED ) ) {
+            modifierKeys |= META;
+        }
+        if ( escSeen ) {
             modifierKeys |= META;
         }
         if ( rec.Event.KeyEvent.uChar.AsciiChar == 0 ) {
@@ -767,11 +771,15 @@ static int linenoiseReadChar( void ){
                 default: continue;                      // in raw mode, ReadConsoleInput shows shift, ctrl ...
             }                                           //  ... ignore them
         }
-        else {
-            break;  // we got a real character, return it
+        else if ( rec.Event.KeyEvent.uChar.AsciiChar == ctrlChar( '[' ) ) { // ESC, set flag for later
+            escSeen = true;
+            continue;
         }
-    } while ( true );
-    return modifierKeys | rec.Event.KeyEvent.uChar.AsciiChar;
+        else {
+            // we got a real character, return it
+            return modifierKeys | rec.Event.KeyEvent.uChar.AsciiChar;
+        }
+    }
 #else
     unsigned int c;
     unsigned char oneChar;
@@ -1074,9 +1082,10 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
-        case META + 'b':        // meta-B, move cursor left by one "word"
+        case META + 'b':        // meta-B, move cursor left by one word
         case META + 'B':
         case CTRL + LEFT_ARROW_KEY:
+        case META + LEFT_ARROW_KEY: // Emacs allows Meta, bash & readline don't
             if( pos > 0 ) {
                 while ( pos > 0 && !isalnum( buf[pos - 1] ) ) {
                     --pos;
@@ -1113,6 +1122,22 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
+        case META + 'd':        // meta-D, delete word to right of cursor
+        case META + 'D':
+            if( pos < len ) {
+                int endingPos = pos;
+                while ( endingPos < len && !isalnum( buf[endingPos] ) ) {
+                    ++endingPos;
+                }
+                while ( endingPos < len && isalnum( buf[endingPos] ) ) {
+                    ++endingPos;
+                }
+                memmove( buf + pos, buf + endingPos, len - endingPos + 1 );
+                len -= endingPos - pos;
+                refreshLine( pi, buf, len, pos );
+            }
+            break;
+
         case ctrlChar( 'E' ):   // ctrl-E, move cursor to end of line
         case END_KEY:
             pos = len;
@@ -1127,9 +1152,10 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
-        case META + 'f':        // meta-F, move cursor right by one "word"
+        case META + 'f':        // meta-F, move cursor right by one word
         case META + 'F':
         case CTRL + RIGHT_ARROW_KEY:
+        case META + RIGHT_ARROW_KEY: // Emacs allows Meta, bash & readline don't
             if( pos < len ) {
                 while ( pos < len && !isalnum( buf[pos] ) ) {
                     ++pos;
@@ -1146,6 +1172,22 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
                 memmove( buf + pos - 1, buf + pos, 1 + len - pos );
                 --pos;
                 --len;
+                refreshLine( pi, buf, len, pos );
+            }
+            break;
+
+        // meta-Backspace, delete word to left of cursor
+        case META + ctrlChar( 'H' ):
+            if( pos > 0 ) {
+                int startingPos = pos;
+                while ( pos > 0 && !isalnum( buf[pos - 1] ) ) {
+                    --pos;
+                }
+                while ( pos > 0 && isalnum( buf[pos - 1] ) ) {
+                    --pos;
+                }
+                memmove( buf + pos, buf + startingPos, len - startingPos + 1 );
+                len -= startingPos - pos;
                 refreshLine( pi, buf, len, pos );
             }
             break;
@@ -1219,9 +1261,8 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
-        // ctrl-W, delete the "word" to the left of the cursor
+        // ctrl-W, delete to whitespace (not word) to left of cursor
         case ctrlChar( 'W' ):
-        case META + ctrlChar( 'H' ):
             if( pos > 0 ) {
                 int startingPos = pos;
                 while ( pos > 0 && buf[pos - 1] == ' ' ) {
