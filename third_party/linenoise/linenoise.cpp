@@ -526,7 +526,7 @@ typedef unsigned int ( *CharacterDispatchRoutine )( unsigned int );
 //
 struct CharacterDispatch {
     unsigned int                len;        // length of the chars list
-    const char*                 chars;      // chars to test
+    const unsigned char*        chars;      // chars to test
     CharacterDispatchRoutine*   dispatch;   // array of routines to call
 };
 
