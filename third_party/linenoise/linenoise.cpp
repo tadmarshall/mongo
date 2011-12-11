@@ -710,6 +710,7 @@ static unsigned int escRoutine( unsigned int c ) {
     return doDispatch( c, escDispatch );
 }
 static unsigned int hibitCRoutine( unsigned int c ) {
+    printf("\nIn hibitCRoutine ...\n");
     // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
     if ( read( 0, &c, 1 ) <= 0 ) return 0;
     if ( c >= ( ' ' | 0x80 ) && c <= ( '?' | 0x80 ) ) {
