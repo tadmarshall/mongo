@@ -228,6 +228,11 @@ char** history = NULL;
 
 static void linenoiseAtExit( void );
 
+static void beep() {
+    fprintf( stderr, "\x7" );   // ctrl-G == bell/beep
+    fflush( stderr );
+}
+
 void linenoiseHistoryFree( void ) {
     if ( history ) {
         for ( int j = 0; j < history_len; ++j )
@@ -851,11 +856,6 @@ static int linenoiseReadChar( void ){
     thisKeyMetaCtrl = 0;    // no modifiers yet at initialDispatch
     return doDispatch( c, initialDispatch );
 #endif // #_WIN32
-}
-
-static void beep() {
-    fprintf( stderr, "\x7" );   // ctrl-G == bell/beep
-    fflush( stderr );
 }
 
 static void freeCompletions( linenoiseCompletions* lc ) {
