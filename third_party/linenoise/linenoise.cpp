@@ -536,7 +536,7 @@ struct CharacterDispatch {
 //
 static unsigned int doDispatch( unsigned int c, CharacterDispatch& dispatchTable ) {
     for ( unsigned int i = 0; i < dispatchTable.len ; ++i ) {
-        if ( static_cast<unsigned int>( dispatchTable.chars[i] ) == c ) {
+        if ( static_cast<unsigned char>( dispatchTable.chars[i] ) == c ) {
             return dispatchTable.dispatch[i]( c );
         }
     }
@@ -710,7 +710,6 @@ static unsigned int escRoutine( unsigned int c ) {
     return doDispatch( c, escDispatch );
 }
 static unsigned int hibitCRoutine( unsigned int c ) {
-    printf("\nIn hibitCRoutine ...\n");
     // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
     if ( read( 0, &c, 1 ) <= 0 ) return 0;
     if ( c >= ( ' ' | 0x80 ) && c <= ( '?' | 0x80 ) ) {
@@ -719,7 +718,7 @@ static unsigned int hibitCRoutine( unsigned int c ) {
     return escFailureRoutine( c );
 }
 static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, hibitCRoutine, normalKeyRoutine };
-static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xE7", initialRoutines };
+static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xC3", initialRoutines };
 
 // Special handling for the ESC key because it does double duty
 //
