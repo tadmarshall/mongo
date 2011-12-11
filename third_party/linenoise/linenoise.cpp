@@ -526,7 +526,7 @@ typedef unsigned int ( *CharacterDispatchRoutine )( unsigned int );
 //
 struct CharacterDispatch {
     unsigned int                len;        // length of the chars list
-    const unsigned char*        chars;      // chars to test
+    const char*                 chars;      // chars to test
     CharacterDispatchRoutine*   dispatch;   // array of routines to call
 };
 
@@ -537,7 +537,7 @@ struct CharacterDispatch {
 //
 static unsigned int doDispatch( unsigned int c, CharacterDispatch& dispatchTable ) {
     for ( unsigned int i = 0; i < dispatchTable.len ; ++i ) {
-        if ( dispatchTable.chars[i] == c ) {
+        if ( static_cast<unsigned int>( dispatchTable.chars[i] ) == c ) {
             return dispatchTable.dispatch[i]( c );
         }
     }
