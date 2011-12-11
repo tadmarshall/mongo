@@ -566,7 +566,7 @@ static unsigned int escFailureRoutine( unsigned int c )           { return -1; }
 // Handle ESC [ 1 ; 3 <more stuff> escape sequences
 //
 static CharacterDispatchRoutine escLeftBracket1Semicolon3or5Routines[] = { upArrowKeyRoutine, downArrowKeyRoutine, rightArrowKeyRoutine, leftArrowKeyRoutine, escFailureRoutine };
-static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "abcd", escLeftBracket1Semicolon3or5Routines };
+static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "ABCD", escLeftBracket1Semicolon3or5Routines };
 
 // Handle ESC [ 1 ; <more stuff> escape sequences
 //
