@@ -571,12 +571,12 @@ static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "abcd", esc
 // Handle ESC [ 1 ; <more stuff> escape sequences
 //
 static unsigned int escLeftBracket1Semicolon3Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     thisKeyMetaCtrl |= META;
     return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
 static unsigned int escLeftBracket1Semicolon5Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     thisKeyMetaCtrl |= CTRL;
     return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
@@ -586,7 +586,7 @@ static CharacterDispatch escLeftBracket1SemicolonDispatch = { 2, "35", escLeftBr
 // Handle ESC [ 1 <more stuff> escape sequences
 //
 static unsigned int escLeftBracket1SemicolonRoutine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket1SemicolonDispatch );
 }
 static CharacterDispatchRoutine escLeftBracket1Routines[] = { homeKeyRoutine, escLeftBracket1SemicolonRoutine, escFailureRoutine };
@@ -618,18 +618,18 @@ static unsigned int escLeftBracket0Routine( unsigned int c ) {
     return escFailureRoutine( c );
 }
 static unsigned int escLeftBracket1Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket1Dispatch );
 }
 static unsigned int escLeftBracket2Routine( unsigned int c ) {
     return escFailureRoutine( c );
 }
 static unsigned int escLeftBracket3Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket3Dispatch );
 }
 static unsigned int escLeftBracket4Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket4Dispatch );
 }
 static unsigned int escLeftBracket5Routine( unsigned int c ) {
@@ -639,11 +639,11 @@ static unsigned int escLeftBracket6Routine( unsigned int c ) {
     return escFailureRoutine( c );
 }
 static unsigned int escLeftBracket7Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket7Dispatch );
 }
 static unsigned int escLeftBracket8Routine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracket8Dispatch );
 }
 static unsigned int escLeftBracket9Routine( unsigned int c ) {
@@ -693,11 +693,11 @@ static CharacterDispatch escODispatch = { 10, "ABCDHFabcd", escORoutines };
 // Initial ESC dispatch -- could be a Meta prefix or the start of an escape sequence
 //
 static unsigned int escLeftBracketRoutine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escLeftBracketDispatch );
 }
 static unsigned int escORoutine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escODispatch );
 }
 static unsigned int setMetaRoutine( unsigned int c ); // need forward reference
@@ -707,12 +707,12 @@ static CharacterDispatch escDispatch = { 2, "[O", escRoutines };
 // Initial dispatch -- we are not in the middle of anything yet
 //
 static unsigned int escRoutine( unsigned int c ) {
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escDispatch );
 }
 static unsigned int hibitCRoutine( unsigned int c ) {
     // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
-    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
     if ( c >= ( ' ' | 0x80 ) && c <= ( '?' | 0x80 ) ) {
         return META | ( c - 0x40 );
     }
@@ -726,7 +726,7 @@ static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xE7", initialRoutines 
 static unsigned int setMetaRoutine( unsigned int c ) {
     thisKeyMetaCtrl = META;
     if ( c == 0x1B ) {  // another ESC, stay in ESC processing mode
-        if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+        if ( read( 0, &c, 1 ) <= 0 ) return 0;
         return doDispatch( c, escDispatch );
     }
     return doDispatch( c, initialDispatch );
@@ -793,7 +793,7 @@ static int linenoiseReadChar( int fd ){
         printf( "\x1b[1G\n" ); /* go to first column of new line */
         while ( true ) {
             unsigned char keys[10];
-            int ret = _read( fd, keys, 10 );
+            int ret = read( fd, keys, 10 );
             //int ret = read( fd, keys, 10 );
 
             if ( ret <= 0 ) {
