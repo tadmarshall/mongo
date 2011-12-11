@@ -189,14 +189,12 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
 // Popular function-type keys get their own codes in the range 0x101 to (if
 // needed) 0x1FF, currently just arrow keys, Home, End and Delete.
 // Keypresses with Ctrl get or-ed with 0x200, with Alt get or-ed with 0x400.
-// So, Ctrl+Alt+Home is encoded as 0x200 + 0x400 + 0x105 == 0xF05.  To keep
+// So, Ctrl+Alt+Home is encoded as 0x200 + 0x400 + 0x105 == 0x705.  To keep
 // things complicated, the Alt key is equivalent to prefixing the keystroke
 // with ESC, so ESC followed by D is treated the same as Alt + D ... we'll
 // just use Emacs terminology and call this "Meta".  So, we will encode both
 // ESC followed by D and Alt held down while D is pressed the same, as Meta-D,
-//  encoded as 0x464.  "Normal" characters like "a" get the normal ASCII encoding
-// for Ctrl and Shift (for now) unless Meta is added, so Shift + "a" is just "A"
-// (0x41) and Ctrl + "a" is just "^A" (0x1).
+// encoded as 0x464.
 //
 // Here are the definitions of our component constants:
 //
@@ -211,7 +209,6 @@ static const int DELETE_KEY         = 0x107;
 static const int CTRL               = 0x200;
 static const int META               = 0x400;
 
-static const char* unsupported_term[] = { "dumb", "cons25", NULL };
 static linenoiseCompletionCallback* completionCallback = NULL;
 
 #ifdef _WIN32
@@ -230,17 +227,6 @@ static int history_index = 0;
 char** history = NULL;
 
 static void linenoiseAtExit( void );
-
-static bool isUnsupportedTerm( void ) {
-    char* term = getenv( "TERM" );
-    if ( term == NULL )
-        return false;
-    for ( int j = 0; unsupported_term[j]; ++j )
-        if ( ! strcasecmp( term, unsupported_term[j] ) ) {
-            return true;
-        }
-    return false;
-}
 
 void linenoiseHistoryFree( void ) {
     if ( history ) {
@@ -507,20 +493,41 @@ static void refreshLine( int fd, PromptInfo& pi, char *buf, int len, int pos ) {
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
 
+#ifndef _WIN32
+
+// This chunk of code does parsing of the escape sequences sent by various Linux terminals.
+//
+// It handles arrow keys, Home, End and Delete keys by interpreting the sequences sent by
+// gnome terminal, xterm, rxvt, konsole, aterm and yakuake including the Alt and Ctrl key
+// combinations that are understood by linenoise.
+//
+// The parsing uses tables, a bunch of intermediate dispatch routines and a doDispatch
+// loop that reads the tables and sends control to "deeper" routines to continue the
+// parsing.  The starting call to doDispatch( c, initialDispatch ) will eventually return
+// either a character (with optional CTRL and META bits set), or -1 if parsing fails, or
+// zero if an attempt to read from the keyboard fails.
+//
+// This is rather sloppy escape sequence processing, since we're not paying attention to what the
+// actual TERM is set to and are processing all key sequences for all terminals, but it works with
+// the most common keystrokes on the most common terminals.  It's intricate, but the nested 'if'
+// statements required to do it directly would be worse.  This way has the advantage of allowing
+// changes and extensions without having to touch a lot of code.
+//
+
 // This is a typedef for the routine called by doDispatch().  It takes the current character
 // as input, does any required processing including reading more characters and calling other
-// dispatch routines,, then eventually returns the final (possibly extended or special) character.
+// dispatch routines, then eventually returns the final (possibly extended or special) character.
 //
-typedef int ( *CharacterDispatchRoutine )( int );
+typedef unsigned int ( *CharacterDispatchRoutine )( unsigned int );
 
 // This structure is used by doDispatch() to hold a list of characters to test for and
 // a list of routines to call if the character matches.  The dispatch routine list is one
-// longer than the character list; the final entry is used if no charater matches.
+// longer than the character list; the final entry is used if no character matches.
 //
 struct CharacterDispatch {
-    int                         len;        // length of the dispatch list
-    char*                       chars;      // chars to test, one fewer than dispatch size
-    CharacterDispatchRoutine*   dispatch;   // routine to call
+    unsigned int                len;        // length of the chars list
+    const char*                 chars;      // chars to test
+    CharacterDispatchRoutine*   dispatch;   // array of routines to call
 };
 
 // This dispatch routine is given a dispatch table and then farms work out to routines
@@ -528,121 +535,203 @@ struct CharacterDispatch {
 // read more input characters to decide what should eventually be returned.  Eventually,
 // a called routine returns either a character or -1 to indicate parsing failure.
 //
-int doDispatch( int c, CharacterDispatch * dispatchTable ) {
-    for ( int i = 0; i < dispatchTable->len ; ++i ) {
-        if ( dispatchTable->chars[i] == c ) {
-            return dispatchTable->dispatch[i]( c );
+static unsigned int doDispatch( unsigned int c, CharacterDispatch& dispatchTable ) {
+    for ( unsigned int i = 0; i < dispatchTable.len ; ++i ) {
+        if ( dispatchTable.chars[i] == c ) {
+            return dispatchTable.dispatch[i]( c );
         }
     }
-    return dispatchTable->dispatch[dispatchTable->len]( c );
+    return dispatchTable.dispatch[dispatchTable.len]( c );
 }
 
-// Esc sequence dispatch routines
-//
-int escLeftBracketRoutine( int c ) {
-    return '[';
-}
-int escORoutine( int c ) {
-    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
-    //return doDispatch( c, escDispatch );
-    return 'O';
-}
-int escFailureRoutine( int c ) {
-    return -1;
-}
+static unsigned int thisKeyMetaCtrl = 0;     // holds pre-set Meta and/or Ctrl modifiers
 
-// Escape sequence dispatch -- process an escape sequence
+// Final dispatch routines -- return something
 //
-char escSequenceChars[] = "[O";
-CharacterDispatchRoutine escSequenceRoutines[] = {
-    escLeftBracketRoutine,
-    escORoutine,
-    escFailureRoutine
-};
-CharacterDispatch escSequenceDispatch[] = {
-    2,
-    escSequenceChars,
-    escSequenceRoutines
-};
+static unsigned int normalKeyRoutine( unsigned int c )            { return thisKeyMetaCtrl | c; }
+static unsigned int upArrowKeyRoutine( unsigned int c )           { return thisKeyMetaCtrl | UP_ARROW_KEY; }
+static unsigned int downArrowKeyRoutine( unsigned int c )         { return thisKeyMetaCtrl | DOWN_ARROW_KEY; }
+static unsigned int rightArrowKeyRoutine( unsigned int c )        { return thisKeyMetaCtrl | RIGHT_ARROW_KEY; }
+static unsigned int leftArrowKeyRoutine( unsigned int c )         { return thisKeyMetaCtrl | LEFT_ARROW_KEY; }
+static unsigned int homeKeyRoutine( unsigned int c )              { return thisKeyMetaCtrl | HOME_KEY; }
+static unsigned int endKeyRoutine( unsigned int c )               { return thisKeyMetaCtrl | END_KEY; }
+static unsigned int deleteCharRoutine( unsigned int c )           { return thisKeyMetaCtrl | ctrlChar( 'H' ); } // key labeled Backspace
+static unsigned int deleteKeyRoutine( unsigned int c )            { return thisKeyMetaCtrl | DELETE_KEY; }      // key labeled Delete
+static unsigned int ctrlUpArrowKeyRoutine( unsigned int c )       { return thisKeyMetaCtrl | CTRL | UP_ARROW_KEY; }
+static unsigned int ctrlDownArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | DOWN_ARROW_KEY; }
+static unsigned int ctrlRightArrowKeyRoutine( unsigned int c )    { return thisKeyMetaCtrl | CTRL | RIGHT_ARROW_KEY; }
+static unsigned int ctrlLeftArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | LEFT_ARROW_KEY; }
+static unsigned int escFailureRoutine( unsigned int c )           { return -1; }
 
-// Esc sequence dispatch routines
+// Handle ESC [ 1 ; 3 <more stuff> escape sequences
 //
-int escLeftBracketRoutine( int c ) {
-    return '[';
-}
-int escORoutine( int c ) {
-    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
-    //return doDispatch( c, escDispatch );
-    return 'O';
-}
-int escFailureRoutine( int c ) {
-    return -1;
-}
+static CharacterDispatchRoutine escLeftBracket1Semicolon3or5Routines[] = { upArrowKeyRoutine, downArrowKeyRoutine, rightArrowKeyRoutine, leftArrowKeyRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "abcd", escLeftBracket1Semicolon3or5Routines };
 
-// Escape sequence dispatch -- process an escape sequence
+// Handle ESC [ 1 ; <more stuff> escape sequences
 //
-char escSequenceChars[] = "[O";
-CharacterDispatchRoutine escSequenceRoutines[] = {
-    escLeftBracketRoutine,
-    escORoutine,
-    escFailureRoutine
-};
-CharacterDispatch escSequenceDispatch[] = {
-    2,
-    escSequenceChars,
-    escSequenceRoutines
-};
-
-// Esc dispatch routines
-//
-//int setMetaRoutine( int c ) {
-//    return 'M';
-//}
-int escSequenceRoutine( int c ) {
-    //if ( _read( 0, &c, 1 ) <= 0 ) return 0;
-    return doDispatch( c, escSequenceDispatch );
-}
-
-// Esc dispatch -- could be a Meta prefix or the start of an escape sequence
-//
-char escChars[] = "";
-//char escChars[] = "\x1B";
-CharacterDispatchRoutine escRoutines[] = {
-    //setMetaRoutine,
-    escSequenceRoutine
-};
-CharacterDispatch escDispatch[] = {
-    0,
-    escChars,
-    escRoutines
-};
-
-// Initial dispatch routines
-//
-int escRoutine( int c ) {
+static unsigned int escLeftBracket1Semicolon3Routine( unsigned int c ) {
     if ( _read( 0, &c, 1 ) <= 0 ) return 0;
-    return doDispatch( c, escDispatch );
+    thisKeyMetaCtrl |= META;
+    return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
-int delRoutine( int c ) {
-    return ctrlChar( 'H' );
+static unsigned int escLeftBracket1Semicolon5Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    thisKeyMetaCtrl |= CTRL;
+    return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
-int normalRoutine( int c ) {
-    return c;
+static CharacterDispatchRoutine escLeftBracket1SemicolonRoutines[] = { escLeftBracket1Semicolon3Routine, escLeftBracket1Semicolon5Routine, escFailureRoutine };
+static CharacterDispatch escLeftBracket1SemicolonDispatch = { 2, "35", escLeftBracket1SemicolonRoutines };
+
+// Handle ESC [ 1 <more stuff> escape sequences
+//
+static unsigned int escLeftBracket1SemicolonRoutine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket1SemicolonDispatch );
 }
+static CharacterDispatchRoutine escLeftBracket1Routines[] = { homeKeyRoutine, escLeftBracket1SemicolonRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket1Dispatch = { 2, "~;", escLeftBracket1Routines };
+
+// Handle ESC [ 3 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket3Routines[] = { deleteKeyRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket3Dispatch = { 1, "~", escLeftBracket3Routines };
+
+// Handle ESC [ 4 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket4Routines[] = { endKeyRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket4Dispatch = { 1, "~", escLeftBracket4Routines };
+
+// Handle ESC [ 7 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket7Routines[] = { homeKeyRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket7Dispatch = { 1, "~", escLeftBracket7Routines };
+
+// Handle ESC [ 8 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket8Routines[] = { endKeyRoutine, escFailureRoutine };
+static CharacterDispatch escLeftBracket8Dispatch = { 1, "~", escLeftBracket8Routines };
+
+// Handle ESC [ <digit> escape sequences
+//
+static unsigned int escLeftBracket0Routine( unsigned int c ) {
+    return escFailureRoutine( c );
+}
+static unsigned int escLeftBracket1Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket1Dispatch );
+}
+static unsigned int escLeftBracket2Routine( unsigned int c ) {
+    return escFailureRoutine( c );
+}
+static unsigned int escLeftBracket3Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket3Dispatch );
+}
+static unsigned int escLeftBracket4Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket4Dispatch );
+}
+static unsigned int escLeftBracket5Routine( unsigned int c ) {
+    return escFailureRoutine( c );
+}
+static unsigned int escLeftBracket6Routine( unsigned int c ) {
+    return escFailureRoutine( c );
+}
+static unsigned int escLeftBracket7Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket7Dispatch );
+}
+static unsigned int escLeftBracket8Routine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracket8Dispatch );
+}
+static unsigned int escLeftBracket9Routine( unsigned int c ) {
+    return escFailureRoutine( c );
+}
+
+// Handle ESC [ <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracketRoutines[] = {
+    upArrowKeyRoutine,
+    downArrowKeyRoutine,
+    rightArrowKeyRoutine,
+    leftArrowKeyRoutine,
+    homeKeyRoutine,
+    endKeyRoutine,
+    escLeftBracket0Routine,
+    escLeftBracket1Routine,
+    escLeftBracket2Routine,
+    escLeftBracket3Routine,
+    escLeftBracket4Routine,
+    escLeftBracket5Routine,
+    escLeftBracket6Routine,
+    escLeftBracket7Routine,
+    escLeftBracket8Routine,
+    escLeftBracket9Routine,
+    escFailureRoutine
+};
+static CharacterDispatch escLeftBracketDispatch = { 16, "ABCDHF0123456789", escLeftBracketRoutines };
+
+// Handle ESC O <char> escape sequences
+//
+static CharacterDispatchRoutine escORoutines[] = {
+    upArrowKeyRoutine,
+    downArrowKeyRoutine,
+    rightArrowKeyRoutine,
+    leftArrowKeyRoutine,
+    homeKeyRoutine,
+    endKeyRoutine,
+    ctrlUpArrowKeyRoutine,
+    ctrlDownArrowKeyRoutine,
+    ctrlRightArrowKeyRoutine,
+    ctrlLeftArrowKeyRoutine,
+    escFailureRoutine
+};
+static CharacterDispatch escODispatch = { 10, "ABCDHFabcd", escORoutines };
+
+// Initial ESC dispatch -- could be a Meta prefix or the start of an escape sequence
+//
+static unsigned int escLeftBracketRoutine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escLeftBracketDispatch );
+}
+static unsigned int escORoutine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escODispatch );
+}
+static unsigned int setMetaRoutine( unsigned int c ); // need forward reference
+static CharacterDispatchRoutine escRoutines[] = { escLeftBracketRoutine, escORoutine, setMetaRoutine };
+static CharacterDispatch escDispatch = { 2, "[O", escRoutines };
 
 // Initial dispatch -- we are not in the middle of anything yet
 //
-char initialChars[] = "\x1B\x7F";
-CharacterDispatchRoutine initialRoutines[] = {
-    escRoutine,
-    delRoutine,
-    normalRoutine
-};
-CharacterDispatch initialDispatch[] = {
-    2,
-    initialChars,
-    initialRoutines
-};
+static unsigned int escRoutine( unsigned int c ) {
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    return doDispatch( c, escDispatch );
+}
+static unsigned int hibitCRoutine( unsigned int c ) {
+    // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
+    if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+    if ( c >= ( ' ' | 0x80 ) && c <= ( '?' | 0x80 ) ) {
+        return META | ( c - 0x40 );
+    }
+    return escFailureRoutine( c );
+}
+static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, hibitCRoutine, normalKeyRoutine };
+static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xE7", initialRoutines };
+
+// Special handling for the ESC key because it does double duty
+//
+static unsigned int setMetaRoutine( unsigned int c ) {
+    thisKeyMetaCtrl = META;
+    if ( c == 0x1B ) {  // another ESC, stay in ESC processing mode
+        if ( _read( 0, &c, 1 ) <= 0 ) return 0;
+        return doDispatch( c, escDispatch );
+    }
+    return doDispatch( c, initialDispatch );
+}
+#endif // #ifndef _WIN32
 
 // linenoiseReadChar -- read a keystroke or keychord from the keyboard, and translate it
 // into an encoded "keystroke".  When convenient, extended keys are translated into their
@@ -651,8 +740,7 @@ CharacterDispatch initialDispatch[] = {
 // A return value of zero means "no input available", and a return value of -1 means "invalid key".
 //
 static int linenoiseReadChar( int fd ){
-#ifndef _WIN32
-//#ifdef _WIN32
+#ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
     int modifierKeys = 0;
@@ -686,13 +774,14 @@ static int linenoiseReadChar( int fd ){
     } while ( true );
     return modifierKeys | rec.Event.KeyEvent.uChar.AsciiChar;
 #else
-    char c;
+    unsigned int c;
+    unsigned char oneChar;
     int nread;
 
-    nread = _read( 0, &c, 1 );
-    //nread = read( 0, &c, 1 );
+    nread = read( 0, &oneChar, 1 );
     if ( nread <= 0 )
         return 0;
+    c = static_cast<unsigned int>( oneChar );
 
     // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
     // where we print out decimal and decoded values for whatever the "terminal" program
@@ -753,129 +842,9 @@ static int linenoiseReadChar( int fd ){
     }
 #endif  // _DEBUG_LINUX_KEYBOARD
 
-    // The better way to do this is with a state machine and dispatch tables, which would enable
-    // parsing on-the-fly without this clumsiness.  Instead, we're continuing the old style and
-    // reading the escape sequences in parts.  The problem is that you don't want to read too much,
-    // because then if you guess wrong about what you're reading you will eat characters from the
-    // next escape sequence (which you might have understood) and end up treating portions of
-    // escape sequences as if they were user-entered text.  When you see "D" or "[D" on a left
-    // arrow, this is what has happened.
-    //
-    // We'll read the escape sequence in up to 3 parts depending on what we find at intermediate
-    // stages.
-    //
-    //char chars_12[2], char_3, chars_45[2];  // char 0 is ESC, then 2 more, then 1 more, then 2 more
-
+    thisKeyMetaCtrl = 0;    // no modifiers yet at initialDispatch
     return doDispatch( c, initialDispatch );
-
-#if 0
-
-    // This is rather sloppy escape sequence processing, since we're not paying attention to what the
-    // actual TERM is set to and are processing all key sequences for all terminals, but it works with
-    // the most common keystrokes on the most common terminals ... VT100-like, xterm, rxvt and konsole.
-    //
-    if ( c == 27 ) {    // ESC character, start of ESC sequence
-        if ( read( fd, chars_12, 2 ) == -1 ) return 0;
-        if ( chars_12[0] == '[' ) {              // left square bracket
-            if ( chars_12[1] == 'A' ) {          // ESC [ A, VT100 up arrow key
-                return UP_ARROW_KEY;
-            }
-            else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                return DOWN_ARROW_KEY;
-            }
-            else if ( chars_12[1] == 'C' ) {     // ESC [ C, VT100 right arrow key
-                return RIGHT_ARROW_KEY;
-            }
-            else if ( chars_12[1] == 'D' ) {     // ESC [ D, VT100 left arrow key
-                return LEFT_ARROW_KEY;
-            }
-            else if ( chars_12[1] == 'F' ) {     // ESC [ F, xterm/konsole End key
-                return END_KEY;
-            }
-            else if ( chars_12[1] == 'H' ) {     // ESC [ H, xterm/konsole Home key
-                return HOME_KEY;
-            }
-            else if ( chars_12[1] > '0' && chars_12[1] < '9' ) {            // Linux console and rxvt, ESC [ 1 ~ through ESC [ 8 ~
-                if ( read( fd, char_3, 1 ) == -1 ) return 0;                // get another char
-                if ( char_3 == '~' ) {                                      // ESC [ <n> ~
-                    if ( chars_12[1] == '1' || chars_12[1] == '7' ) {       // ESC [ 1 ~ (Linux console) / ESC [ 7 ~ (rxvt) Home key
-                        return HOME_KEY;
-                    }
-                    else if ( chars_12[1] == '4' || chars_12[1] == '8' ) {  // ESC [ 4 ~ (Linux console) / ESC [ 8 ~ (rxvt) End key
-                        return END_KEY;
-                    }
-                    else if ( chars_12[1] == '3' ) {                        // ESC [ 3 ~ (either) Delete key
-                        return DELETE_KEY;
-                    }
-                    else {
-                        return -1;
-                    }
-                }
-                //else if ( char_3 == ';' ) {                         // gnome/xterm/konsole/yakuake Ctrl or Alt arrow
-                //    if ( read( fd, chars_45, 2 ) == -1 ) return 0;  // we need 2 more chars
-                //    //if () {
-                //    //}
-                //    //else if () {
-                //    //}
-                //    //else {
-                //    //}
-                //    if ( chars_34[1] == 'A' ) {         // ESC [ 1 ; 3 A, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    if ( chars_34[1] == 'A' ) {         // ESC [ 1 ; 3 A, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //    else if ( chars_12[1] == 'B' ) {     // ESC [ B, VT100 down arrow key
-                //        return DOWN_ARROW_KEY;
-                //    }
-                //}
-                else {
-                    return -1;
-                }
-            }
-            else {
-                return -1;
-            }
-        }
-        else if ( chars_12[0] == 'O' ) {         // ESC O F and ESC O H (gnome terminal Home and End)
-            if ( chars_12[1] == 'F' ) {          // ESC O F, gnome terminal End key
-                return END_KEY;
-            }
-            else if ( chars_12[1] == 'H' ) {     // ESC O H, gnome terminal Home key
-                return HOME_KEY;
-            }
-            else {
-                return -1;
-            }
-        }
-        else {
-            return -1;
-        }
-    }
-    else if ( c == 127 ) {          // ASCII DEL
-        return ctrlChar( 'H' );     // translate to backspace/ctrl-H
-    }
-
-    return c; /* normalish character */
-
-#endif // #if 0
-
-#endif
+#endif // #_WIN32
 }
 
 static void beep() {
@@ -1362,30 +1331,21 @@ static int linenoiseRaw( char* buf, int buflen, PromptInfo& pi ) {
     return count;
 }
 
-// the returned string is allocated with strdup() and must be freed by calling free()
-char *linenoise( const char* prompt ) {
+/**
+ * linenoise is a readline replacement.
+ *
+ * call it with a prompt to display and it will return a line of input from the user
+ *
+ * @param prompt text of prompt to display to the user
+ * @return       the returned string belongs to the caller on return and must be freed to prevent memory leaks
+ */
+char* linenoise( const char* prompt ) {
     char buf[LINENOISE_MAX_LINE];               // buffer for user's input
     PromptInfo pi( prompt, getColumns() );      // struct to hold edited copy of prompt & misc prompt info
-
-    if ( isUnsupportedTerm() ) {
-        printf( "%s", pi.promptText );
-        fflush( stdout );
-        if ( fgets( buf,LINENOISE_MAX_LINE, stdin ) == NULL ) {
-            return NULL;
-        }
-        size_t len = strlen( buf );
-        while ( len && ( buf[len - 1] == '\n' || buf[len - 1] == '\r' ) ) {
-            --len;
-            buf[len] = '\0';
-        }
+    if ( linenoiseRaw( buf, LINENOISE_MAX_LINE, pi ) == -1 ) {
+        return NULL;
     }
-    else {
-        int count = linenoiseRaw( buf, LINENOISE_MAX_LINE, pi );
-        if ( count == -1 ) {
-            return NULL;
-        }
-    }
-    return strdup( buf );
+    return strdup( buf );                       // caller must free buffer
 }
 
 /* Register a callback function to be called for tab-completion. */
