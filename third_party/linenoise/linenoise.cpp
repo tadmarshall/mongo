@@ -547,6 +547,8 @@ static void refreshLine( PromptInfo& pi, char *buf, int len, int pos ) {
 
 #ifndef _WIN32
 
+namespace EscapeSequenceProcessing { // move these out of global namespace
+
 // This chunk of code does parsing of the escape sequences sent by various Linux terminals.
 //
 // It handles arrow keys, Home, End and Delete keys by interpreting the sequences sent by
@@ -786,6 +788,9 @@ static unsigned int setMetaRoutine( unsigned int c ) {
     }
     return doDispatch( c, initialDispatch );
 }
+
+} // namespace EscapeSequenceProcessing { // move these out of global namespace
+
 #endif // #ifndef _WIN32
 
 // linenoiseReadChar -- read a keystroke or keychord from the keyboard, and translate it
@@ -905,7 +910,7 @@ static int linenoiseReadChar( void ){
 #endif  // _DEBUG_LINUX_KEYBOARD
 
     thisKeyMetaCtrl = 0;    // no modifiers yet at initialDispatch
-    return doDispatch( c, initialDispatch );
+    return EscapeSequenceProcessing::doDispatch( c, EscapeSequenceProcessing::initialDispatch );
 #endif // #_WIN32
 }
 
