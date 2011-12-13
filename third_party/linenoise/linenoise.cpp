@@ -125,7 +125,7 @@ using std::vector;
 // make control-characters more readable
 #define ctrlChar( upperCaseASCII ) ( upperCaseASCII - 0x40 )
 
-struct PromptInfo {                 // a convenience struct for grouping prompt info
+struct PromptBase {                 // a convenience struct for grouping prompt info
     char*   promptText;                 // our copy of the prompt text, edited
     int     promptChars;                // bytes or chars (until UTF-8) in promptText
     int     promptExtraLines;           // extra lines (beyond 1) occupied by prompt
@@ -134,8 +134,12 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
     int     promptPreviousInputLen;     // promptChars of previous input line, for clearing
     int     promptCursorRowOffset;      // where the cursor is relative to the start of the prompt
     int     promptScreenColumns;        // width of screen in columns
+};
 
-    PromptInfo( const char* textPtr, int columns ) : promptScreenColumns( columns ) {
+struct PromptInfo : public PromptBase {
+
+    PromptInfo( const char* textPtr, int columns ) {
+        promptScreenColumns = columns;
 
         promptText = new char[strlen( textPtr ) + 1];
         strcpy( promptText, textPtr );
@@ -181,21 +185,26 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
     }
 };
 
-struct DynamicPrompt {              // changing prompt for "(reverse-i-search)`text':" etc.
-    const PromptInfo&   basePrompt;     // the prompt we are drawing over
-    char*   promptText;                 // our copy of the prompt text, edited
-    int     direction;                  // current search direction, 1=forward, -1=reverse
+// Used with DynamicPrompt (history search)
+//
+static const char forwardSearchBasePrompt[] = "(i-search)`";
+static const char reverseSearchBasePrompt[] = "(reverse-i-search)`";
+static const char endSearchBasePrompt[] = "': ";
 
+// changing prompt for "(reverse-i-search)`text':" etc.
+//
+struct DynamicPrompt : public PromptBase {
+    PromptInfo& realPrompt;                 // the prompt we are drawing over
+    int         direction;                  // current search direction, 1=forward, -1=reverse
+    int         forwardSearchBasePromptLen; // prompt component lengths
+    int         reverseSearchBasePromptLen;
+    int         endSearchBasePromptLen;
 
+    DynamicPrompt( PromptInfo& pi, int initialDirection ) : realPrompt( pi ), direction( initialDirection ) {
+        forwardSearchBasePromptLen = strlen( forwardSearchBasePrompt );
+        reverseSearchBasePromptLen = strlen( reverseSearchBasePrompt );
+        endSearchBasePromptLen = strlen( endSearchBasePrompt );
 
-    //int     promptExtraLines;           // extra lines (beyond 1) occupied by prompt
-    //int     promptIndentation;          // column offset to end of prompt
-    //int     promptLastLinePosition;     // index into promptText where last line begins
-    //int     promptPreviousInputLen;     // promptChars of previous input line, for clearing
-    //int     promptCursorRowOffset;      // where the cursor is relative to the start of the prompt
-    //int     promptScreenColumns;        // width of screen in columns
-
-    DynamicPrompt( const PromptInfo& pi, int initialDirection ) : basePrompt( pi ), direction( initialDirection ) {
     }
 
 };
@@ -311,11 +320,6 @@ static struct termios orig_termios; /* in order to restore at exit */
 #endif
 
 static KillRing killRing;
-
-// Used with DynamicPrompt (history search)
-//
-static const char forwardSearchBasePrompt[] = "(i-search)`%s': ";
-static const char reverseSearchBasePrompt[] = "(reverse-i-search)`%s': ";
 
 static int rawmode = 0; /* for atexit() function to check if restore is needed*/
 static int atexit_registered = 0; /* register atexit just 1 time */
@@ -489,7 +493,7 @@ static void setDisplayAttribute( bool enhancedDisplay ) {
  * @param len  count of characters in the buffer
  * @param pos  current cursor position within the buffer (0 <= pos <= len)
  */
-static void refreshLine( PromptInfo& pi, char *buf, int len, int pos ) {
+static void refreshLine( PromptBase& pi, char *buf, int len, int pos ) {
 
     // check for a matching brace/bracket/paren, remember its position if found
     int highlight = -1;
@@ -1126,6 +1130,77 @@ static int cleanupCtrl( int c ) {
     return c;
 }
 
+/**
+ * Incremental history search -- take over the prompt and keyboard as the user types a search string,
+ * deletes characters from it, changes direction, and either accepts the found line (for execution or
+ * editing) or cancels.
+ * @param pi        PromptInfo struct holding information about the (old, static) prompt and our screen position
+ * @param buf       input buffer to be displayed
+ * @param buflen    size of input buffer in bytes
+ * @param len       ptr to count of characters in the buffer (updated)
+ * @param pos       ptr to current cursor position within the buffer (0 <= pos <= len) (updated)
+ * @param startChar the character that began the search, used to set  theinitial direction
+ */
+int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, int *pos, int startChar ) {
+    char histBuf[LINENOISE_MAX_LINE];           // buffer for history display
+    int histLen;
+    int histPos;
+    DynamicPrompt dp( pi, ( startChar == ctrlChar( 'R' ) ) ? -1 : 1 );
+    dp.promptExtraLines = pi.promptExtraLines;
+    dp.promptIndentation = dp.endSearchBasePromptLen +
+        ( dp.direction > 0 ) ? dp.forwardSearchBasePromptLen : dp.reverseSearchBasePromptLen;
+    dp.promptPreviousInputLen = ( pi.promptPreviousInputLen > *len ) ? pi.promptPreviousInputLen : *len;
+    dp.promptCursorRowOffset = pi.promptCursorRowOffset;
+    dp.promptScreenColumns = pi.promptScreenColumns;
+
+    // for now, just try to get a prompt on the screen and erase it on a keystroke
+    //
+    histBuf[0] = 0;
+    refreshLine( pi, histBuf, 0, 0 );   // erase old stuff
+    dp.promptCursorRowOffset = pi.promptCursorRowOffset;    // reset cursor pos
+    dp.promptIndentation = 0;
+    refreshLine( dp, histBuf, 0, 0 );   // go to left margin
+    if ( dp.direction < 0 ) {
+        if ( write( 1, reverseSearchBasePrompt, dp.reverseSearchBasePromptLen ) == -1 ) return -1;
+        if ( write( 1, endSearchBasePrompt, dp.endSearchBasePromptLen ) == -1 ) return -1;
+        dp.promptIndentation = dp.reverseSearchBasePromptLen + dp.endSearchBasePromptLen;
+    }
+    else {
+        if ( write( 1, forwardSearchBasePrompt, dp.forwardSearchBasePromptLen ) == -1 ) return -1;
+        if ( write( 1, endSearchBasePrompt, dp.endSearchBasePromptLen ) == -1 ) return -1;
+        dp.promptIndentation = dp.forwardSearchBasePromptLen + dp.endSearchBasePromptLen;
+    }
+    strcpy( histBuf, buf );     // our initial buffer is what the user had before hitting ctrl-R
+    histLen = *len;
+    histPos = *pos;
+    refreshLine( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
+    int c;
+
+    // loop until we get an exit character
+    bool keepLooping = true;
+    while ( keepLooping ) {
+        c = linenoiseReadChar();
+        c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
+        switch ( c ) {
+
+        case ctrlChar( 'R' ):
+            // search again, maybe flip direction, maybe flip prompt
+            break;
+
+        case ctrlChar( 'S' ):
+            // search again, maybe flip direction, maybe flip prompt
+            break;
+
+        default:
+            if ( c >= ' ' && c < 127 ) {    // printable
+                keepLooping = false;
+                //
+            }
+        }
+    }
+    return c;
+}
+
 static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
     int pos = 0;
     int len = 0;
@@ -1155,11 +1230,12 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
         int c;
         if ( terminatingKeystroke == -1 ) {
             c = linenoiseReadChar();    // get a new keystroke
-            c = cleanupCtrl( c );       // convert CTRL + <char> into normal ctrl
         }
         else {
             c = terminatingKeystroke;   // use the terminating keystroke from search
+            terminatingKeystroke = -1;  // clear it once we've used it
         }
+        c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
 
         if ( c == 0 )
             return len;
@@ -1376,9 +1452,9 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             }
             break;
 
-        case ctrlChar( 'R' ):   // ctrl-R, history search
-            {
-            }
+        case ctrlChar( 'R' ):   // ctrl-R or ctrl-S, history search
+        case ctrlChar( 'S' ):
+            terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
             break;
 
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
