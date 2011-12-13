@@ -181,6 +181,25 @@ struct PromptInfo {                 // a convenience struct for grouping prompt 
     }
 };
 
+struct DynamicPrompt {              // changing prompt for "(reverse-i-search)`text':" etc.
+    const PromptInfo&   basePrompt;     // the prompt we are drawing over
+    char*   promptText;                 // our copy of the prompt text, edited
+    int     direction;                  // current search direction, 1=forward, -1=reverse
+
+
+
+    //int     promptExtraLines;           // extra lines (beyond 1) occupied by prompt
+    //int     promptIndentation;          // column offset to end of prompt
+    //int     promptLastLinePosition;     // index into promptText where last line begins
+    //int     promptPreviousInputLen;     // promptChars of previous input line, for clearing
+    //int     promptCursorRowOffset;      // where the cursor is relative to the start of the prompt
+    //int     promptScreenColumns;        // width of screen in columns
+
+    DynamicPrompt( const PromptInfo& pi, int initialDirection ) : basePrompt( pi ), direction( initialDirection ) {
+    }
+
+};
+
 class KillRing {
     static const int    capacity = 10;
     int                 size;
@@ -292,6 +311,11 @@ static struct termios orig_termios; /* in order to restore at exit */
 #endif
 
 static KillRing killRing;
+
+// Used with DynamicPrompt (history search)
+//
+static const char forwardSearchBasePrompt[] = "(i-search)`%s': ";
+static const char reverseSearchBasePrompt[] = "(reverse-i-search)`%s': ";
 
 static int rawmode = 0; /* for atexit() function to check if restore is needed*/
 static int atexit_registered = 0; /* register atexit just 1 time */
@@ -1120,12 +1144,22 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
     // the cursor starts out at the end of the prompt
     pi.promptCursorRowOffset = pi.promptExtraLines;
 
+    // kill and yank start in "other" mode
     killRing.lastAction = KillRing::actionOther;
+
+    // when history search returns control to us, we execute its terminating keystroke
+    int terminatingKeystroke = -1;
 
     // loop collecting characters, responding to ctrl characters
     while ( true ) {
-        int c = linenoiseReadChar();
-        c = cleanupCtrl( c );
+        int c;
+        if ( terminatingKeystroke == -1 ) {
+            c = linenoiseReadChar();    // get a new keystroke
+            c = cleanupCtrl( c );       // convert CTRL + <char> into normal ctrl
+        }
+        else {
+            c = terminatingKeystroke;   // use the terminating keystroke from search
+        }
 
         if ( c == 0 )
             return len;
@@ -1339,6 +1373,11 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
                 buf[buflen] = '\0';
                 len = pos = strlen( buf );  // place cursor at end of line
                 refreshLine( pi, buf, len, pos );
+            }
+            break;
+
+        case ctrlChar( 'R' ):   // ctrl-R, history search
+            {
             }
             break;
 
