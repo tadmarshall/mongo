@@ -443,6 +443,10 @@ namespace mongo {
                 while ( numTries < 5 ) {
                     numTries++;
 
+                    // This all should eventually be replaced by new pcursor framework, but for now match query
+                    // retry behavior manually
+                    if( numTries >= 2 ) sleepsecs( numTries - 1 );
+
                     if ( ! cm ) {
                         // probably unsharded now
                         return run( dbName , cmdObj , options , errmsg , result, false );
@@ -456,13 +460,16 @@ namespace mongo {
 
                     for (set<Shard>::iterator it=shards.begin(), end=shards.end(); it != end; ++it) {
                         ShardConnection conn(*it, fullns);
-                        if ( conn.setVersion() ) {
-                            total = 0;
-                            shardCounts.clear();
-                            cm = conf->getChunkManagerIfExists( fullns );
-                            conn.done();
-                            hadToBreak = true;
-                            break;
+                        if ( conn.setVersion() ){
+                            ChunkManagerPtr newCM = conf->getChunkManagerIfExists( fullns );
+                            if( newCM->getVersion() != cm->getVersion() ){
+                                cm = newCM;
+                                total = 0;
+                                shardCounts.clear();
+                                conn.done();
+                                hadToBreak = true;
+                                break;
+                            }
                         }
 
                         BSONObj temp;
@@ -1301,10 +1308,11 @@ namespace mongo {
                                     long long size = chunkSizes[i+1].numberLong();
                                     assert( size < 0x7fffffff );
 
-                                    if (chunkMap.count(key) <= 0) {
+                                    ChunkMap::const_iterator cit = chunkMap.find(key);
+                                    if (cit == chunkMap.end()) {
                                         warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
                                     } else {
-                                        ChunkPtr c = chunkMap.at(key);
+                                        ChunkPtr c = cit->second;
                                         c->splitIfShould(static_cast<int>(size));
                                     }
                                 }
