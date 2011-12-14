@@ -893,6 +893,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\d_concurrency.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\s\d_logic.cpp"
 				>
 				<FileConfiguration
@@ -3175,11 +3179,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\db\background.h"
+				RelativePath=".\util\background.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\background.h"
+				RelativePath=".\db\background.h"
 				>
 			</File>
 			<File
@@ -3320,6 +3324,10 @@
 			</File>
 			<File
 				RelativePath=".\s\d_chunk_manager.h"
+				>
+			</File>
+			<File
+				RelativePath=".\db\d_concurrency.h"
 				>
 			</File>
 			<File
