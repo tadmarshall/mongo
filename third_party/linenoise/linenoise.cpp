@@ -1389,6 +1389,14 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
     // display the prompt
     if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return -1;
 
+#if 1
+#ifndef _WIN32
+    // we have to generate our own newline on line wrap on Linux
+    if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
+        if ( write( 1, "\n", 1 ) == -1 ) return;
+#endif
+#endif
+
     // the cursor starts out at the end of the prompt
     pi.promptCursorRowOffset = pi.promptExtraLines;
 
