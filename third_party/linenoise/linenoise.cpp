@@ -1268,7 +1268,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     // loop until we get an exit character
     bool keepLooping = true;
     bool revertLine = false;
-    bool executeLine = false;
+    //bool executeLine = false;
     while ( keepLooping ) {
         c = linenoiseReadChar();
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
