@@ -570,10 +570,14 @@ static void dynamicRefresh( PromptBase& pi, char *buf, int len, int pos ) {
         snprintf( seq, sizeof seq, "\x1b[%dA", cursorRowMovement );
         if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
     }
-    // position at the end of the prompt, clear to end of screen
-    snprintf( seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1 );  // 1-based on VT100
+    // position at the start of the prompt, clear to end of screen
+    snprintf( seq, sizeof seq, "\x1b[1G\x1b[J" );  // 1-based on VT100
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
 
+    // display the prompt
+    if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return;
+
+    // display the input line
     if ( write( 1, buf, len ) == -1 ) return;
 
     // we have to generate our own newline on line wrap
@@ -1294,7 +1298,6 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case META + 'F':
         case CTRL + RIGHT_ARROW_KEY:
         case META + RIGHT_ARROW_KEY: // Emacs allows Meta, bash & readline don't
-        case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
         case META + ctrlChar( 'H' ):
         case ctrlChar( 'K' ):   // ctrl-K, kill from cursor to end of line
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
@@ -1337,6 +1340,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
 #endif
 
         // these characters update the search string, and hence the selected input line
+        case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
         case ctrlChar( 'Y' ):   // ctrl-Y, yank killed text
             break;
 
