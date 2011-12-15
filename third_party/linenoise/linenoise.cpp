@@ -1393,7 +1393,7 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
 #ifndef _WIN32
     // we have to generate our own newline on line wrap on Linux
     if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
-        if ( write( 1, "\n", 1 ) == -1 ) return;
+        if ( write( 1, "\n", 1 ) == -1 ) return -1;
 #endif
 #endif
 
