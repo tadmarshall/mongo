@@ -57,21 +57,35 @@ namespace mongo {
 
     void agg_framework_reservedErrors()
     {
-	uassert(15968, "reserved error", false);
-	uassert(15969, "reserved error", false);
-	uassert(15970, "reserved error", false);
-	uassert(15971, "reserved error", false);
-	uassert(15972, "reserved error", false);
-	uassert(15973, "reserved error", false);
-	uassert(15974, "reserved error", false);
-	uassert(15975, "reserved error", false);
-	uassert(15976, "reserved error", false);
-	uassert(15978, "reserved error", false);
-	uassert(15979, "reserved error", false);
-	uassert(15980, "reserved error", false);
-	uassert(15981, "reserved error", false);
-	uassert(15982, "reserved error", false);
-	uassert(15983, "reserved error", false);
-	uassert(15984, "reserved error", false);
+	uassert(16020, "reserved error", false);
+	uassert(16021, "reserved error", false);
+	uassert(16022, "reserved error", false);
+	uassert(16023, "reserved error", false);
+	uassert(16024, "reserved error", false);
+	uassert(16025, "reserved error", false);
+	uassert(16026, "reserved error", false);
+	uassert(16027, "reserved error", false);
+	uassert(16028, "reserved error", false);
+	uassert(16029, "reserved error", false);
+	uassert(16030, "reserved error", false);
+	uassert(16031, "reserved error", false);
+	uassert(16032, "reserved error", false);
+	uassert(16033, "reserved error", false);
+	uassert(16034, "reserved error", false);
+	uassert(16035, "reserved error", false);
+	uassert(16036, "reserved error", false);
+	uassert(16037, "reserved error", false);
+	uassert(16038, "reserved error", false);
+	uassert(16039, "reserved error", false);
+	uassert(16040, "reserved error", false);
+	uassert(16041, "reserved error", false);
+	uassert(16042, "reserved error", false);
+	uassert(16043, "reserved error", false);
+	uassert(16044, "reserved error", false);
+	uassert(16045, "reserved error", false);
+	uassert(16046, "reserved error", false);
+	uassert(16047, "reserved error", false);
+	uassert(16048, "reserved error", false);
+	uassert(16049, "reserved error", false);
     }
 }
