@@ -234,7 +234,7 @@ struct DynamicPrompt : public PromptBase {
         reverseSearchBasePromptLen = strlen( reverseSearchBasePrompt );
         endSearchBasePromptLen = strlen( endSearchBasePrompt );
         promptScreenColumns = pi.promptScreenColumns;
-        promptCursorRowOffset = pi.promptCursorRowOffset;
+        promptCursorRowOffset = 0;
         searchText = new char[1];                                       // start with empty search string
         searchText[0] = 0;
         promptChars = endSearchBasePromptLen +
@@ -245,7 +245,6 @@ struct DynamicPrompt : public PromptBase {
         promptText = new char[promptChars + 1];
         strcpy( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
         strcpy( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
-        //calculateScreenPosition( 0, pi.promptExtraLines, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
         calculateScreenPosition( 0, 0, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
     }
 
@@ -531,7 +530,7 @@ static void dynamicRefresh( PromptBase& pi, char *buf, int len, int pos ) {
 
     // calculate the position of the end of the prompt
     int xEndOfPrompt, yEndOfPrompt;
-    calculateScreenPosition( 0, pi.promptExtraLines, pi.promptScreenColumns, pi.promptChars, xEndOfPrompt, yEndOfPrompt );
+    calculateScreenPosition( 0, 0, pi.promptScreenColumns, pi.promptChars, xEndOfPrompt, yEndOfPrompt );
     pi.promptIndentation = xEndOfPrompt;
 
     // calculate the position of the end of the input line
@@ -1258,7 +1257,6 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     int histPos;
     pi.promptPreviousInputLen = pi.promptChars + *len;  // TODO is this right?
     DynamicPrompt dp( pi, ( startChar == ctrlChar( 'R' ) ) ? -1 : 1 );
-    //dp.promptPreviousInputLen = ( pi.promptPreviousInputLen > *len ) ? pi.promptPreviousInputLen : *len;  // i don't think we need this
 
     strcpy( histBuf, buf );     // our initial buffer is what the user had before hitting ctrl-R
     histLen = *len;
@@ -1352,17 +1350,18 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     // maybe restore everything
     if ( revertLine ) {
         histBuf[0] = 0;
-        refreshLine( dp, histBuf, 0, 0 );           // erase the old input first
+        refreshLine( dp, histBuf, 0, 0 );                   // erase the old input first
         PromptBase pb;
         pb.promptText = &pi.promptText[pi.promptLastLinePosition];
         pb.promptChars = pi.promptIndentation;
-        pb.promptExtraLines = 0;        // TODO could be wrong
-        pb.promptIndentation = pi.promptIndentation;    // TODO could be wrong
-        pb.promptLastLinePosition = 0;        // TODO could be wrong
-        pb.promptPreviousInputLen = dp.promptChars;        // TODO could be wrong
-        pb.promptCursorRowOffset = 0;        // TODO could be wrong
-        pb.promptScreenColumns = pi.promptScreenColumns;        // TODO could be wrong
+        pb.promptExtraLines = 0;                            // TODO could be wrong
+        pb.promptIndentation = pi.promptIndentation;        // TODO could be wrong
+        pb.promptLastLinePosition = 0;                      // TODO could be wrong
+        pb.promptPreviousInputLen = dp.promptChars;         // TODO could be wrong
+        pb.promptCursorRowOffset = 0;                       // TODO could be wrong
+        pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
         dynamicRefresh( pb, buf, *len, *pos );
+        pi.promptCursorRowOffset += pb.promptCursorRowOffset;
 
 
 
