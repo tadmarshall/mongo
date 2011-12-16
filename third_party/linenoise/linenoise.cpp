@@ -224,6 +224,7 @@ static string previousSearchText;
 struct DynamicPrompt : public PromptBase {
     PromptInfo& realPrompt;                 // the prompt we are drawing over
     char*       searchText;                 // text we are searching for
+    int         searchTextLen;              // chars in searchText
     int         direction;                  // current search direction, 1=forward, -1=reverse
     int         forwardSearchBasePromptLen; // prompt component lengths
     int         reverseSearchBasePromptLen;
@@ -236,6 +237,7 @@ struct DynamicPrompt : public PromptBase {
         endSearchBasePromptLen = strlen( endSearchBasePrompt );
         promptScreenColumns = pi.promptScreenColumns;
         promptCursorRowOffset = 0;
+        searchTextLen = 0;
         searchText = new char[1];                                       // start with empty search string
         searchText[0] = 0;
         promptChars = endSearchBasePromptLen +
@@ -253,9 +255,10 @@ struct DynamicPrompt : public PromptBase {
     void updateSearchText( const char* textPtr ) {
         delete [] searchText;
         delete [] promptText;
-        searchText = new char[strlen( textPtr ) + 1];
+        searchTextLen = strlen( textPtr );
+        searchText = new char[searchTextLen + 1];
         strcpy( searchText, textPtr );
-        promptChars = endSearchBasePromptLen + strlen( searchText ) +
+        promptChars = endSearchBasePromptLen + searchTextLen +
             ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
         promptText = new char[promptChars + 1];
         strcpy( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
@@ -384,10 +387,10 @@ static KillRing killRing;
 
 static int rawmode = 0; /* for atexit() function to check if restore is needed*/
 static int atexit_registered = 0; /* register atexit just 1 time */
-static int history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
-static int history_len = 0;
-static int history_index = 0;
-char** history = NULL;
+static int historyMaxLen = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
+static int historyLen = 0;
+static int historyIndex = 0;
+static char** history = NULL;
 
 static void linenoiseAtExit( void );
 
@@ -398,9 +401,9 @@ static void beep() {
 
 void linenoiseHistoryFree( void ) {
     if ( history ) {
-        for ( int j = 0; j < history_len; ++j )
+        for ( int j = 0; j < historyLen; ++j )
             free( history[j] );
-        history_len = 0;
+        historyLen = 0;
         free( history );
         history = 0;
     }
@@ -1256,19 +1259,20 @@ static int cleanupCtrl( int c ) {
  * @param startChar the character that began the search, used to set  theinitial direction
  */
 int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, int *pos, int startChar ) {
-    char histBuf[LINENOISE_MAX_LINE];           // buffer for history display
-    histBuf[0] = 0;
-    refreshLine( pi, histBuf, 0, 0 );           // erase the old input first
-    int histLen;
-    int histPos;
-    pi.promptPreviousInputLen = pi.promptChars + *len;  // TODO is this right?
-    DynamicPrompt dp( pi, ( startChar == ctrlChar( 'R' ) ) ? -1 : 1 );
 
-    strcpy( histBuf, buf );     // our initial buffer is what the user had before hitting ctrl-R
-    histLen = *len;
-    histPos = *pos;
+    // kludge -- add the current line to the history list and remove it when we return
+    // from this routine ... this is so we don't have to special case the current line
+    history[historyLen - 1] = reinterpret_cast<char *>( realloc( history[historyLen - 1], *len + 1 ) );
+    strcpy( history[historyLen - 1], buf );
+    int historyLineLength = *len;
+    int historyLinePosition = *pos;
+    refreshLine( pi, "", 0, 0 );                        // erase the old input first
+    pi.promptPreviousInputLen = pi.promptChars + *len;  // TODO is this right?
+    DynamicPrompt dp( pi, -1 );
+
     dp.promptPreviousInputLen = pi.promptPreviousInputLen;
-    dynamicRefresh( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
+    //dynamicRefresh( dp, buf, *len, *pos ); // draw user's text with our prompt
+    dynamicRefresh( dp, history[historyLen - 1], historyLineLength, historyLinePosition ); // draw user's text with our prompt
     int c;
 
     // loop until we get an exit character
@@ -1335,11 +1339,17 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case ctrlChar( 'P' ):   // ctrl-P, recall previous line in history
         case DOWN_ARROW_KEY:
         case UP_ARROW_KEY:
-        case ctrlChar( 'R' ):   // search again, maybe flip direction and prompt
         case ctrlChar( 'S' ):
             break;
 
-        // job control is its own thing
+        case ctrlChar( 'R' ):
+            if ( dp.searchTextLen == 0 ) {  // if no current search text, recall previous text
+                dp.updateSearchText( previousSearchText.c_str() );
+                //dynamicRefresh( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
+            }
+            break;
+
+            // job control is its own thing
 #ifndef _WIN32
         case ctrlChar( 'Z' ):   // ctrl-Z, job control
             break;
@@ -1347,23 +1357,44 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
 
         // these characters update the search string, and hence the selected input line
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
+            //searchTextLen = strlen( dp.searchText );
+            if ( dp.searchTextLen > 0 ) {
+                --dp.searchTextLen;
+                dp.searchText[dp.searchTextLen] = 0;
+                string newSearchText( dp.searchText );
+                dp.updateSearchText( newSearchText.c_str() );
+            }
+            break;
+
         case ctrlChar( 'Y' ):   // ctrl-Y, yank killed text
             break;
 
         default:
             if ( c >= ' ' && c < 127 ) {    // printable
-                //keepLooping = false;
                 string newSearchText = string( dp.searchText ) + static_cast<char>( c );
                 dp.updateSearchText( newSearchText.c_str() );
-                dynamicRefresh( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
+            }
+        } // switch
+
+        // if we are staying in search mode, search now
+        if ( keepLooping ) {
+            if ( dp.searchTextLen > 0 ) {
+                while ( historyIndex >= 0 ) {
+                    int lineLength = strlen( history[historyIndex] );
+                    dynamicRefresh( dp, history[historyIndex], lineLength, lineLength ); // draw user's text with our prompt
+                }
+            }
+            else {
+                int lineLength = strlen( history[historyIndex] );
+                dynamicRefresh( dp, history[historyIndex], lineLength, lineLength ); // draw user's text with our prompt
             }
         }
-    }
+    } // while
 
     // maybe restore everything
     if ( revertLine ) {
-        histBuf[0] = 0;
-        refreshLine( dp, histBuf, 0, 0 );                   // erase the old input first
+        //histBuf[0] = 0;
+        refreshLine( dp, "", 0, 0 );                        // erase the old input first
         PromptBase pb;
         pb.promptText = &pi.promptText[pi.promptLastLinePosition];
         pb.promptChars = pi.promptIndentation;
@@ -1392,7 +1423,7 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
     /* The latest history entry is always our current buffer, that
      * initially is just an empty string. */
     linenoiseHistoryAdd( "" );
-    history_index = history_len-1;
+    historyIndex = historyLen - 1;
 
     // display the prompt
     if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return -1;
@@ -1485,8 +1516,8 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
         case ctrlChar( 'C' ):   // ctrl-C, abort this line
             killRing.lastAction = KillRing::actionOther;
             errno = EAGAIN;
-            --history_len;
-            free( history[history_len] );
+            --historyLen;
+            free( history[historyLen] );
             // we need one last refresh with the cursor at the end of the line
             // so we don't display the next prompt over the previous input line
             refreshLine( pi, buf, len, len );  // pass len as pos for EOL
@@ -1503,8 +1534,8 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
                 refreshLine( pi, buf, len, pos );
             }
             else if ( len == 0 ) {
-                history_len--;
-                free( history[history_len] );
+                historyLen--;
+                free( history[historyLen] );
                 return -1;
             }
             break;
@@ -1593,8 +1624,8 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             // we need one last refresh with the cursor at the end of the line
             // so we don't display the next prompt over the previous input line
             refreshLine( pi, buf, len, len );  // pass len as pos for EOL
-            --history_len;
-            free( history[history_len] );
+            --historyLen;
+            free( history[historyLen] );
             return len;
 
         case ctrlChar( 'K' ):   // ctrl-K, kill from cursor to end of line
@@ -1614,34 +1645,36 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
         case DOWN_ARROW_KEY:
         case UP_ARROW_KEY:
             killRing.lastAction = KillRing::actionOther;
-            if ( history_len > 1 ) {
+            if ( historyLen > 1 ) {
                 /* Update the current history entry before we
                  * overwrite it with the next one. */
-                free( history[history_index] );
-                history[history_index] = strdup (buf );
+                free( history[historyIndex] );
+                history[historyIndex] = strdup (buf );
                 /* Show the new entry */
                 if ( c == UP_ARROW_KEY ) {
                     c = ctrlChar( 'P' );
                 }
-                history_index += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
-                if ( history_index < 0 ) {
-                    history_index = 0;
+                historyIndex += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
+                if ( historyIndex < 0 ) {
+                    historyIndex = 0;
                     break;
                 }
-                else if ( history_index >= history_len ) {
-                    history_index = history_len - 1;
+                else if ( historyIndex >= historyLen ) {
+                    historyIndex = historyLen - 1;
                     break;
                 }
-                strncpy( buf, history[history_index], buflen );
+                strncpy( buf, history[historyIndex], buflen );
                 buf[buflen] = '\0';
                 len = pos = strlen( buf );  // place cursor at end of line
                 refreshLine( pi, buf, len, pos );
             }
             break;
 
-        case ctrlChar( 'R' ):   // ctrl-R or ctrl-S, history search
-        case ctrlChar( 'S' ):
+        case ctrlChar( 'R' ):   // ctrl-R, reverse history search
             terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
+            break;
+
+        case ctrlChar( 'S' ):   // ctrl-S, forward history search, silently ignore in main loop
             break;
 
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
@@ -1853,21 +1886,21 @@ void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
 }
 
 int linenoiseHistoryAdd( const char* line ) {
-    if ( history_max_len == 0 )
+    if ( historyMaxLen == 0 )
         return 0;
     if ( history == NULL ) {
-        history = reinterpret_cast<char**>( malloc( sizeof( char* ) * history_max_len ) );
+        history = reinterpret_cast<char**>( malloc( sizeof( char* ) * historyMaxLen ) );
         if (history == NULL)
             return 0;
-        memset( history, 0, (sizeof(char*) * history_max_len ) );
+        memset( history, 0, ( sizeof(char*) * historyMaxLen ) );
     }
     char* linecopy = strdup( line );
     if ( ! linecopy )
         return 0;
-    if ( history_len == history_max_len ) {
+    if ( historyLen == historyMaxLen ) {
         free( history[0] );
-        memmove( history, history + 1, sizeof(char*) * ( history_max_len - 1 ) );
-        --history_len;
+        memmove( history, history + 1, sizeof(char*) * ( historyMaxLen - 1 ) );
+        --historyLen;
     }
 
     // convert newlines in multi-line code to spaces before storing
@@ -1877,8 +1910,8 @@ int linenoiseHistoryAdd( const char* line ) {
             *p = ' ';
         ++p;
     }
-    history[history_len] = linecopy;
-    ++history_len;
+    history[historyLen] = linecopy;
+    ++historyLen;
     return 1;
 }
 
@@ -1886,19 +1919,19 @@ int linenoiseHistorySetMaxLen( int len ) {
     if ( len < 1 )
         return 0;
     if ( history ) {
-        int tocopy = history_len;
+        int tocopy = historyLen;
         char** newHistory = reinterpret_cast<char**>( malloc( sizeof(char*) * len ) );
         if ( newHistory == NULL )
             return 0;
         if ( len < tocopy )
             tocopy = len;
-        memcpy( newHistory, history + history_max_len - tocopy, sizeof(char*) * tocopy );
+        memcpy( newHistory, history + historyMaxLen - tocopy, sizeof(char*) * tocopy );
         free( history );
         history = newHistory;
     }
-    history_max_len = len;
-    if ( history_len > history_max_len )
-        history_len = history_max_len;
+    historyMaxLen = len;
+    if ( historyLen > historyMaxLen )
+        historyLen = historyMaxLen;
     return 1;
 }
 
@@ -1908,9 +1941,10 @@ int linenoiseHistorySave( const char* filename ) {
     FILE* fp = fopen( filename, "wt" );
     if ( fp == NULL )
         return -1;
-    for ( int j = 0; j < history_len; ++j ) {
+
+    for ( int j = 0; j < historyLen; ++j ) {
         if ( history[j][0] != '\0' )
-            fprintf (fp, "%s\n", history[j] );
+            fprintf ( fp, "%s\n", history[j] );
     }
     fclose( fp );
     return 0;
@@ -1922,12 +1956,11 @@ int linenoiseHistorySave( const char* filename ) {
  * If the file exists and the operation succeeded 0 is returned, otherwise
  * on error -1 is returned. */
 int linenoiseHistoryLoad( const char* filename ) {
-    FILE *fp = fopen( filename, "rt" );
-    char buf[LINENOISE_MAX_LINE];
-    
+    FILE *fp = fopen( filename, "rt" );    
     if ( fp == NULL )
         return -1;
 
+    char buf[LINENOISE_MAX_LINE];
     while ( fgets( buf, LINENOISE_MAX_LINE, fp ) != NULL ) {
         char* p = strchr( buf, '\r' );
         if ( ! p )
