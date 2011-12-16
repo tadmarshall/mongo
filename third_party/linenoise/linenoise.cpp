@@ -217,6 +217,7 @@ struct PromptInfo : public PromptBase {
 static const char forwardSearchBasePrompt[] = "(i-search)`";
 static const char reverseSearchBasePrompt[] = "(reverse-i-search)`";
 static const char endSearchBasePrompt[] = "': ";
+static string previousSearchText;
 
 // changing prompt for "(reverse-i-search)`text':" etc.
 //
@@ -255,7 +256,7 @@ struct DynamicPrompt : public PromptBase {
         searchText = new char[strlen( textPtr ) + 1];
         strcpy( searchText, textPtr );
         promptChars = endSearchBasePromptLen + strlen( searchText ) +
-            ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen;
+            ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
         promptText = new char[promptChars + 1];
         strcpy( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
         strcat( promptText, searchText );
@@ -1273,7 +1274,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     // loop until we get an exit character
     bool keepLooping = true;
     bool revertLine = false;
-    //bool executeLine = false;
+    bool executeLine = false;
     while ( keepLooping ) {
         c = linenoiseReadChar();
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
@@ -1315,6 +1316,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case ctrlChar( 'J' ):
         case ctrlChar( 'M' ):
             keepLooping = false;
+            executeLine = true;
             break;
 
         // these characters revert the input line to its previous state
@@ -1333,7 +1335,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case ctrlChar( 'P' ):   // ctrl-P, recall previous line in history
         case DOWN_ARROW_KEY:
         case UP_ARROW_KEY:
-        case ctrlChar( 'R' ):   // search again, maybe flip direction, maybe flip prompt
+        case ctrlChar( 'R' ):   // search again, maybe flip direction and prompt
         case ctrlChar( 'S' ):
             break;
 
@@ -1350,7 +1352,10 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
 
         default:
             if ( c >= ' ' && c < 127 ) {    // printable
-                keepLooping = false;
+                //keepLooping = false;
+                string newSearchText = string( dp.searchText ) + static_cast<char>( c );
+                dp.updateSearchText( newSearchText.c_str() );
+                dynamicRefresh( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
             }
         }
     }
@@ -1369,11 +1374,12 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         pb.promptCursorRowOffset = 0;                       // TODO could be wrong
         //pb.promptCursorRowOffset = pi.promptCursorRowOffset;                       // TODO could be wrong
         pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
-        dynamicRefresh( pb, buf, *len, *pos );
+        dynamicRefresh( pb, buf, *len, *pos );              // redraw the original prompt with current input
         pi.promptCursorRowOffset += pb.promptCursorRowOffset;
     }
 
-    return c;
+    previousSearchText = dp.searchText;     // save search text for possible reuse on ctrl-R ctrl-R
+    return c;                               // pass a character or -1 back to main loop
 }
 
 static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
