@@ -364,6 +364,7 @@ static const int LEFT_ARROW_KEY     = 0x104;
 static const int HOME_KEY           = 0x105;
 static const int END_KEY            = 0x106;
 static const int DELETE_KEY         = 0x107;
+//static const int NO_OP_KEY          = 0x108;    // No operation, "dead" key
 
 static const int CTRL               = 0x200;
 static const int META               = 0x400;
@@ -1322,6 +1323,9 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case ctrlChar( 'L' ):   // ctrl-L, clear screen and redisplay line
             keepLooping = false;
             revertLine = true;
+            if ( c != ctrlChar( 'L' ) ) {
+                c = -1;         // ctrl-C and ctrl-G just abort the search and do nothing else
+            }
             break;
 
         // these characters stay in search mode and update the display
@@ -1363,12 +1367,10 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         pb.promptLastLinePosition = 0;                      // TODO could be wrong
         pb.promptPreviousInputLen = dp.promptChars;         // TODO could be wrong
         pb.promptCursorRowOffset = 0;                       // TODO could be wrong
+        //pb.promptCursorRowOffset = pi.promptCursorRowOffset;                       // TODO could be wrong
         pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
         dynamicRefresh( pb, buf, *len, *pos );
         pi.promptCursorRowOffset += pb.promptCursorRowOffset;
-
-
-
     }
 
     return c;
@@ -1389,12 +1391,10 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
     // display the prompt
     if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return -1;
 
-#if 1
 #ifndef _WIN32
     // we have to generate our own newline on line wrap on Linux
     if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
         if ( write( 1, "\n", 1 ) == -1 ) return -1;
-#endif
 #endif
 
     // the cursor starts out at the end of the prompt
