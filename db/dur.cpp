@@ -417,7 +417,7 @@ namespace mongo {
             static unsigned startAt;
             static unsigned long long lastRemap;
 
-            LOG(3) << "journal REMAPPRIVATEVIEW" << endl;
+            LOG(4) << "journal REMAPPRIVATEVIEW" << endl;
 
             dbMutex.assertWriteLocked();
             dbMutex._remapPrivateViewRequested = false;
@@ -496,15 +496,15 @@ namespace mongo {
         bool _groupCommitWithLimitedLocks() {
 
             int p = 0;
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             scoped_ptr<ExcludeAllWrites> lk1( new ExcludeAllWrites() );
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             scoped_lock lk2(groupCommitMutex);
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             commitJob.beginCommit();
 
@@ -514,46 +514,46 @@ namespace mongo {
                 return true;
             }
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             JSectHeader h;
             PREPLOGBUFFER(h); // need to be in readlock (writes excluded) for this
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             RWLockRecursive::Shared lk3(MongoFile::mmmutex);
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             unsigned abLen = commitJob._ab.len();
             commitJob.reset(); // must be reset before allowing anyone to write
             DEV assert( !commitJob.hasWritten() );
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             // release the readlock -- allowing others to now write while we are writing to the journal (etc.)
             lk1.reset();
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             // ****** now other threads can do writes ******
 
             WRITETOJOURNAL(h, commitJob._ab);
             assert( abLen == commitJob._ab.len() ); // a check that no one touched the builder while we were doing work. if so, our locking is wrong.
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             // data is now in the journal, which is sufficient for acknowledging getLastError.
             // (ok to crash after that)
             commitJob.notifyCommitted();
 
-            LOG(3) << "groupcommitll " << p++ << " WRITETODATAFILES()" << endl;
+            LOG(4) << "groupcommitll " << p++ << " WRITETODATAFILES()" << endl;
 
             WRITETODATAFILES(h, commitJob._ab);
             assert( abLen == commitJob._ab.len() ); // check again wasn't modded
             commitJob._ab.reset();
 
-            LOG(3) << "groupcommitll " << p++ << endl;
+            LOG(4) << "groupcommitll " << p++ << endl;
 
             // can't : dbMutex._remapPrivateViewRequested = true;
 
@@ -586,7 +586,7 @@ namespace mongo {
 
         static void _groupCommit() {
 
-            LOG(3) << "_groupCommit " << endl;
+            LOG(4) << "_groupCommit " << endl;
 
             // we need to be at least read locked on the dbMutex so that we know the write intent data 
             // structures are not changing while we work
@@ -671,7 +671,7 @@ namespace mongo {
                 log() << "exception in dur::groupCommit causing immediate shutdown: " << e.what() << endl;
                 mongoAbort("gc4");
             }
-            LOG(3) << "groupCommit end" << endl;
+            LOG(4) << "groupCommit end" << endl;
         }
 
         static void go() {

@@ -52,25 +52,5 @@ for (iter = 0; iter < 5; iter++) {
     assert.eq(res.result.db, outDbStr, "Wrong db " + res.result.db);
 }
 
-
-// sharded output
-
-function map2() { emit(this._id, 1); }
-
-for ( iter=0; iter<5; iter++ ){
-
-    res = db.foo.mapReduce(map2, reduce, { out : { replace: "mrShardedOut", sharded: true }});
-    printjson(res);
-
-    outColl = db["mrShardedOut"];
-    // SERVER-3645 -can't use count()
-    assert.eq( 51200 , outColl.find().itcount() , "Received wrong result " );
-    // make sure it's sharded and split
-    print("Number of chunks: " + config.chunks.count({ns: db.mrShardedOut._fullName}));
-    assert.gt( config.chunks.count({ns: db.mrShardedOut._fullName}), 1, "didnt split");
-    
-}
-
-
 s.stop()
 

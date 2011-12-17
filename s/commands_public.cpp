@@ -1108,7 +1108,6 @@ namespace mongo {
                     throw;
                 }
 
-                BSONObjBuilder shardResultsB;
                 BSONObjBuilder shardCountsB;
                 BSONObjBuilder aggCountsB;
                 map<string,long long> countsMap;
@@ -1119,7 +1118,6 @@ namespace mongo {
                     BSONObj mrResult = i->second;
                     string server = i->first.getConnString();
 
-                    shardResultsB.append( server , mrResult );
                     BSONObj counts = mrResult["counts"].embeddedObjectUserCheck();
                     shardCountsB.append( server , counts );
                     servers.insert( server );
@@ -1136,7 +1134,7 @@ namespace mongo {
                         BSONElement splitKeys = mrResult.getField("splitKeys");
                         vector<BSONElement> pts = splitKeys.Array();
                         for (vector<BSONElement>::iterator it = pts.begin(); it != pts.end(); ++it) {
-                            splitPts.insert(it->Obj());
+                            splitPts.insert(it->Obj().getOwned());
                         }
                     }
                 }
@@ -1146,15 +1144,14 @@ namespace mongo {
                 finalCmd.append( "mapreduce.shardedfinish" , cmdObj );
                 finalCmd.append( "inputNS" , dbName + "." + shardResultCollection );
 
-                finalCmd.append( "shards" , shardResultsB.obj() );
-                BSONObj shardCounts = shardCountsB.obj();
+                BSONObj shardCounts = shardCountsB.done();
                 finalCmd.append( "shardCounts" , shardCounts );
                 timingBuilder.append( "shardProcessing" , t.millis() );
 
                 for ( map<string,long long>::iterator i=countsMap.begin(); i!=countsMap.end(); i++ ) {
                     aggCountsB.append( i->first , i->second );
                 }
-                BSONObj aggCounts = aggCountsB.obj();
+                BSONObj aggCounts = aggCountsB.done();
                 finalCmd.append( "counts" , aggCounts );
 
                 Timer t2;
@@ -1183,106 +1180,94 @@ namespace mongo {
                     LOG(1) << "MR with sharded output, NS=" << finalColLong << endl;
 
                     // create the sharded collection if needed
-                    BSONObj sortKey = BSON( "_id" << 1 );
                     if (!confOut->isSharded(finalColLong)) {
-                        // make sure db is sharded
-                        if (!confOut->isShardingEnabled()) {
-                            BSONObj shardDBCmd = BSON("enableSharding" << outDB);
-                            BSONObjBuilder shardDBResult(32);
-                            bool res = Command::runAgainstRegistered("admin.$cmd", shardDBCmd, shardDBResult);
-                            if (!res) {
-                                errmsg = str::stream() << "Could not enable sharding on db " << outDB << ": " << shardDBResult.obj().toString();
-                                return false;
+                        // enable sharding on db
+                        confOut->enableSharding();
+
+                        // shard collection according to split points
+                        BSONObj sortKey = BSON( "_id" << 1 );
+                        vector<BSONObj> sortedSplitPts;
+                        // points will be properly sorted using the set
+                        for ( set<BSONObj>::iterator it = splitPts.begin() ; it != splitPts.end() ; ++it )
+                            sortedSplitPts.push_back( *it );
+                        confOut->shardCollection( finalColLong, sortKey, true, sortedSplitPts );
+                    }
+
+                    map<BSONObj, int> chunkSizes;
+                    {
+                        // take distributed lock to prevent split / migration during post processing
+                        ConnectionString config = configServer.getConnectionString();
+                        DistributedLock lockSetup( config , finalColLong );
+                        dist_lock_try dlk;
+
+                        try{
+                            int tryc = 0;
+                            while ( !dlk.got() ) {
+                                dlk = dist_lock_try( &lockSetup , (string)"mapreduce" );
+                                if ( ! dlk.got() ) {
+                                    if ( ++tryc % 100 == 0 )
+                                        warning() << "the collection metadata could not be locked for mapreduce, already locked by " << dlk.other();
+                                    sleepmillis(10);
+                                }
                             }
                         }
-
-                        BSONObj shardColCmd = BSON("shardCollection" << finalColLong << "key" << sortKey);
-                        BSONObjBuilder shardColResult(32);
-                        bool res = Command::runAgainstRegistered("admin.$cmd", shardColCmd, shardColResult);
-                        if (!res) {
-                            errmsg = str::stream() << "Could not create sharded output collection " << finalColLong << ": " << shardColResult.obj().toString();
+                        catch( LockException& e ){
+                            errmsg = str::stream() << "error locking distributed lock for mapreduce " << causedBy( e );
                             return false;
                         }
 
-                        // create initial chunks
-                        // the 1st chunk from MinKey will belong to primary for shard
-                        bool skipPrimary = true;
-                        vector<Shard> allShards;
-                        Shard::getAllShards(allShards);
-                        if ( !splitPts.empty() ) {
-                            int sidx = 0;
-                            int numShards = allShards.size();
-                            for (set<BSONObj>::iterator it = splitPts.begin(); it != splitPts.end(); ++it) {
-                                BSONObj splitCmd = BSON("split" << finalColLong << "middle" << *it);
-                                BSONObjBuilder splitResult(32);
-                                bool res = Command::runAgainstRegistered("admin.$cmd", splitCmd, splitResult);
-                                if (!res) {
-                                    errmsg = str::stream() << "Could not split sharded output collection " << finalColLong << ": " << splitResult.obj().toString();
-                                    return false;
-                                }
+                        BSONObj finalCmdObj = finalCmd.obj();
+                        results.clear();
 
-                                // move to a shard
-                                Shard s = allShards[sidx];
-                                if (skipPrimary && s == confOut->getPrimary()) {
-                                    skipPrimary = false;
-                                    sidx = (sidx + 1) % numShards;
-                                    s = allShards[sidx];
-                                }
-                                BSONObj mvCmd = BSON("moveChunk" << finalColLong << "find" << *it << "to" << s.getName());
-                                BSONObjBuilder mvResult(32);
-                                res = Command::runAgainstRegistered("admin.$cmd", mvCmd, mvResult);
-                                if (!res) {
-                                    errmsg = str::stream() << "Could not move chunk for sharded output collection " << finalColLong << ": " << mvResult.obj().toString();
-                                    return false;
-                                }
+                        try {
+                            SHARDED->commandOp( outDB, finalCmdObj, 0, finalColLong, BSONObj(), results );
+                            ok = true;
+                        }
+                        catch( DBException& e ){
+                            e.addContext( str::stream() << "could not run final reduce command on all shards for ns " << fullns << ", output " << finalColLong );
+                            throw;
+                        }
 
-                                sidx = (sidx + 1) % numShards;
+                        for ( map<Shard,BSONObj>::iterator i = results.begin(); i != results.end(); ++i ){
+
+                            string server = i->first.getConnString();
+                            BSONObj singleResult = i->second;
+
+                            BSONObj counts = singleResult.getObjectField("counts");
+                            reduceCount += counts.getIntField("reduce");
+                            outputCount += counts.getIntField("output");
+                            postCountsB.append(server, counts);
+
+                            // get the size inserted for each chunk
+                            // split cannot be called here since we already have the distributed lock
+                            if (singleResult.hasField("chunkSizes")) {
+                                vector<BSONElement> sizes = singleResult.getField("chunkSizes").Array();
+                                for (unsigned int i = 0; i < sizes.size(); i += 2) {
+                                    BSONObj key = sizes[i].Obj().getOwned();
+                                    int size = sizes[i+1].numberLong();
+                                    assert( size < 0x7fffffff );
+
+                                    chunkSizes[key] = size;
+                                }
                             }
                         }
                     }
 
-                    BSONObj finalCmdObj = finalCmd.obj();
-                    results.clear();
+                    // do the splitting round
+                    ChunkManagerPtr cm = confOut->getChunkManagerIfExists( finalColLong );
+                    const ChunkMap& chunkMap = cm->getChunkMap();
+                    for ( map<BSONObj, int>::iterator it = chunkSizes.begin() ; it != chunkSizes.end() ; ++it ) {
+                        BSONObj key = it->first;
+                        int size = it->second;
+                        assert( size < 0x7fffffff );
 
-                    try {
-                        SHARDED->commandOp( outDB, finalCmdObj, 0, finalColLong, BSONObj(), results );
-                        ok = true;
-                    }
-                    catch( DBException& e ){
-                        e.addContext( str::stream() << "could not run final reduce command on all shards for ns " << fullns << ", output " << finalColLong );
-                        throw;
-                    }
-
-                    for ( map<Shard,BSONObj>::iterator i = results.begin(); i != results.end(); ++i ){
-
-                        string server = i->first.getConnString();
-                        BSONObj singleResult = i->second;
-
-                        BSONObj counts = singleResult.getObjectField("counts");
-                        reduceCount += counts.getIntField("reduce");
-                        outputCount += counts.getIntField("output");
-                        postCountsB.append(server, counts);
-
-                        // check on splitting, now that results are in the final collection
-                        ChunkManagerPtr cm = confOut->getChunkManagerIfExists( finalColLong );
-                        if (singleResult.hasField("chunkSizes") && cm) {
-                            const ChunkMap& chunkMap = cm->getChunkMap();
-                            vector<BSONElement> chunkSizes = singleResult.getField("chunkSizes").Array();
-                            for (unsigned int i = 0; i < chunkSizes.size(); i += 2) {
-                                BSONObj key = chunkSizes[i].Obj();
-                                long long size = chunkSizes[i+1].numberLong();
-                                assert( size < 0x7fffffff );
-
-                                ChunkMap::const_iterator cit = chunkMap.find(key);
-                                if (cit == chunkMap.end()) {
-                                    warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
-                                } else {
-                                    ChunkPtr c = cit->second;
-                                    c->splitIfShould(static_cast<int>(size));
-                                }
-                            }
+                        ChunkMap::const_iterator cit = chunkMap.find(key);
+                        if (cit == chunkMap.end()) {
+                            warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
+                        } else {
+                            ChunkPtr c = cit->second;
+                            c->splitIfShould( size );
                         }
-
                     }
                 }
 
