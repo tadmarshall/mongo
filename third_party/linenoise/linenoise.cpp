@@ -391,6 +391,7 @@ static int historyMaxLen = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int historyLen = 0;
 static int historyIndex = 0;
 static char** history = NULL;
+static const char* emptyString = "";
 
 static void linenoiseAtExit( void );
 
@@ -610,7 +611,8 @@ static void dynamicRefresh( PromptBase& pi, char *buf, int len, int pos ) {
  * @param len  count of characters in the buffer
  * @param pos  current cursor position within the buffer (0 <= pos <= len)
  */
-static void refreshLine( PromptBase& pi, char *buf, int len, int pos ) {
+//static void refreshLine( PromptBase& pi, char *buf, int len, int pos ) {
+static void refreshLine( PromptBase& pi, const char *buf, int len, int pos ) {
 
     // check for a matching brace/bracket/paren, remember its position if found
     int highlight = -1;
@@ -1266,7 +1268,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     strcpy( history[historyLen - 1], buf );
     int historyLineLength = *len;
     int historyLinePosition = *pos;
-    refreshLine( pi, "", 0, 0 );                        // erase the old input first
+    refreshLine( pi, emptyString, 0, 0 );                        // erase the old input first
     pi.promptPreviousInputLen = pi.promptChars + *len;  // TODO is this right?
     DynamicPrompt dp( pi, -1 );
 
@@ -1393,8 +1395,7 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
 
     // maybe restore everything
     if ( revertLine ) {
-        //histBuf[0] = 0;
-        refreshLine( dp, "", 0, 0 );                        // erase the old input first
+        refreshLine( dp, emptyString, 0, 0 );               // erase the old input first
         PromptBase pb;
         pb.promptText = &pi.promptText[pi.promptLastLinePosition];
         pb.promptChars = pi.promptIndentation;
