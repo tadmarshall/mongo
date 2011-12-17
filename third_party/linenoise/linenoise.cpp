@@ -1410,6 +1410,24 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         pi.promptCursorRowOffset += pb.promptCursorRowOffset;
     }
 
+    // maybe execute the line
+    if ( executeLine ) {
+        // not ... this code is all wrong, it is here as a placeholder and to make gcc shut up
+        refreshLine( dp, emptyString, 0, 0 );               // erase the old input first
+        PromptBase pb;
+        pb.promptText = &pi.promptText[pi.promptLastLinePosition];
+        pb.promptChars = pi.promptIndentation;
+        pb.promptExtraLines = 0;                            // TODO could be wrong
+        pb.promptIndentation = pi.promptIndentation;        // TODO could be wrong
+        pb.promptLastLinePosition = 0;                      // TODO could be wrong
+        pb.promptPreviousInputLen = dp.promptChars;         // TODO could be wrong
+        pb.promptCursorRowOffset = 0;                       // TODO could be wrong
+        //pb.promptCursorRowOffset = pi.promptCursorRowOffset;                       // TODO could be wrong
+        pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
+        dynamicRefresh( pb, buf, *len, *pos );              // redraw the original prompt with current input
+        pi.promptCursorRowOffset += pb.promptCursorRowOffset;
+    }
+
     previousSearchText = dp.searchText;     // save search text for possible reuse on ctrl-R ctrl-R
     return c;                               // pass a character or -1 back to main loop
 }
