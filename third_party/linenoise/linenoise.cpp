@@ -161,6 +161,7 @@ struct PromptBase {                 // a convenience struct for grouping prompt 
     int     promptPreviousInputLen;     // promptChars of previous input line, for clearing
     int     promptCursorRowOffset;      // where the cursor is relative to the start of the prompt
     int     promptScreenColumns;        // width of screen in columns
+    int     previousPromptLen;          // help erasing
 };
 
 struct PromptInfo : public PromptBase {
@@ -229,7 +230,6 @@ struct DynamicPrompt : public PromptBase {
     int         forwardSearchBasePromptLen; // prompt component lengths
     int         reverseSearchBasePromptLen;
     int         endSearchBasePromptLen;
-    int         previousPromptLen;          // help erasing
 
     DynamicPrompt( PromptInfo& pi, int initialDirection ) : realPrompt( pi ), direction( initialDirection ) {
         forwardSearchBasePromptLen = strlen( forwardSearchBasePrompt ); // store constant text lengths
@@ -243,7 +243,7 @@ struct DynamicPrompt : public PromptBase {
         promptChars = endSearchBasePromptLen +
             ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
         promptLastLinePosition = promptChars;   // TODO fix this, we are asssuming that the history prompt won't wrap (!)
-        promptPreviousInputLen = 0;             // TODO is this right?  no input yet, so maybe ...
+        promptPreviousInputLen = 0;
         previousPromptLen = promptChars;
         promptText = new char[promptChars + 1];
         strcpy( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
@@ -251,19 +251,22 @@ struct DynamicPrompt : public PromptBase {
         calculateScreenPosition( 0, 0, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
     }
 
-    // release old strings, set up new ones
-    void updateSearchText( const char* textPtr ) {
-        delete [] searchText;
+    void updateSearchPrompt( void ) {
         delete [] promptText;
-        searchTextLen = strlen( textPtr );
-        searchText = new char[searchTextLen + 1];
-        strcpy( searchText, textPtr );
         promptChars = endSearchBasePromptLen + searchTextLen +
             ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
         promptText = new char[promptChars + 1];
         strcpy( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
         strcat( promptText, searchText );
         strcpy( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
+    }
+
+    void updateSearchText( const char* textPtr ) {
+        delete [] searchText;
+        searchTextLen = strlen( textPtr );
+        searchText = new char[searchTextLen + 1];
+        strcpy( searchText, textPtr );
+        updateSearchPrompt();
     }
 
     ~DynamicPrompt() {
@@ -368,7 +371,6 @@ static const int LEFT_ARROW_KEY     = 0x104;
 static const int HOME_KEY           = 0x105;
 static const int END_KEY            = 0x106;
 static const int DELETE_KEY         = 0x107;
-//static const int NO_OP_KEY          = 0x108;    // No operation, "dead" key
 
 static const int CTRL               = 0x200;
 static const int META               = 0x400;
@@ -555,7 +557,8 @@ static void dynamicRefresh( PromptBase& pi, char *buf, int len, int pos ) {
     inf.dwCursorPosition.Y -= pi.promptCursorRowOffset /*- pi.promptExtraLines*/;
     SetConsoleCursorPosition( console_out, inf.dwCursorPosition );
     DWORD count;
-    FillConsoleOutputCharacterA( console_out, ' ', pi.promptPreviousInputLen, inf.dwCursorPosition, &count );
+    FillConsoleOutputCharacterA( console_out, ' ', pi.previousPromptLen + pi.promptPreviousInputLen, inf.dwCursorPosition, &count );
+    pi.previousPromptLen = pi.promptIndentation;
     pi.promptPreviousInputLen = len;
 
     // display the prompt
@@ -1269,18 +1272,20 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     int historyLineLength = *len;
     int historyLinePosition = *pos;
     refreshLine( pi, emptyString, 0, 0 );                        // erase the old input first
-    pi.promptPreviousInputLen = pi.promptChars + *len;  // TODO is this right?
-    DynamicPrompt dp( pi, -1 );
+    DynamicPrompt dp( pi, ( startChar == ctrlChar( 'R' ) ) ? -1 : 1 );
 
+    dp.previousPromptLen = pi.previousPromptLen;
     dp.promptPreviousInputLen = pi.promptPreviousInputLen;
-    //dynamicRefresh( dp, buf, *len, *pos ); // draw user's text with our prompt
     dynamicRefresh( dp, history[historyLen - 1], historyLineLength, historyLinePosition ); // draw user's text with our prompt
-    int c;
 
     // loop until we get an exit character
+    int c;
     bool keepLooping = true;
-    bool revertLine = false;
-    bool executeLine = false;
+    bool useSearchedLine = true;
+    bool searchAgain = false;
+    int oldHistoryIndex = historyIndex;
+    int oldHistoryLineLength = historyLineLength;
+    int oldHistoryLinePosition = historyLinePosition;
     while ( keepLooping ) {
         c = linenoiseReadChar();
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
@@ -1307,7 +1312,13 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         case CTRL + RIGHT_ARROW_KEY:
         case META + RIGHT_ARROW_KEY: // Emacs allows Meta, bash & readline don't
         case META + ctrlChar( 'H' ):
+        case ctrlChar( 'J' ):
         case ctrlChar( 'K' ):   // ctrl-K, kill from cursor to end of line
+        case ctrlChar( 'M' ):
+        case ctrlChar( 'N' ):   // ctrl-N, recall next line in history
+        case ctrlChar( 'P' ):   // ctrl-P, recall previous line in history
+        case DOWN_ARROW_KEY:
+        case UP_ARROW_KEY:
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
         case ctrlChar( 'U' ):   // ctrl-U, kill all characters to the left of the cursor
         case ctrlChar( 'W' ):
@@ -1318,53 +1329,62 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
             keepLooping = false;
             break;
 
-        // these characters keep the selected text and execute it
-        case ctrlChar( 'J' ):
-        case ctrlChar( 'M' ):
-            keepLooping = false;
-            executeLine = true;
-            break;
-
         // these characters revert the input line to its previous state
         case ctrlChar( 'C' ):   // ctrl-C, abort this line
         case ctrlChar( 'G' ):
         case ctrlChar( 'L' ):   // ctrl-L, clear screen and redisplay line
             keepLooping = false;
-            revertLine = true;
+            useSearchedLine = false;
             if ( c != ctrlChar( 'L' ) ) {
                 c = -1;         // ctrl-C and ctrl-G just abort the search and do nothing else
             }
             break;
 
         // these characters stay in search mode and update the display
-        case ctrlChar( 'N' ):   // ctrl-N, recall next line in history
-        case ctrlChar( 'P' ):   // ctrl-P, recall previous line in history
-        case DOWN_ARROW_KEY:
-        case UP_ARROW_KEY:
         case ctrlChar( 'S' ):
+            if ( dp.direction == -1 ) {
+                dp.direction = 1;
+                dp.updateSearchPrompt();
+            }
+            else {
+                searchAgain = true;
+            }
             break;
 
         case ctrlChar( 'R' ):
             if ( dp.searchTextLen == 0 ) {  // if no current search text, recall previous text
                 dp.updateSearchText( previousSearchText.c_str() );
-                //dynamicRefresh( dp, histBuf, histLen, histPos ); // draw user's text with our prompt
+            }
+            if ( dp.direction == 1 ) {
+                dp.direction = -1;
+                dp.updateSearchPrompt();
+            }
+            else {
+                searchAgain = true;
             }
             break;
 
             // job control is its own thing
 #ifndef _WIN32
         case ctrlChar( 'Z' ):   // ctrl-Z, job control
+            disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
+            raise( SIGSTOP );                       // Break out in mid-line
+            enableRawMode();                        // Back from Linux shell, re-enter raw mode
+            dynamicRefresh( dp, history[historyIndex], historyLineLength, historyLinePosition );
+            continue;
             break;
 #endif
 
         // these characters update the search string, and hence the selected input line
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
-            //searchTextLen = strlen( dp.searchText );
             if ( dp.searchTextLen > 0 ) {
                 --dp.searchTextLen;
                 dp.searchText[dp.searchTextLen] = 0;
                 string newSearchText( dp.searchText );
                 dp.updateSearchText( newSearchText.c_str() );
+            }
+            else {
+                beep();
             }
             break;
 
@@ -1372,61 +1392,75 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
             break;
 
         default:
-            if ( c >= ' ' && c < 127 ) {    // printable
+            if ( c >= ' ' && c < 256 ) {    // not an action character
                 string newSearchText = string( dp.searchText ) + static_cast<char>( c );
                 dp.updateSearchText( newSearchText.c_str() );
+            }
+            else {
+                beep();
             }
         } // switch
 
         // if we are staying in search mode, search now
         if ( keepLooping ) {
             if ( dp.searchTextLen > 0 ) {
-                while ( historyIndex >= 0 ) {
-                    int lineLength = strlen( history[historyIndex] );
-                    dynamicRefresh( dp, history[historyIndex], lineLength, lineLength ); // draw user's text with our prompt
+                bool found = false;
+                bool failed = false;
+                int historySearchIndex = historyIndex;
+                int lineLength = historyLineLength;
+                int lineSearchPos = historyLinePosition;
+                if ( searchAgain ) {
+                    lineSearchPos += dp.direction;
                 }
+                searchAgain = false;
+                while ( true ) {
+                    while ( ( dp.direction > 0 ) ? ( lineSearchPos < lineLength ) : ( lineSearchPos >= 0 ) ) {
+                        if ( strncmp( dp.searchText, &history[historySearchIndex][lineSearchPos], dp.searchTextLen) == 0 ) {
+                            found = true;
+                            break;
+                        }
+                        lineSearchPos += dp.direction;
+                    }
+                    if ( found ) {
+                        historyIndex = historySearchIndex;
+                        historyLineLength = lineLength;
+                        historyLinePosition = lineSearchPos;
+                        break;
+                    }
+                    else if ( ( dp.direction > 0 ) ? ( historySearchIndex < historyLen - 1 ) : ( historySearchIndex > 0 ) ) {
+                        historySearchIndex += dp.direction;
+                        lineLength = strlen( history[historySearchIndex] );
+                        lineSearchPos = ( dp.direction > 0 ) ? 0 : ( lineLength - dp.searchTextLen );
+                    }
+                    else {
+                        beep();
+                        break;
+                    }
+                }; // while
             }
-            else {
-                int lineLength = strlen( history[historyIndex] );
-                dynamicRefresh( dp, history[historyIndex], lineLength, lineLength ); // draw user's text with our prompt
-            }
+            dynamicRefresh( dp, history[historyIndex], historyLineLength, historyLinePosition ); // draw user's text with our prompt
         }
     } // while
 
-    // maybe restore everything
-    if ( revertLine ) {
-        refreshLine( dp, emptyString, 0, 0 );               // erase the old input first
-        PromptBase pb;
-        pb.promptText = &pi.promptText[pi.promptLastLinePosition];
-        pb.promptChars = pi.promptIndentation;
-        pb.promptExtraLines = 0;                            // TODO could be wrong
-        pb.promptIndentation = pi.promptIndentation;        // TODO could be wrong
-        pb.promptLastLinePosition = 0;                      // TODO could be wrong
-        pb.promptPreviousInputLen = dp.promptChars;         // TODO could be wrong
-        pb.promptCursorRowOffset = 0;                       // TODO could be wrong
-        //pb.promptCursorRowOffset = pi.promptCursorRowOffset;                       // TODO could be wrong
-        pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
-        dynamicRefresh( pb, buf, *len, *pos );              // redraw the original prompt with current input
-        pi.promptCursorRowOffset += pb.promptCursorRowOffset;
+    // leaving history search, restore previous prompt, maybe make searched line current
+    PromptBase pb;
+    pb.promptText = &pi.promptText[pi.promptLastLinePosition];
+    pb.promptChars = pi.promptIndentation;
+    pb.promptExtraLines = 0;
+    pb.promptIndentation = pi.promptIndentation;
+    pb.promptLastLinePosition = 0;
+    pb.promptPreviousInputLen = historyLineLength;
+    pb.promptCursorRowOffset = dp.promptCursorRowOffset;
+    pb.promptScreenColumns = pi.promptScreenColumns;
+    pb.previousPromptLen = dp.promptChars;
+    if ( useSearchedLine ) {
+        strcpy( buf, history[historyIndex] );
+        *len = historyLineLength;
+        *pos = historyLinePosition;
     }
-
-    // maybe execute the line
-    if ( executeLine ) {
-        // not ... this code is all wrong, it is here as a placeholder and to make gcc shut up
-        refreshLine( dp, emptyString, 0, 0 );               // erase the old input first
-        PromptBase pb;
-        pb.promptText = &pi.promptText[pi.promptLastLinePosition];
-        pb.promptChars = pi.promptIndentation;
-        pb.promptExtraLines = 0;                            // TODO could be wrong
-        pb.promptIndentation = pi.promptIndentation;        // TODO could be wrong
-        pb.promptLastLinePosition = 0;                      // TODO could be wrong
-        pb.promptPreviousInputLen = dp.promptChars;         // TODO could be wrong
-        pb.promptCursorRowOffset = 0;                       // TODO could be wrong
-        //pb.promptCursorRowOffset = pi.promptCursorRowOffset;                       // TODO could be wrong
-        pb.promptScreenColumns = pi.promptScreenColumns;    // TODO could be wrong
-        dynamicRefresh( pb, buf, *len, *pos );              // redraw the original prompt with current input
-        pi.promptCursorRowOffset += pb.promptCursorRowOffset;
-    }
+    dynamicRefresh( pb, buf, *len, *pos );              // redraw the original prompt with current input
+    pi.promptPreviousInputLen = *len;
+    pi.promptCursorRowOffset = pi.promptExtraLines + pb.promptCursorRowOffset;
 
     previousSearchText = dp.searchText;     // save search text for possible reuse on ctrl-R ctrl-R
     return c;                               // pass a character or -1 back to main loop
@@ -1693,7 +1727,9 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
             break;
 
-        case ctrlChar( 'S' ):   // ctrl-S, forward history search, silently ignore in main loop
+        //case ctrlChar( 'S' ):   // ctrl-S, forward history search, silently ignore in main loop
+        case ctrlChar( 'S' ):   // ctrl-S, forward history search
+            terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
             break;
 
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
