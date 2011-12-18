@@ -1283,9 +1283,6 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
     bool keepLooping = true;
     bool useSearchedLine = true;
     bool searchAgain = false;
-    int oldHistoryIndex = historyIndex;
-    int oldHistoryLineLength = historyLineLength;
-    int oldHistoryLinePosition = historyLinePosition;
     while ( keepLooping ) {
         c = linenoiseReadChar();
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
@@ -1405,7 +1402,6 @@ int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, i
         if ( keepLooping ) {
             if ( dp.searchTextLen > 0 ) {
                 bool found = false;
-                bool failed = false;
                 int historySearchIndex = historyIndex;
                 int lineLength = historyLineLength;
                 int lineSearchPos = historyLinePosition;
