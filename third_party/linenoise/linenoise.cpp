@@ -614,7 +614,6 @@ static void dynamicRefresh( PromptBase& pi, char *buf, int len, int pos ) {
  * @param len  count of characters in the buffer
  * @param pos  current cursor position within the buffer (0 <= pos <= len)
  */
-//static void refreshLine( PromptBase& pi, char *buf, int len, int pos ) {
 static void refreshLine( PromptBase& pi, const char *buf, int len, int pos ) {
 
     // check for a matching brace/bracket/paren, remember its position if found
@@ -632,7 +631,7 @@ static void refreshLine( PromptBase& pi, const char *buf, int len, int pos ) {
             for ( int i = pos + scanDirection; i >= 0 && i < len; i += scanDirection ) {
                 /* TODO: the right thing when inside a string */
                 if ( strchr( "}])", buf[i] ) )
-                    unmatched--;
+                    --unmatched;
                 else if ( strchr( "{[(", buf[i] ) )
                     ++unmatched;
 
@@ -1261,12 +1260,11 @@ static int cleanupCtrl( int c ) {
  * @param buflen    size of input buffer in bytes
  * @param len       ptr to count of characters in the buffer (updated)
  * @param pos       ptr to current cursor position within the buffer (0 <= pos <= len) (updated)
- * @param startChar the character that began the search, used to set  theinitial direction
+ * @param startChar the character that began the search, used to set the initial direction
  */
 int incrementalHistorySearch( PromptInfo& pi, char *buf, int buflen, int *len, int *pos, int startChar ) {
 
-    // kludge -- add the current line to the history list and remove it when we return
-    // from this routine ... this is so we don't have to special case the current line
+    // add the current line to the history list so we don't have to special case it
     history[historyLen - 1] = reinterpret_cast<char *>( realloc( history[historyLen - 1], *len + 1 ) );
     strcpy( history[historyLen - 1], buf );
     int historyLineLength = *len;
@@ -1583,7 +1581,7 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
                 refreshLine( pi, buf, len, pos );
             }
             else if ( len == 0 ) {
-                historyLen--;
+                --historyLen;
                 free( history[historyLen] );
                 return -1;
             }
@@ -1720,10 +1718,6 @@ static int linenoisePrompt( char *buf, int buflen, PromptInfo& pi ) {
             break;
 
         case ctrlChar( 'R' ):   // ctrl-R, reverse history search
-            terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
-            break;
-
-        //case ctrlChar( 'S' ):   // ctrl-S, forward history search, silently ignore in main loop
         case ctrlChar( 'S' ):   // ctrl-S, forward history search
             terminatingKeystroke = incrementalHistorySearch( pi, buf, buflen, &len, &pos, c );
             break;
@@ -2007,7 +2001,7 @@ int linenoiseHistorySave( const char* filename ) {
  * If the file exists and the operation succeeded 0 is returned, otherwise
  * on error -1 is returned. */
 int linenoiseHistoryLoad( const char* filename ) {
-    FILE *fp = fopen( filename, "rt" );    
+    FILE *fp = fopen( filename, "rt" );
     if ( fp == NULL )
         return -1;
 
