@@ -111,7 +111,8 @@ namespace mongo {
         _desc(desc),
         _god(0),
         _lastOp(0),
-        _mp(p) 
+        _mp(p),
+        _sometimes(0)
     {
         _hasWrittenThisPass = false;
         _pageFaultRetryableSection = 0;
@@ -680,7 +681,7 @@ namespace mongo {
     }
 
 
-#define OPDEBUG_TOSTRING_HELP(x) if( x ) s << " " #x ":" << (x)
+#define OPDEBUG_TOSTRING_HELP(x) if( x >= 0 ) s << " " #x ":" << (x)
     string OpDebug::toString() const {
         StringBuilder s( ns.size() + 64 );
         if ( iscommand )

@@ -464,7 +464,13 @@ namespace mongo {
             }
             if( me == 0 ) {
                 _members.orphanAll();
-                // hbs must continue to pick up new config
+
+                // sending hbs must continue to pick up new config, so we leave
+                // hb threads alone
+
+                // close sockets to force clients to re-evaluate this member
+                MessagingPort::closeAllSockets(0);
+
                 // stop sync thread
                 box.set(MemberState::RS_STARTUP, 0);
 
@@ -607,15 +613,19 @@ namespace mongo {
                         log() << "replSet exception trying to load config from " << *i << " : " << e.toString() << rsLog;
                     }
                 }
-
-                if( replSettings.discoveredSeeds.size() > 0 ) {
-                    for (set<string>::iterator i = replSettings.discoveredSeeds.begin(); i != replSettings.discoveredSeeds.end(); i++) {
-                        try {
-                            configs.push_back( ReplSetConfig(HostAndPort(*i)) );
-                        }
-                        catch( DBException& ) {
-                            log(1) << "replSet exception trying to load config from discovered seed " << *i << rsLog;
-                            replSettings.discoveredSeeds.erase(*i);
+                {
+                    scoped_lock lck( replSettings.discoveredSeeds_mx );
+                    if( replSettings.discoveredSeeds.size() > 0 ) {
+                        for (set<string>::iterator i = replSettings.discoveredSeeds.begin(); 
+                             i != replSettings.discoveredSeeds.end(); 
+                             i++) {
+                            try {
+                                configs.push_back( ReplSetConfig(HostAndPort(*i)) );
+                            }
+                            catch( DBException& ) {
+                                log(1) << "replSet exception trying to load config from discovered seed " << *i << rsLog;
+                                replSettings.discoveredSeeds.erase(*i);
+                            }
                         }
                     }
                 }
