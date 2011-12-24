@@ -21,6 +21,7 @@
 */
 
 #include "pch.h"
+#include "ops/count.h"
 #include "ops/query.h"
 #include "pdfile.h"
 #include "jsobj.h"
@@ -440,7 +441,7 @@ namespace mongo {
                 BSONObjBuilder t;
 
                 unsigned long long last, start, timeLocked;
-                dbMutex.info().getTimingInfo(start, timeLocked);
+                d.dbMutex.info().getTimingInfo(start, timeLocked);
                 last = curTimeMicros64();
                 double tt = (double) last-start;
                 double tl = (double) timeLocked;
@@ -810,6 +811,7 @@ namespace mongo {
             return replSettings.slave == SimpleSlave;
         }
         virtual bool slaveOverrideOk() { return true; }
+        virtual bool maintenanceOk() const { return false; }
         virtual bool adminOnly() const { return false; }
         virtual void help( stringstream& help ) const { help << "count objects in collection"; }
         virtual bool run(const string& dbname, BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool) {
@@ -1263,7 +1265,7 @@ namespace mongo {
 
     namespace {
         long long getIndexSizeForCollection(string db, string ns, BSONObjBuilder* details=NULL, int scale = 1 ) {
-            dbMutex.assertAtLeastReadLocked();
+            d.dbMutex.assertAtLeastReadLocked();
 
             NamespaceDetails * nsd = nsdetails( ns.c_str() );
             if ( ! nsd )
@@ -1833,6 +1835,12 @@ namespace mongo {
 
         if ( ! canRunHere ) {
             result.append( "errmsg" , "not master" );
+            result.append( "note" , "from execCommand" );
+            return false;
+        }
+
+        if ( ! c->maintenanceOk() && theReplSet && ! isMaster( dbname.c_str() ) && ! theReplSet->isSecondary() ) {
+            result.append( "errmsg" , "node is recovering" );
             result.append( "note" , "from execCommand" );
             return false;
         }

@@ -550,7 +550,7 @@ namespace mongo {
     int _dummy_z;
 
     void pretouchN(vector<BSONObj>& v, unsigned a, unsigned b) {
-        DEV assert( !dbMutex.isWriteLocked() );
+        DEV assert( !d.dbMutex.isWriteLocked() );
 
         Client *c = currentClient.get();
         if( c == 0 ) {
@@ -592,7 +592,7 @@ namespace mongo {
 
     void pretouchOperation(const BSONObj& op) {
 
-        if( dbMutex.isWriteLocked() )
+        if( d.dbMutex.isWriteLocked() )
             return; // no point pretouching if write locked. not sure if this will ever fire, but just in case.
 
         const char *which = "o";
@@ -748,11 +748,18 @@ namespace mongo {
                     // of the form
                     //   { _id:..., { x : {$size:...} }
                     // thus this is not ideal.
-                    else if( nsdetails(ns) == NULL || Helpers::findById(nsdetails(ns), updateCriteria).isNull() ) {
-                        failedUpdate = true; 
-                    }
-                    else { 
-                        // it's present; zero objects were updated because of additional specifiers in the query for idempotence
+                    else {
+                        NamespaceDetails *nsd = nsdetails(ns);
+
+                        if (nsd == NULL ||
+                            (nsd->findIdIndex() >= 0 && Helpers::findById(nsd, updateCriteria).isNull()) ||
+                            // capped collections won't have an _id index
+                            (nsd->findIdIndex() < 0 && Helpers::findOne(ns, updateCriteria, false).isNull())) {
+                            failedUpdate = true;
+                        }
+
+                        // Otherwise, it's present; zero objects were updated because of additional specifiers
+                        // in the query for idempotence
                     }
                 }
                 else { 

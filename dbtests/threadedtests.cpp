@@ -85,7 +85,7 @@ namespace ThreadedTests {
         }
     private:
         virtual void setup() {
-            mm = &dbMutex;
+            mm = &d.dbMutex;
         }
         virtual void subthread(int) {
             Client::initThread("mongomutextest");
@@ -233,7 +233,7 @@ namespace ThreadedTests {
 
             writelocktry lk( "" , 0 );
             ASSERT( lk.got() );
-            ASSERT( dbMutex.isWriteLocked() );
+            ASSERT( d.dbMutex.isWriteLocked() );
         }
     };
 
@@ -480,6 +480,7 @@ namespace ThreadedTests {
                 LockCollectionForReading x("foo");
                 LockCollectionForReading y("foo.$bar"); 
             }
+#if defined(CLC)
             {
                 LockCollectionForWriting x("foo");
                 LockCollectionForWriting y("foo");
@@ -492,7 +493,7 @@ namespace ThreadedTests {
                 LockCollectionForReading x("foo");
                 ASSERT_THROWS( LockCollectionForReading y("bar"), DBException )
             }
-
+#endif
             cout << "temp ok" << endl;
         }
     };
@@ -540,12 +541,17 @@ namespace ThreadedTests {
                     RWLock::Upgradable u(m);
                     log() << x << ' ' << ch << " got" << endl;
                     if( ch == 'U' ) {
+#ifdef MONGO_USE_SRW_ON_WINDOWS
+                        if( t.millis() > 200 ) {
+#else
                         if( t.millis() > 20 ) {
+#endif
                             DEV {
                                 // a _DEBUG buildbot might be slow, try to avoid false positives
                                 log() << "warning lock upgrade was slow " << t.millis() << endl;
                             }
                             else {
+                                log() << "assertion failure: lock upgrade was too slow: " << t.millis() << endl;
                                 ASSERT( false );
                             }
                         }

@@ -8,6 +8,7 @@
 #include "../util/assert_util.h"
 #include "client.h"
 #include "namespacestring.h"
+#include "d_globals.h"
 
 // oplog locking
 // no top level read locks
@@ -17,6 +18,73 @@
 // commitIfNeeded
 
 namespace mongo {
+
+    using namespace clcimpl;
+
+    Client::LockStatus::LockStatus() { 
+        excluder=global=collection=0;
+    }
+
+    namespace clcimpl {
+        Shared::Shared(unsigned& _state, RWLock& lock) : state(_state) {
+            rw = 0;
+            if( state ) { 
+                // already locked
+                dassert( (state & (AcquireShared|AcquireExclusive)) == 0 );
+                return;
+            }
+            rw = &lock;
+            state = AcquireShared;
+            rw->lock_shared();
+            state = LockedShared;
+        }
+        Shared::~Shared() { 
+            if( rw ) {
+                state = Unlocked;
+                rw->unlock_shared();
+            }
+        }
+        Exclusive::Exclusive(unsigned& _state, RWLock& lock) : state(_state) { 
+            rw = 0;
+            if( state ) { 
+                // already locked
+                dassert( (state & (AcquireShared|AcquireExclusive)) == 0 );
+                assert( state == LockedExclusive ); // can't be in shared state
+                return;
+            }
+            rw = &lock;
+            state = AcquireExclusive;
+            rw->lock();
+            state = LockedExclusive;
+        }
+        Exclusive::~Exclusive() { 
+            if( rw ) {
+                state = Unlocked;
+                rw->unlock();
+            }
+        }
+    } // clcimpl namespace
+
+    // this tie-in temporary until MongoMutex is folded in more directly.
+    // called when the lock has been achieved
+    void MongoMutex::lockedExclusively() {
+        Client& c = cc();
+        curopGotLock(&c); // hopefully lockStatus replaces one day
+        c.lockStatus.global = clcimpl::LockedExclusive;
+        _minfo.entered(); // hopefully eliminate one day 
+    }
+
+    void MongoMutex::unlockingExclusively() {
+        Client& c = cc();
+        _minfo.leaving();
+        c.lockStatus.global = Unlocked;
+    }
+
+    MongoMutex::MongoMutex(const char *name) : _m(name) {
+        static int n = 0;
+        assert( ++n == 1 ); // below releasingWriteLock we assume MongoMutex is a singleton, and uses dbMutex ref above
+        _remapPrivateViewRequested = false;
+    }
 
     bool subcollectionOf(const string& parent, const char *child) {
         if( parent == child ) 
@@ -28,6 +96,7 @@ namespace mongo {
         return *p == '.' && p[1] == '$';
     }
 
+    // (maybe tbd) ...
     // we will use the global write lock for writing to system.* collections for simplicity 
     // for now; this has some advantages in speed as we don't need to latch just for that then; 
     // also there are cases to be handled carefully otherwise such as namespacedetails methods
@@ -38,19 +107,22 @@ namespace mongo {
         return s.isSystem() && s.coll != "system.profile";
     }
 
-    /** we want to be able to block any attempted write while allowing reads; additionally 
+    /** Notes on d.writeExcluder
+        we want to be able to block any attempted write while allowing reads; additionally 
         force non-greedy acquisition so that reads can continue -- 
         that is, disallow greediness of write lock acquisitions.  This is for that purpose.  The 
         #1 need is by groupCommitWithLimitedLocks() but useful elsewhere such as for lock and fsync.
     */
-    SimpleRWLock writeExcluder;
+
     ExcludeAllWrites::ExcludeAllWrites() : 
-        lk(writeExcluder)
+        lk(cc().lockStatus.excluder, d.writeExcluder), 
+        gslk()
     {
         LOG(3) << "ExcludeAllWrites" << endl;
-        wassert( !dbMutex.isWriteLocked() );
-        wassert( !cc().lockStatus.isWriteLocked() );
+        wassert( !d.dbMutex.isWriteLocked() );
     };
+    ExcludeAllWrites::~ExcludeAllWrites() {
+    }
 
     // CLC turns on the "collection level concurrency" code 
     // (which is under development and not finished)
@@ -58,10 +130,10 @@ namespace mongo {
     // called after a context is set. check that the correct collection is locked
     void Client::checkLocks() const { 
         DEV {
-            if( !dbMutex.isWriteLocked() ) { 
+            if( !d.dbMutex.isWriteLocked() ) { 
                 const char *n = ns();
                 if( lockStatus.whichCollection.empty() ) { 
-                    log() << "DEBUG checkLocks error expected to already be locked " << n << endl;
+                    log() << "DEBUG checkLocks error expected to already be locked: " << n << endl;
                     dassert(false);
                 }
                 dassert( subcollectionOf(lockStatus.whichCollection, n) || lkspecial(n) );
@@ -69,14 +141,6 @@ namespace mongo {
         }
     }
 #endif
-
-    Client::LockStatus::LockStatus() { 
-        coll = 0;
-    }
-
-    bool Client::LockStatus::isWriteLocked() const { 
-        return coll > 0;
-    }
 
     // we don't keep these locks in the namespacedetailstransient and Database 
     // objects -- that makes things safer as we need not prove to ourselves that they 
@@ -107,8 +171,9 @@ namespace mongo {
         }
     } theLocks;
 
+#if defined(CLC)
     LockCollectionForWriting::Locks::Locks(string ns) : 
-        excluder(writeExcluder),
+        excluder(d.writeExcluder),
         gslk(),
         clk(theLocks.forns(ns),true)
     { }
@@ -116,57 +181,51 @@ namespace mongo {
         if( locks.get() ) {
             Client::LockStatus& s = cc().lockStatus;
             s.whichCollection.clear();
-            s.coll--;
         }
     }
     LockCollectionForWriting::LockCollectionForWriting(string coll)
     {
         Client::LockStatus& s = cc().lockStatus;
+        LockBits b(s.state);
         if( !s.whichCollection.empty() ) {
             if( !subcollectionOf(s.whichCollection, coll.c_str()) ) { 
                 massert(15937, str::stream() << "can't nest lock of " << coll << " beneath " << s.whichCollection, false);
             }
-            massert(15938, "want collection write lock but it is already read locked", s.coll > 0);
+            if( b.get(LockBits::Collection) != LockBits::Exclusive ) {
+                massert(15938, str::stream() << "want collection write lock but it is already read locked " << s.state, false);
+            }
             return;
         }
         verify(15965, !lkspecial(coll)); // you must global write lock for writes to special's
         s.whichCollection = coll;
-        dassert( s.coll == 0 );
-        s.coll++;
+        b.set(LockBits::Collection, LockBits::NotLocked, LockBits::Exclusive);
         locks.reset( new Locks(coll) );
     }    
+#endif
 
-    LockCollectionForReading::Locks::Locks(string ns) : 
+    LockCollectionForReading::LockCollectionForReading(string ns) : 
       gslk(),
-      clk( theLocks.forns(ns) ) 
-    { }
-    LockCollectionForReading::~LockCollectionForReading() {
+      clk( cc().lockStatus.collection, theLocks.forns(ns) ) 
+    { 
         Client::LockStatus& s = cc().lockStatus;
-        dassert( !s.whichCollection.empty() );
-        if( locks.get() ) {
-            s.whichCollection.clear();
-            s.coll++;
-            wassert( s.coll == 0 );
+        if( s.whichCollection.empty() ) {
+            s.whichCollection = ns;
         }
-    }
-    LockCollectionForReading::LockCollectionForReading(string coll)
-    {
-        Client::LockStatus& s = cc().lockStatus;
-        if( !s.whichCollection.empty() ) {
-            if( !subcollectionOf(s.whichCollection, coll.c_str()) ) {
-                if( lkspecial(coll) )
+        else {
+            if( !subcollectionOf(s.whichCollection, ns.c_str()) ) {
+                if( lkspecial(ns) )
                     return;
                 massert(15939, 
-                    str::stream() << "can't nest lock of " << coll << " beneath " << s.whichCollection, 
+                    str::stream() << "can't nest lock of " << ns << " beneath " << s.whichCollection, 
                     false);
             }
-            // already locked, so done; might have been a write lock.
-            return;
         }
-        s.whichCollection = coll; 
-        dassert( s.coll == 0 );
-        s.coll--;
-        locks.reset( new Locks(coll) );
+    }
+    LockCollectionForReading::~LockCollectionForReading() {
+        if( !clk.recursed() ) {
+            Client::LockStatus& s = cc().lockStatus;
+            s.whichCollection.clear();
+        }
     }
 
 }

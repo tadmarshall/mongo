@@ -305,7 +305,7 @@ namespace mongo {
         int numChunks() const { return _chunkMap.size(); }
         bool hasShardKey( const BSONObj& obj ) const;
 
-        void createFirstChunks( const Shard& shard ) const; // only call from DBConfig::shardCollection
+        void createFirstChunks( const Shard& primary , vector<BSONObj>* initPoints , vector<Shard>* initShards ) const; // only call from DBConfig::shardCollection
         ChunkPtr findChunk( const BSONObj& obj ) const;
         ChunkPtr findChunkOnServer( const Shard& shard ) const;
 
@@ -321,8 +321,8 @@ namespace mongo {
         /**
          * Returns true if, for this shard, the chunks are identical in both chunk managers
          */
-        bool compatibleWith( const ChunkManager& other, const Shard& shard );
-        bool compatibleWith( ChunkManagerPtr other, const Shard& shard ){ return compatibleWith( *other, shard ); }
+        bool compatibleWith( const ChunkManager& other, const Shard& shard ) const;
+        bool compatibleWith( ChunkManagerPtr other, const Shard& shard ) const { if( ! other ) return false; return compatibleWith( *other, shard ); }
 
         string toString() const;
 

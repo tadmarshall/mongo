@@ -177,8 +177,11 @@ namespace mongo {
                 getDur().commitIfNeeded();
             }
             catch (DBException& e) {
-                // skip duplicate key exceptions
-                if( e.getCode() == 11000 || e.getCode() == 11001 ) {
+                // Skip duplicate key exceptions.
+                // These are relatively common on initial sync: if a document is inserted
+                // early in the clone step, the insert will be replayed but the document
+                // will probably already have been cloned over.
+                if( e.getCode() == 11000 || e.getCode() == 11001 || e.getCode() == 12582) {
                     continue;
                 }
                 
@@ -465,7 +468,7 @@ namespace mongo {
                             }
                         } // endif slaveDelay
 
-                        dbMutex.assertWriteLocked();
+                        d.dbMutex.assertWriteLocked();
                         try {
                             /* if we have become primary, we dont' want to apply things from elsewhere
                                anymore. assumePrimary is in the db lock so we are safe as long as
@@ -594,7 +597,12 @@ namespace mongo {
     void GhostSync::associateSlave(const BSONObj& id, const int memberId) {
         const OID rid = id["_id"].OID();
         rwlock lk( _lock , true );
-        GhostSlave &slave = _ghostCache[rid];
+        shared_ptr<GhostSlave> &g = _ghostCache[rid];
+        if( g.get() == 0 ) {
+            g.reset( new GhostSlave() );
+            wassert( _ghostCache.size() < 10000 );
+        }
+        GhostSlave &slave = *g;
         if (slave.init) {
             LOG(1) << "tracking " << slave.slave->h().toString() << " as " << rid << rsLog;
             return;
@@ -618,7 +626,7 @@ namespace mongo {
             return;
         }
         
-        GhostSlave& slave = i->second;
+        GhostSlave& slave = *(i->second);
         if (!slave.init) {
             OCCASIONALLY log() << "couldn't update slave " << rid << " not init" << rsLog;            
             return;
@@ -639,7 +647,7 @@ namespace mongo {
                 return;
             }
 
-            slave = &(i->second);
+            slave = i->second.get();
             if (!slave->init) {
                 OCCASIONALLY log() << "couldn't percolate slave " << rid << " not init" << rsLog;
                 return;

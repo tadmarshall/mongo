@@ -100,6 +100,7 @@ namespace mongo {
             if( theReplSet == 0 ) {
                 string from( cmdObj.getStringField("from") );
                 if( !from.empty() ) {
+                    scoped_lock lck( replSettings.discoveredSeeds_mx );
                     replSettings.discoveredSeeds.insert(from);
                 }
                 result.append("hbmsg", "still initializing");
@@ -143,7 +144,7 @@ namespace mongo {
         // generally we don't want to be locked, at least not without
         // thinking acarefully about it first.
         uassert(15900, "can't heartbeat: too much lock",
-                !dbMutex.isWriteLocked() || theReplSet == 0 || !theReplSet->lockedByMe() );
+                !d.dbMutex.isWriteLocked() || theReplSet == 0 || !theReplSet->lockedByMe() );
 
         ScopedConn conn(memberFullName);
         return conn.runCommand("admin", cmd, result, 0);

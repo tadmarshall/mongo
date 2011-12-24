@@ -1,4 +1,7 @@
-/** @file common.cpp Common code for server binaries (mongos, mongod, test).  Nothing used by driver should be here. */
+/** @file common.cpp 
+    Common code for server binaries (mongos, mongod, test).  
+    Nothing used by driver should be here. 
+ */
 
 /*
  *    Copyright (C) 2010 10gen Inc.
@@ -16,8 +19,8 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pch.h"
-#include "concurrency.h"
+//#include "pch.h"
+//#include "concurrency.h"
 #include "jsobjmanipulator.h"
 
 /**
@@ -28,24 +31,26 @@ namespace mongo {
     /** called by mongos, mongod, test. do not call from clients and such. 
         invoked before about everything except global var construction.
      */
-    void doPreServerStatupInits() { 
-    }
+    void doPreServerStartupInits() { 
+#if defined(RLIMIT_NPROC) && defined(RLIMIT_NOFILE)
+      //Check that # of files rlmit > 1000 , and # of processes > # of files/2
+      const unsigned int minNumFiles = 1000;
+      const double filesToProcsRatio = 2.0;
+      struct rlimit rlnproc;
+      struct rlimit rlnofile;
 
-    /* we use new here so we don't have to worry about destructor orders at program shutdown */
-    MongoMutex &dbMutex( *(new MongoMutex("dbMutex")) );
-
-    MongoMutex::MongoMutex(const char *name) : _m(name) {
-        static int n = 0;
-        assert( ++n == 1 ); // below releasingWriteLock we assume MongoMutex is a singleton, and uses dbMutex ref above
-        _remapPrivateViewRequested = false;
-    }
-
-    // OpTime::now() uses dbMutex, thus it is in this file not in the cpp files used by drivers and such
-    void BSONElementManipulator::initTimestamp() {
-        massert( 10332 ,  "Expected CurrentTime type", _element.type() == Timestamp );
-        unsigned long long &timestamp = *( reinterpret_cast< unsigned long long* >( value() ) );
-        if ( timestamp == 0 )
-            timestamp = OpTime::now().asDate();
+      if(!getrlimit(RLIMIT_NPROC,&rlnproc) && !getrlimit(RLIMIT_NOFILE,&rlnofile)){
+        if(rlnofile.rlim_cur < minNumFiles){
+          log() << "Warning: soft rlimits too low. Number of files is " << rlnofile.rlim_cur << ", should be at least " << minNumFiles << endl;
+        }
+        if(rlnproc.rlim_cur < rlnofile.rlim_cur/filesToProcsRatio){
+          log() << "Warning: soft rlimits too low. " << rlnproc.rlim_cur << " processes, " << rlnofile.rlim_cur << " files. Number of processes should be at least "<< 1/filesToProcsRatio << " times number of files." << endl;
+        }
+      }
+      else{
+        log() << "Warning: getrlimit failed" << endl;
+      }
+#endif
     }
 
     NOINLINE_DECL OpTime OpTime::skewed() {

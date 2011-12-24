@@ -20,6 +20,7 @@
 #include "dur_commitjob.h"
 #include "dur_stats.h"
 #include "taskqueue.h"
+#include "client.h"
 
 namespace mongo {
 
@@ -43,7 +44,7 @@ namespace mongo {
         }
 
         void Writes::clear() {
-            dbMutex.assertAtLeastReadLocked();
+            d.dbMutex.assertAtLeastReadLocked();
 
             _alreadyNoted.clear();
             _writes.clear();
@@ -113,13 +114,13 @@ namespace mongo {
             }
         }
 
-
         /** note an operation other than a "basic write" */
         void CommitJob::noteOp(shared_ptr<DurOp> p) {
-            dbMutex.assertWriteLocked();
+            d.dbMutex.assertWriteLocked();
             dassert( cmdLine.dur );
+            cc()._hasWrittenThisPass = true;
             if( !_hasWritten ) {
-                assert( !dbMutex._remapPrivateViewRequested );
+                assert( !d.dbMutex._remapPrivateViewRequested );
                 _hasWritten = true;
             }
             _wi._ops.push_back(p);
@@ -128,7 +129,7 @@ namespace mongo {
         size_t privateMapBytes = 0; // used by _REMAPPRIVATEVIEW to track how much / how fast to remap
 
         void CommitJob::beginCommit() { 
-            DEV dbMutex.assertAtLeastReadLocked();
+            DEV d.dbMutex.assertAtLeastReadLocked();
             _commitNumber = _notify.now();
             stats.curr->_commits++;
         }
@@ -153,14 +154,15 @@ namespace mongo {
             // be read locked here.  but must be at least read locked to avoid race with
             // remapprivateview
             DEV notesThisLock++;
-            DEV dbMutex.assertWriteLocked();
+            DEV d.dbMutex.assertWriteLocked();
             dassert( cmdLine.dur );
+            cc()._hasWrittenThisPass = true;
             if( !_wi._alreadyNoted.checkAndSet(p, len) ) {
                 MemoryMappedFile::makeWritable(p, len);
 
                 if( !_hasWritten ) {
                     // you can't be writing if one of these is pending, so this is a verification.
-                    assert( !dbMutex._remapPrivateViewRequested ); // safe to assert here since it must be the first write in a write lock
+                    assert( !d.dbMutex._remapPrivateViewRequested ); // safe to assert here since it must be the first write in a write lock
 
                     // we don't bother doing a group commit when nothing is written, so we have a var to track that
                     _hasWritten = true;

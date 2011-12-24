@@ -123,9 +123,6 @@
     <ClCompile Include="..\..\util\text.cpp">
       <Filter>shell</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\s\shardconnection.cpp">
-      <Filter>shared source files</Filter>
-    </ClCompile>
     <ClCompile Include="..\shell_utils.cpp">
       <Filter>shell</Filter>
     </ClCompile>
@@ -134,9 +131,6 @@
     </ClCompile>
     <ClCompile Include="..\..\util\password.cpp">
       <Filter>util</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\common.cpp">
-      <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="..\mongo.cpp">
       <Filter>shell\generated_from_js</Filter>
@@ -278,6 +272,9 @@
   <ItemGroup>
     <ClInclude Include="..\..\db\lasterror.h">
       <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\linenoise\linenoise.h">
+      <Filter>thirdparty</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

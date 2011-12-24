@@ -90,13 +90,11 @@ namespace mongo {
             struct PostStaticCheck {
                 PostStaticCheck() {
                     if ( StaticObserver::_destroyingStatics ) {
-                        cout << "trying to lock a mongo::mutex during static shutdown" << endl;
+                        cout << "_DEBUG warning trying to lock a mongo::mutex during static shutdown" << endl;
                         printStackTrace( cout );
                     }
                 }
-            };
-
-            PostStaticCheck _check;
+            } _check;
             mongo::mutex * const _mut;
 #endif
             scoped_lock( mongo::mutex &m ) : 

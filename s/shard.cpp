@@ -30,7 +30,7 @@ namespace mongo {
     
     class StaticShardInfo {
     public:
-        StaticShardInfo() : _mutex("StaticShardInfo") { }
+        StaticShardInfo() : _mutex("StaticShardInfo"), _rsMutex("RSNameMap") { }
         void reload() {
 
             list<BSONObj> all;
@@ -60,6 +60,7 @@ namespace mongo {
             else {
                 _lookup.clear();
             }
+            _rsLookup.clear();
 
             for ( list<BSONObj>::iterator i=all.begin(); i!=all.end(); ++i ) {
                 BSONObj o = *i;
@@ -89,13 +90,6 @@ namespace mongo {
             string mykey = ident;
 
             {
-                // if its a replica set, just use set name
-                size_t pos = mykey.find( '/' );
-                if ( pos != string::npos )
-                    mykey = mykey.substr(0,pos);
-            }
-
-            {
                 scoped_lock lk( _mutex );
                 ShardMap::iterator i = _lookup.find( mykey );
 
@@ -110,6 +104,16 @@ namespace mongo {
             ShardMap::iterator i = _lookup.find( mykey );
             massert( 13129 , (string)"can't find shard for: " + mykey , i != _lookup.end() );
             return i->second;
+        }
+
+        // Lookup shard by replica set name. Returns Shard::EMTPY if the name can't be found.
+        // Note: this doesn't refresh the table if the name isn't found, so it's possible that
+        // a newly added shard/Replica Set may not be found.
+        Shard lookupRSName( const string& name) {
+            scoped_lock lk( _rsMutex );
+            ShardMap::iterator i = _rsLookup.find( name );
+
+            return (i == _rsLookup.end()) ? Shard::EMPTY : i->second.get();
         }
 
         // Useful for ensuring our shard data will not be modified while we use it
@@ -134,9 +138,10 @@ namespace mongo {
             
             const ConnectionString& cs = s->getAddress();
             if ( cs.type() == ConnectionString::SET ) {
-                if ( cs.getSetName().size() )
-                    _lookup[ cs.getSetName() ] = s;
-                
+                if ( cs.getSetName().size() ) {
+                    scoped_lock lk( _rsMutex);
+                    _rsLookup[ cs.getSetName() ] = s;
+                }
                 vector<HostAndPort> servers = cs.getServers();
                 for ( unsigned i=0; i<servers.size(); i++ ) {
                     _lookup[ servers[i].toString() ] = s;
@@ -150,6 +155,15 @@ namespace mongo {
                 ShardPtr s = i->second;
                 if ( s->getName() == name ) {
                     _lookup.erase(i++);
+                }
+                else {
+                    ++i;
+                }
+            }
+            for ( ShardMap::iterator i = _rsLookup.begin(); i!=_rsLookup.end(); ) {
+                ShardPtr s = i->second;
+                if ( s->getName() == name ) {
+                    _rsLookup.erase(i++);
                 }
                 else {
                     ++i;
@@ -223,7 +237,9 @@ namespace mongo {
     private:
         typedef map<string,ShardPtr> ShardMap;
         ShardMap _lookup;
+        ShardMap _rsLookup; // Map from ReplSet name to shard
         mutable mongo::mutex _mutex;
+        mutable mongo::mutex _rsMutex;
     } staticShardInfo;
 
     
@@ -287,6 +303,10 @@ namespace mongo {
 
     bool Shard::isAShardNode( const string& ident ) {
         return staticShardInfo.isAShardNode( ident );
+    }
+
+    Shard Shard::lookupRSName( const string& name) {
+        return staticShardInfo.lookupRSName(name);
     }
 
     void Shard::printShardInfo( ostream& out ) {
@@ -365,12 +385,12 @@ namespace mongo {
                     conn->auth("local", internalSecurity.user, internalSecurity.pwd, err, false));
         }
 
-        if ( _shardedConnections && isVersionableCB( conn ) ) {
+        if ( _shardedConnections && versionManager.isVersionableCB( conn ) ) {
 
             // We must initialize sharding on all connections, so that we get exceptions if sharding is enabled on
             // the collection.
             BSONObj result;
-            bool ok = initShardVersionCB( *conn, result );
+            bool ok = versionManager.initShardVersionCB( conn, result );
 
             // assert that we actually successfully setup sharding
             uassert( 15907, str::stream() << "could not initialize sharding on connection " << (*conn).toString() <<
@@ -382,8 +402,8 @@ namespace mongo {
 
     void ShardingConnectionHook::onDestroy( DBClientBase * conn ) {
 
-        if( _shardedConnections && isVersionableCB( conn ) ){
-            resetShardVersionCB( conn );
+        if( _shardedConnections && versionManager.isVersionableCB( conn ) ){
+            versionManager.resetShardVersionCB( conn );
         }
 
     }

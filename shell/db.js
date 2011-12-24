@@ -333,6 +333,7 @@ DB.prototype.help = function() {
     print("\tdb.isMaster() check replica primary status");
     print("\tdb.killOp(opid) kills the current operation in the db");
     print("\tdb.listCommands() lists all the db commands");
+    print("\tdb.loadServerScripts() loads all the scripts in db.system.js");
     print("\tdb.logout()");
     print("\tdb.printCollectionStats()");
     print("\tdb.printReplicationInfo()");
@@ -871,4 +872,10 @@ DB.prototype.setSlaveOk = function( value ) {
 DB.prototype.getSlaveOk = function() {
     if (this._slaveOk != undefined) return this._slaveOk;
     return this._mongo.getSlaveOk();
+}
+
+/* Loads any scripts contained in db.system.js into the client shell.
+*/
+DB.prototype.loadServerScripts = function(){
+    db.system.js.find().forEach(function(u){eval(u._id + " = " + u.value);});
 }

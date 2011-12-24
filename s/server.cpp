@@ -163,7 +163,7 @@ namespace mongo {
 
     void start( const MessageServer::Options& opts ) {
         setThreadName( "mongosMain" );
-        installChunkShardVersioning();
+
         balancer.go();
         cursorCache.startTimeoutThread();
         PeriodicTask::theRunner->go();
@@ -395,7 +395,7 @@ int _main(int argc, char* argv[]) {
 }
 int main(int argc, char* argv[]) {
     try {
-        doPreServerStatupInits();
+        doPreServerStartupInits();
         return _main(argc, argv);
     }
     catch(DBException& e) { 

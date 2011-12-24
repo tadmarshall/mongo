@@ -1,5 +1,4 @@
-// instance.cpp : Global state variables and functions.
-//
+// instance.cpp 
 
 /**
 *    Copyright (C) 2008 10gen Inc.
@@ -39,13 +38,16 @@
 #include "background.h"
 #include "dur_journal.h"
 #include "dur_recover.h"
-#include "ops/update.h"
+#include "d_concurrency.h"
+#include "ops/count.h"
 #include "ops/delete.h"
 #include "ops/query.h"
-#include "d_concurrency.h"
+#include "ops/update.h"
+#include "pagefault.h"
 
 namespace mongo {
 
+    // "diaglog"
     inline void opread(Message& m) { if( _diaglog.getLevel() & 2 ) _diaglog.readop((char *) m.singleData(), m.header()->len); }
     inline void opwrite(Message& m) { if( _diaglog.getLevel() & 1 ) _diaglog.write((char *) m.singleData(), m.header()->len); }
 
@@ -74,6 +76,49 @@ namespace mongo {
 
     // see FSyncCommand:
     extern bool lockedForWriting;
+
+    OpTime OpTime::now() {
+        DEV d.dbMutex.assertWriteLocked();
+        return now_inlock();
+    }
+    OpTime OpTime::last_inlock(){
+        DEV d.dbMutex.assertAtLeastReadLocked();
+        return last;
+    }
+
+    // OpTime::now() uses dbMutex, thus it is in this file not in the cpp files used by drivers and such
+    void BSONElementManipulator::initTimestamp() {
+        massert( 10332 ,  "Expected CurrentTime type", _element.type() == Timestamp );
+        unsigned long long &timestamp = *( reinterpret_cast< unsigned long long* >( value() ) );
+        if ( timestamp == 0 )
+            timestamp = OpTime::now().asDate();
+    }
+    void BSONElementManipulator::SetNumber(double d) {
+        if ( _element.type() == NumberDouble )
+            *getDur().writing( reinterpret_cast< double * >( value() )  ) = d;
+        else if ( _element.type() == NumberInt )
+            *getDur().writing( reinterpret_cast< int * >( value() ) ) = (int) d;
+        else assert(0);
+    }
+    void BSONElementManipulator::SetLong(long long n) {
+        assert( _element.type() == NumberLong );
+        *getDur().writing( reinterpret_cast< long long * >(value()) ) = n;
+    }
+    void BSONElementManipulator::SetInt(int n) {
+        assert( _element.type() == NumberInt );
+        getDur().writingInt( *reinterpret_cast< int * >( value() ) ) = n;
+    }
+    /* dur:: version */
+    void BSONElementManipulator::ReplaceTypeAndValue( const BSONElement &e ) {
+        char *d = data();
+        char *v = value();
+        int valsize = e.valuesize();
+        int ofs = (int) (v-d);
+        dassert( ofs > 0 );
+        char *p = (char *) getDur().writingPtr(d, valsize + ofs);
+        *p = e.type();
+        memcpy( p + ofs, e.value(), valsize );
+    }
 
     void inProgCmd( Message &m, DbResponse &dbresponse ) {
         BSONObjBuilder b;
@@ -246,7 +291,7 @@ namespace mongo {
     }
 
     // Returns false when request includes 'end'
-    void assembleResponse( Message &m, DbResponse &dbresponse, const HostAndPort& remote ) {
+    void _assembleResponse( Message &m, DbResponse &dbresponse, const HostAndPort& remote ) {
 
         // before we lock...
         int op = m.operation();
@@ -383,7 +428,7 @@ namespace mongo {
 
         if ( currentOp.shouldDBProfile( debug.executionTime ) ) {
             // performance profiling is on
-            if ( dbMutex.getState() < 0 ) {
+            if ( d.dbMutex.getState() < 0 ) {
                 mongo::log(1) << "note: not profiling because recursive read lock" << endl;
             }
             else {
@@ -399,7 +444,21 @@ namespace mongo {
         }
         
         debug.reset();
-    } /* assembleResponse() */
+    } /* _assembleResponse() */
+
+    void assembleResponse( Message &m, DbResponse &dbresponse, const HostAndPort& remote ) {
+        PageFaultRetryableSection s;
+        while( 1 ) {
+            try {
+                _assembleResponse( m, dbresponse, remote );
+                break;
+            }
+            catch( PageFaultException& e ) { 
+                DEV log() << "TEMP PageFaultException touch and retry" << endl;
+                e.touch();
+            } 
+        }
+    }
 
     void receivedKillCursors(Message& m) {
         int *x = (int *) m.singleData()->_data;
@@ -520,7 +579,7 @@ namespace mongo {
     QueryResult* emptyMoreResult(long long);
 
     void OpTime::waitForDifferent(unsigned millis){
-        DEV dbMutex.assertAtLeastReadLocked();
+        DEV d.dbMutex.assertAtLeastReadLocked();
 
         if (*this != last) return; // check early
 
@@ -765,7 +824,7 @@ namespace mongo {
     HostAndPort DBDirectClient::_clientHost = HostAndPort( "0.0.0.0" , 0 );
 
     unsigned long long DBDirectClient::count(const string &ns, const BSONObj& query, int options, int limit, int skip ) {
-        readlock lk( ns );
+        LockCollectionForReading lk( ns );
         string errmsg;
         long long res = runCount( ns.c_str() , _countCmd( ns , query , options , limit , skip ) , errmsg );
         if ( res == -1 )
@@ -880,6 +939,11 @@ namespace mongo {
         }
     }
 
+
+    namespace dur { 
+        extern mutex groupCommitMutex;
+    }
+
     /* not using log() herein in case we are already locked */
     NOINLINE_DECL void dbexit( ExitCode rc, const char *why, bool tryToGetLock ) {
 
@@ -924,6 +988,10 @@ namespace mongo {
         }
         catch (...) { }
 #endif
+
+        // block the dur thread from doing any work for the rest of the run
+        log(2) << "shutdown: groupCommitMutex" << endl;
+        scoped_lock lk(dur::groupCommitMutex);
 
 #ifdef _WIN32
         // Windows Service Controller wants to be told when we are down,

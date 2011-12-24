@@ -20,6 +20,7 @@
 #include "pch.h"
 #include "../db/queryoptimizer.h"
 #include "../db/instance.h"
+#include "../db/ops/count.h"
 #include "../db/ops/query.h"
 #include "../db/ops/delete.h"
 #include "dbtests.h"
@@ -916,6 +917,39 @@ namespace QueryOptimizerTests {
                 ASSERT( !c->ok() );
             }
         };
+        
+        /** Exclude special plan candidate if there are btree plan candidates. SERVER-4531 */
+        class ExcludeSpecialPlanWhenBtreePlan : public Base {
+        public:
+            void run() {
+                Helpers::ensureIndex( ns(), BSON( "a" << "2d" ), false, "a_2d" );
+                Helpers::ensureIndex( ns(), BSON( "a" << 1 ), false, "a_1" );
+                BSONObj query = BSON( "a" << BSON_ARRAY( 0 << 0 ) << "b" << 1 );
+                auto_ptr< FieldRangeSetPair > frsp( new FieldRangeSetPair( ns(), query ) );
+                auto_ptr< FieldRangeSetPair > frspOrig( new FieldRangeSetPair( *frsp ) );
+                QueryPlanSet s( ns(), frsp, frspOrig, query, BSONObj() );
+                // Two query plans, btree and collection scan.
+                ASSERT_EQUALS( 2, s.nPlans() );
+                // Not the geo plan.
+                ASSERT( s.firstPlan()->special().empty() );
+            }
+        };
+        
+        /** Exclude unindexed plan candidate if there is a special plan candidate. SERVER-4531 */
+        class ExcludeUnindexedPlanWhenSpecialPlan : public Base {
+        public:
+            void run() {
+                Helpers::ensureIndex( ns(), BSON( "a" << "2d" ), false, "a_2d" );
+                BSONObj query = BSON( "a" << BSON_ARRAY( 0 << 0 ) << "b" << 1 );
+                auto_ptr< FieldRangeSetPair > frsp( new FieldRangeSetPair( ns(), query ) );
+                auto_ptr< FieldRangeSetPair > frspOrig( new FieldRangeSetPair( *frsp ) );
+                QueryPlanSet s( ns(), frsp, frspOrig, query, BSONObj() );
+                // Single query plan.
+                ASSERT_EQUALS( 1, s.nPlans() );
+                // It's the geo plan.
+                ASSERT( !s.firstPlan()->special().empty() );                
+            }
+        };
 
     } // namespace QueryPlanSetTests
 
@@ -1018,6 +1052,8 @@ namespace QueryOptimizerTests {
             add<QueryPlanSetTests::InQueryIntervals>();
             add<QueryPlanSetTests::EqualityThenIn>();
             add<QueryPlanSetTests::NotEqualityThenIn>();
+            add<QueryPlanSetTests::ExcludeSpecialPlanWhenBtreePlan>();
+            add<QueryPlanSetTests::ExcludeUnindexedPlanWhenSpecialPlan>();
             add<BestGuess>();
             add<BestGuessOrSortAssertion>();
         }

@@ -6,7 +6,6 @@
    todo: switch to asio...this will fit nicely with that.
 */
 
-
 /**
 *    Copyright (C) 2008 10gen Inc.
 *
@@ -46,6 +45,7 @@ namespace mongo {
     class Client;
     class AbstractMessagingPort;
     class LockCollectionForReading;
+    class PageFaultRetryableSection;
 
 #if defined(CLC)
     typedef LockCollectionForReading _LockCollectionForReading;
@@ -64,7 +64,6 @@ namespace mongo {
         // always be in clientsMutex when manipulating this. killop stuff uses these.
         static set<Client*> clients;      
         static mongo::mutex clientsMutex; 
-
         static int getActiveClientCount( int& writers , int& readers );
         class Context;
         ~Client();
@@ -121,7 +120,6 @@ namespace mongo {
         BSONObj getHandshake() const { return _handshake; }
         AbstractMessagingPort * port() const { return _mp; }
         ConnectionId getConnectionId() const { return _connectionId; }
-
     private:
         Client(const char *desc, AbstractMessagingPort *p = 0);
         friend class CurOp;
@@ -129,8 +127,8 @@ namespace mongo {
         string _threadId; // "" on non support systems
         CurOp * _curOp;
         Context * _context;
-        bool _shutdown;
-        const char *_desc;
+        bool _shutdown; // to track if Client::shutdown() gets called
+        const char * const _desc;
         bool _god;
         AuthenticationInfo _ai;
         OpTime _lastOp;
@@ -138,8 +136,10 @@ namespace mongo {
         BSONObj _remoteId;
         AbstractMessagingPort * const _mp;
         unsigned _sometimes;
-
     public:
+        bool _hasWrittenThisPass;
+        PageFaultRetryableSection *_pageFaultRetryableSection;
+
         /** the concept here is the same as MONGO_SOMETIMES.  however that 
             macro uses a static that will be shared by all threads, and each 
             time incremented it might eject that line from the other cpu caches (?),
@@ -216,7 +216,7 @@ namespace mongo {
             void _finishInit( bool doauth=true);
             void _auth( int lockState );
             void checkNotStale() const;
-            void checkNsAccess( bool doauth, int lockState = dbMutex.getState() );
+            void checkNsAccess( bool doauth, int lockState = d.dbMutex.getState() );
             Client * const _client;
             Context * const _oldContext;
             const string _path;
@@ -228,8 +228,8 @@ namespace mongo {
         struct LockStatus {
             LockStatus();
             string whichCollection;
-            int coll;
-            bool isWriteLocked() const;
+            unsigned excluder, global, collection;
+            string toString() const;
         } lockStatus;
 
 #if defined(CLC)
@@ -262,7 +262,7 @@ namespace mongo {
         if( !_writelock ) {
 
 #if BOOST_VERSION >= 103500
-            int s = dbMutex.getState();
+            int s = d.dbMutex.getState();
             if( s != -1 ) {
                 log() << "error: releaseAndWriteLock() s == " << s << endl;
                 msgasserted( 12600, "releaseAndWriteLock: unlock_shared failed, probably recursive" );
@@ -270,8 +270,8 @@ namespace mongo {
 #endif
 
             _writelock = true;
-            dbMutex.unlock_shared();
-            dbMutex.lock();
+            d.dbMutex.unlock_shared();
+            d.dbMutex.lock();
 
             // todo: unlocked() method says to call it before unlocking, not after.  so fix this here,
             // or fix the doc there.

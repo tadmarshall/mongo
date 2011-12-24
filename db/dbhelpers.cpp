@@ -76,7 +76,7 @@ namespace mongo {
     DiskLoc Helpers::findOne(const char *ns, const BSONObj &query, bool requireIndex) {
         shared_ptr<Cursor> c = NamespaceDetailsTransient::getCursor( ns, query, BSONObj(), requireIndex );
         while( c->ok() ) {
-            if ( ( !c->matcher() || c->matcher()->matchesCurrent( c.get() ) ) && !c->getsetdup( c->currLoc() ) ) {
+            if ( c->currentMatches() && !c->getsetdup( c->currLoc() ) ) {
                 return c->currLoc();
             }
             c->advance();
@@ -86,7 +86,7 @@ namespace mongo {
 
     bool Helpers::findById(Client& c, const char *ns, BSONObj query, BSONObj& result ,
                            bool * nsFound , bool * indexFound ) {
-        dbMutex.assertAtLeastReadLocked();
+        d.dbMutex.assertAtLeastReadLocked();
         Database *database = c.database();
         assert( database );
         NamespaceDetails *d = database->namespaceIndex.details(ns);

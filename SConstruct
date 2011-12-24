@@ -377,7 +377,7 @@ elif os.sys.platform == "win32":
 else:
     mmapFiles += [ "util/mmap_posix.cpp" ]
 
-coreServerFiles += mmapFiles
+#coreServerFiles += mmapFiles
 
 # handle processinfo*
 processInfoFiles = [ "util/processinfo.cpp" ]
@@ -407,7 +407,7 @@ if has_option( "asio" ):
     coreServerFiles += [ "util/net/message_server_asio.cpp" ]
 
 # mongod files - also files used in tools. present in dbtests, but not in mongos and not in client libs.
-serverOnlyFiles = Split( "util/compress.cpp db/d_concurrency.cpp db/key.cpp db/btreebuilder.cpp util/logfile.cpp util/alignedbuilder.cpp db/mongommf.cpp db/dur.cpp db/durop.cpp db/dur_writetodatafiles.cpp db/dur_preplogbuffer.cpp db/dur_commitjob.cpp db/dur_recover.cpp db/dur_journal.cpp db/introspect.cpp db/btree.cpp db/clientcursor.cpp db/tests.cpp db/repl.cpp db/repl/rs.cpp db/repl/consensus.cpp db/repl/rs_initiate.cpp db/repl/replset_commands.cpp db/repl/manager.cpp db/repl/health.cpp db/repl/heartbeat.cpp db/repl/rs_config.cpp db/repl/rs_rollback.cpp db/repl/rs_sync.cpp db/repl/rs_initialsync.cpp db/oplog.cpp db/repl_block.cpp db/btreecursor.cpp db/cloner.cpp db/namespace.cpp db/cap.cpp db/matcher_covered.cpp db/dbeval.cpp db/restapi.cpp db/dbhelpers.cpp db/instance.cpp db/client.cpp db/database.cpp db/pdfile.cpp db/record.cpp db/cursor.cpp db/security.cpp db/queryoptimizer.cpp db/queryoptimizercursor.cpp db/extsort.cpp db/cmdline.cpp" )
+serverOnlyFiles = Split( "db/curop.cpp db/d_globals.cpp db/pagefault.cpp util/compress.cpp db/d_concurrency.cpp db/key.cpp db/btreebuilder.cpp util/logfile.cpp util/alignedbuilder.cpp db/mongommf.cpp db/dur.cpp db/durop.cpp db/dur_writetodatafiles.cpp db/dur_preplogbuffer.cpp db/dur_commitjob.cpp db/dur_recover.cpp db/dur_journal.cpp db/introspect.cpp db/btree.cpp db/clientcursor.cpp db/tests.cpp db/repl.cpp db/repl/rs.cpp db/repl/consensus.cpp db/repl/rs_initiate.cpp db/repl/replset_commands.cpp db/repl/manager.cpp db/repl/health.cpp db/repl/heartbeat.cpp db/repl/rs_config.cpp db/repl/rs_rollback.cpp db/repl/rs_sync.cpp db/repl/rs_initialsync.cpp db/oplog.cpp db/repl_block.cpp db/btreecursor.cpp db/cloner.cpp db/namespace.cpp db/cap.cpp db/matcher_covered.cpp db/dbeval.cpp db/restapi.cpp db/dbhelpers.cpp db/instance.cpp db/client.cpp db/database.cpp db/pdfile.cpp db/record.cpp db/cursor.cpp db/security.cpp db/queryoptimizer.cpp db/queryoptimizercursor.cpp db/extsort.cpp db/cmdline.cpp" )
 
 serverOnlyFiles += [ "db/index.cpp" , "db/scanandorder.cpp" ] + Glob( "db/geo/*.cpp" ) + Glob( "db/ops/*.cpp" )
 
@@ -426,11 +426,16 @@ serverOnlyFiles += [
 
 serverOnlyFiles += [ "db/driverHelpers.cpp" ]
 
+serverOnlyFiles += mmapFiles
+
 # but the pipeline command works everywhere
 coreServerFiles += [ "db/commands/pipeline.cpp" ]
 coreServerFiles += Glob("db/pipeline/*.cpp")
 
-coreServerFiles += Glob( "db/stats/*.cpp" )
+serverOnlyFiles += [ "db/stats/snapshots.cpp" ]
+############coreServerFiles += "db/stats/snapshots.cpp"
+coreServerFiles += [ "db/stats/counters.cpp", "db/stats/service_stats.cpp", "db/stats/top.cpp" ]
+#coreServerFiles += Glob( "db/stats/*.cpp" )
 coreServerFiles += [ "db/commands/isself.cpp", "db/security_common.cpp", "db/security_commands.cpp" ]
 
 scriptingFiles = [ "scripting/engine.cpp" , "scripting/utils.cpp" , "scripting/bench.cpp" ]
@@ -444,7 +449,7 @@ else:
 
 coreShardFiles = [ "s/config.cpp" , "s/grid.cpp" , "s/chunk.cpp" , "s/shard.cpp" , "s/shardkey.cpp" ]
 shardServerFiles = coreShardFiles + Glob( "s/strategy*.cpp" ) + [ "s/commands_admin.cpp" , "s/commands_public.cpp" , "s/request.cpp" , "s/client.cpp" , "s/cursors.cpp" ,  "s/server.cpp" , "s/config_migrate.cpp" , "s/s_only.cpp" , "s/stats.cpp" , "s/balance.cpp" , "s/balancer_policy.cpp" , "db/cmdline.cpp" , "s/writeback_listener.cpp" , "s/shard_version.cpp", "s/mr_shard.cpp", "s/security.cpp" ]
-serverOnlyFiles += coreShardFiles + [ "s/d_logic.cpp" , "s/d_writeback.cpp" , "s/d_migrate.cpp" , "s/d_state.cpp" , "s/d_split.cpp" , "client/distlock_test.cpp" , "s/d_chunk_manager.cpp" ]
+serverOnlyFiles += coreShardFiles + [ "s/d_logic.cpp" , "s/d_writeback.cpp" , "s/d_migrate.cpp" , "s/d_state.cpp" , "s/d_split.cpp" , "client/distlock_test.cpp" , "s/d_chunk_manager.cpp", "s/default_version.cpp" ]
 
 serverOnlyFiles += [ "db/module.cpp" ] + Glob( "db/modules/*.cpp" )
 
@@ -659,13 +664,16 @@ elif "win32" == os.sys.platform:
         # /LTCG link time code generation
         env.Append( CPPFLAGS= " /GL " ) 
         env.Append( LINKFLAGS=" /LTCG " )
+        # /DEBUG will tell the linker to create a .pdb file
+        # which WinDbg and Visual Studio will use to resolve
+        # symbols if you want to debug a release-mode image
+        env.Append( LINKFLAGS=" /DEBUG " )
     else:
         # /Od disable optimization
-        # /ZI debug info w/edit & continue 
+        # /Z7 debug info goes into each individual .obj file -- no .pdb created 
         # /TP it's a c++ file
         # RTC1 /GZ (Enable Stack Frame Run-Time Error Checking)
         env.Append( CPPFLAGS=" /RTC1 /MDd /Z7 /TP /errorReport:none " )
-        env.Append( CPPFLAGS=' /Fd"mongod.pdb" ' )
 
         if debugBuild:
             env.Append( LINKFLAGS=" /debug " )

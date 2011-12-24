@@ -110,6 +110,17 @@ namespace mongo {
         return i->second.isSharded();
     }
 
+    ShardPtr DBConfig::getShardIfExists( const string& ns ){
+        try{
+            // TODO: this function assumes the _primary will not change under-the-covers, but so does
+            // getShard() in general
+            return ShardPtr( new Shard( getShard( ns ) ) );
+        }
+        catch( AssertionException& e ){
+            warning() << "primary not found for " << ns << causedBy( e ) << endl;
+            return ShardPtr();
+        }
+    }
 
     const Shard& DBConfig::getShard( const string& ns ) {
         if ( isSharded( ns ) )
@@ -130,7 +141,10 @@ namespace mongo {
         _save();
     }
 
-    ChunkManagerPtr DBConfig::shardCollection( const string& ns , ShardKeyPattern fieldsAndOrder , bool unique ) {
+    /**
+     *
+     */
+    ChunkManagerPtr DBConfig::shardCollection( const string& ns , ShardKeyPattern fieldsAndOrder , bool unique , vector<BSONObj>* initPoints, vector<Shard>* initShards ) {
         uassert( 8042 , "db doesn't have sharding enabled" , _shardingEnabled );
         uassert( 13648 , str::stream() << "can't shard collection because not all config servers are up" , configServer.allUp() );
 
@@ -146,7 +160,8 @@ namespace mongo {
             ci.shard( ns , fieldsAndOrder , unique );
             ChunkManagerPtr cm = ci.getCM();
             uassert( 13449 , "collections already sharded" , (cm->numChunks() == 0) );
-            cm->createFirstChunks( getPrimary() );
+
+            cm->createFirstChunks( getPrimary() , initPoints, initShards );
             _save();
         }
 
@@ -844,8 +859,13 @@ namespace mongo {
 
     void ConfigServer::replicaSetChange( const ReplicaSetMonitor * monitor ) {
         try {
+            Shard s = Shard::lookupRSName(monitor->getName());
+            if (s == Shard::EMPTY) {
+                log(1) << "replicaSetChange: shard not found for set: " << monitor->getServerAddress() << endl;
+                return;
+            }
             ScopedDbConnection conn( configServer.getConnectionString(), 30.0 );
-            conn->update( ShardNS::shard , BSON( "_id" << monitor->getName() ) , BSON( "$set" << BSON( "host" << monitor->getServerAddress() ) ) );
+            conn->update( ShardNS::shard , BSON( "_id" << s.getName() ) , BSON( "$set" << BSON( "host" << monitor->getServerAddress() ) ) );
             conn.done();
         }
         catch ( DBException & ) {

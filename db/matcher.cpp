@@ -497,11 +497,11 @@ namespace mongo {
             }
         }
         for( vector<RegexMatcher>::const_iterator it = docMatcher._regexs.begin();
-	     it != docMatcher._regexs.end();
-	     ++it) {
-	  if ( !it->_isNot && key.hasField( it->_fieldName ) ) {
-	      _regexs.push_back(*it);
-	  }
+            it != docMatcher._regexs.end();
+            ++it) {
+            if ( !it->_isNot && key.hasField( it->_fieldName ) ) {
+                _regexs.push_back(*it);
+            }
         }
         // Recursively filter match components for and and or matchers.
         for( list< shared_ptr< Matcher > >::const_iterator i = docMatcher._andMatchers.begin(); i != docMatcher._andMatchers.end(); ++i ) {
@@ -616,11 +616,17 @@ namespace mongo {
     */
     int Matcher::matchesDotted(const char *fieldName, const BSONElement& toMatch, const BSONObj& obj, int compareOp, const ElementMatcher& em , bool isArr, MatchDetails * details ) const {
         DEBUGMATCHER( "\t matchesDotted : " << fieldName << " hasDetails: " << ( details ? "yes" : "no" ) );
+
         if ( compareOp == BSONObj::opALL ) {
 
             if ( em._allMatchers.size() ) {
+                // $all query matching will not be performed against indexes, so the field
+                // to match is always extracted from the full document.
                 BSONElement e = obj.getFieldDotted( fieldName );
-                uassert( 13021 , "$all/$elemMatch needs to be applied to array" , e.type() == Array );
+                // The $all/$elemMatch operator only matches arrays.
+                if ( e.type() != Array ) {
+                    return -1;
+                }
 
                 for ( unsigned i=0; i<em._allMatchers.size(); i++ ) {
                     bool found = false;

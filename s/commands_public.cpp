@@ -411,7 +411,14 @@ namespace mongo {
                     ShardConnection conn( conf->getPrimary() , fullns );
 
                     BSONObj temp;
-                    bool ok = conn->runCommand( dbName , cmdObj , temp, options );
+                    bool ok = false;
+                    try{
+                        ok = conn->runCommand( dbName , cmdObj , temp, options );
+                    }
+                    catch( RecvStaleConfigException& e ){
+                        conn.done();
+                        throw e;
+                    }
                     conn.done();
 
                     if ( ok ) {
@@ -473,7 +480,14 @@ namespace mongo {
                         }
 
                         BSONObj temp;
-                        bool ok = conn->runCommand( dbName , BSON( "count" << collection << "query" << filter ) , temp, options );
+                        bool ok = false;
+                        try{
+                            ok = conn->runCommand( dbName , BSON( "count" << collection << "query" << filter ) , temp, options );
+                        }
+                        catch( RecvStaleConfigException& e ){
+                            conn.done();
+                            throw e;
+                        }
                         conn.done();
 
                         if ( ok ) {
@@ -481,6 +495,7 @@ namespace mongo {
                             total += mine;
                             shardCounts[it->getName()] = mine;
                             continue;
+
                         }
 
                         if ( SendStaleConfigCode == temp["code"].numberInt() ) {
@@ -1014,7 +1029,7 @@ namespace mongo {
                 }
                 // Re-check shard version after 1st retry
                 if( retry > 0 ){
-                    forceRemoteCheckShardVersionCB( fullns );
+                    versionManager.forceRemoteCheckShardVersionCB( fullns );
                 }
 
                 const string shardResultCollection = getTmpName( collection );
@@ -1082,85 +1097,71 @@ namespace mongo {
                 }
 
                 set<Shard> shards;
-                if ( shardedInput ) {
-                    ChunkManagerPtr cm = confIn->getChunkManager( fullns );
-                    cm->getShardsForQuery( shards , q );
-                } else {
-                    shards.insert(confIn->getPrimary());
-                }
-                
-                // we need to use our connections to the shard
-                // so filtering is done correctly for un-owned docs
-                // so we allocate them in our thread and hand off
                 set<ServerAndQuery> servers;
-                vector< shared_ptr<ShardConnection> > shardConns;
-                list< shared_ptr<Future::CommandResult> > futures;
+                map<Shard,BSONObj> results;
 
-                for ( set<Shard>::iterator i=shards.begin(), end=shards.end() ; i != end ; i++ ) {
-                    shared_ptr<ShardConnection> temp( new ShardConnection( i->getConnString() , fullns ) );
-                    assert( temp->get() );
-                    futures.push_back( Future::spawnCommand( i->getConnString() , dbName , shardedCommand , 0 , temp->get() ) );
-                    shardConns.push_back( temp );
-                }
-
-                bool failed = false;
-                BSONObjBuilder shardResultsB;
                 BSONObjBuilder shardCountsB;
                 BSONObjBuilder aggCountsB;
                 map<string,long long> countsMap;
                 set< BSONObj > splitPts;
 
-                // now wait for the result of all shards
-                for ( list< shared_ptr<Future::CommandResult> >::iterator i=futures.begin(); i!=futures.end(); i++ ) {
+                {
+                    // take distributed lock to prevent split / migration
+                    ConnectionString config = configServer.getConnectionString();
+                    DistributedLock lockSetup( config , fullns );
+                    dist_lock_try dlk;
 
-                    BSONObj mrResult;
-                    string server;
+                    if (shardedInput) {
+                        try{
+                            int tryc = 0;
+                            while ( !dlk.got() ) {
+                                dlk = dist_lock_try( &lockSetup , (string)"mr-parallel" );
+                                if ( ! dlk.got() ) {
+                                    if ( ++tryc % 100 == 0 )
+                                        warning() << "the collection metadata could not be locked for mapreduce, already locked by " << dlk.other() << endl;
+                                    sleepmillis(100);
+                                }
+                            }
+                        }
+                        catch( LockException& e ){
+                            errmsg = str::stream() << "error locking distributed lock for mapreduce " << causedBy( e );
+                            return false;
+                        }
+                    }
 
                     try {
-                        shared_ptr<Future::CommandResult> res = *i;
-                        if ( ! res->join() ) {
-                            error() << "sharded m/r failed on shard: " << res->getServer() << " error: " << res->result() << endl;
-                            result.append( "cause" , res->result() );
-                            errmsg = "mongod mr failed: ";
-                            errmsg += res->result().toString();
-                            failed = true;
-                            continue;
+                        SHARDED->commandOp( dbName, shardedCommand, 0, fullns, q, results );
+                    }
+                    catch( DBException& e ){
+                        e.addContext( str::stream() << "could not run map command on all shards for ns " << fullns << " and query " << q );
+                        throw;
+                    }
+
+                    for ( map<Shard,BSONObj>::iterator i = results.begin(); i != results.end(); ++i ){
+
+                        BSONObj mrResult = i->second;
+                        string server = i->first.getConnString();
+
+                        BSONObj counts = mrResult["counts"].embeddedObjectUserCheck();
+                        shardCountsB.append( server , counts );
+                        servers.insert( server );
+
+                        // add up the counts for each shard
+                        // some of them will be fixed later like output and reduce
+                        BSONObjIterator j( counts );
+                        while ( j.more() ) {
+                            BSONElement temp = j.next();
+                            countsMap[temp.fieldName()] += temp.numberLong();
                         }
-                        mrResult = res->result();
-                        server = res->getServer();
-                    }
-                    catch( RecvStaleConfigException& e ){
-                        log() << "restarting m/r due to stale config on a shard" << causedBy( e ) << endl;
-                        return run( dbName , cmdObj, errmsg, result, retry + 1 );
-                    }
 
-                    shardResultsB.append( server , mrResult );
-                    BSONObj counts = mrResult["counts"].embeddedObjectUserCheck();
-                    shardCountsB.append( server , counts );
-                    servers.insert( server );
-
-                    // add up the counts for each shard
-                    // some of them will be fixed later like output and reduce
-                    BSONObjIterator j( counts );
-                    while ( j.more() ) {
-                        BSONElement temp = j.next();
-                        countsMap[temp.fieldName()] += temp.numberLong();
-                    }
-
-                    if (mrResult.hasField("splitKeys")) {
-                        BSONElement splitKeys = mrResult.getField("splitKeys");
-                        vector<BSONElement> pts = splitKeys.Array();
-                        for (vector<BSONElement>::iterator it = pts.begin(); it != pts.end(); ++it) {
-                            splitPts.insert(it->Obj());
+                        if (mrResult.hasField("splitKeys")) {
+                            BSONElement splitKeys = mrResult.getField("splitKeys");
+                            vector<BSONElement> pts = splitKeys.Array();
+                            for (vector<BSONElement>::iterator it = pts.begin(); it != pts.end(); ++it) {
+                                splitPts.insert(it->Obj().getOwned());
+                            }
                         }
                     }
-                }
-                for ( unsigned i=0; i<shardConns.size(); i++ )
-                    shardConns[i]->done();
-                shardConns.clear();
-
-                if ( failed ) {
-                    return 0;
                 }
 
                 // build the sharded finish command
@@ -1168,15 +1169,14 @@ namespace mongo {
                 finalCmd.append( "mapreduce.shardedfinish" , cmdObj );
                 finalCmd.append( "inputNS" , dbName + "." + shardResultCollection );
 
-                finalCmd.append( "shards" , shardResultsB.obj() );
-                BSONObj shardCounts = shardCountsB.obj();
+                BSONObj shardCounts = shardCountsB.done();
                 finalCmd.append( "shardCounts" , shardCounts );
                 timingBuilder.append( "shardProcessing" , t.millis() );
 
                 for ( map<string,long long>::iterator i=countsMap.begin(); i!=countsMap.end(); i++ ) {
                     aggCountsB.append( i->first , i->second );
                 }
-                BSONObj aggCounts = aggCountsB.obj();
+                BSONObj aggCounts = aggCountsB.done();
                 finalCmd.append( "counts" , aggCounts );
 
                 Timer t2;
@@ -1202,126 +1202,91 @@ namespace mongo {
                     LOG(1) << "MR with sharded output, NS=" << finalColLong << endl;
 
                     // create the sharded collection if needed
-                    BSONObj sortKey = BSON( "_id" << 1 );
                     if (!confOut->isSharded(finalColLong)) {
-                        // make sure db is sharded
-                        if (!confOut->isShardingEnabled()) {
-                            BSONObj shardDBCmd = BSON("enableSharding" << outDB);
-                            BSONObjBuilder shardDBResult(32);
-                            bool res = Command::runAgainstRegistered("admin.$cmd", shardDBCmd, shardDBResult);
-                            if (!res) {
-                                errmsg = str::stream() << "Could not enable sharding on db " << outDB << ": " << shardDBResult.obj().toString();
-                                return false;
+                        // enable sharding on db
+                        confOut->enableSharding();
+
+                        // shard collection according to split points
+                        BSONObj sortKey = BSON( "_id" << 1 );
+                        vector<BSONObj> sortedSplitPts;
+                        // points will be properly sorted using the set
+                        for ( set<BSONObj>::iterator it = splitPts.begin() ; it != splitPts.end() ; ++it )
+                            sortedSplitPts.push_back( *it );
+                        confOut->shardCollection( finalColLong, sortKey, true, &sortedSplitPts );
+                    }
+
+                    map<BSONObj, int> chunkSizes;
+                    {
+                        // take distributed lock to prevent split / migration
+                        ConnectionString config = configServer.getConnectionString();
+                        DistributedLock lockSetup( config , finalColLong );
+                        dist_lock_try dlk;
+
+                        try{
+                            int tryc = 0;
+                            while ( !dlk.got() ) {
+                                dlk = dist_lock_try( &lockSetup , (string)"mr-post-process" );
+                                if ( ! dlk.got() ) {
+                                    if ( ++tryc % 100 == 0 )
+                                        warning() << "the collection metadata could not be locked for mapreduce, already locked by " << dlk.other() << endl;
+                                    sleepmillis(100);
+                                }
                             }
                         }
-
-                        BSONObj shardColCmd = BSON("shardCollection" << finalColLong << "key" << sortKey);
-                        BSONObjBuilder shardColResult(32);
-                        bool res = Command::runAgainstRegistered("admin.$cmd", shardColCmd, shardColResult);
-                        if (!res) {
-                            errmsg = str::stream() << "Could not create sharded output collection " << finalColLong << ": " << shardColResult.obj().toString();
+                        catch( LockException& e ){
+                            errmsg = str::stream() << "error locking distributed lock for mapreduce " << causedBy( e );
                             return false;
                         }
 
-                        // create initial chunks
-                        // the 1st chunk from MinKey will belong to primary for shard
-                        bool skipPrimary = true;
-                        vector<Shard> allShards;
-                        Shard::getAllShards(allShards);
-                        if ( !splitPts.empty() ) {
-                            int sidx = 0;
-                            int numShards = allShards.size();
-                            for (set<BSONObj>::iterator it = splitPts.begin(); it != splitPts.end(); ++it) {
-                                BSONObj splitCmd = BSON("split" << finalColLong << "middle" << *it);
-                                BSONObjBuilder splitResult(32);
-                                bool res = Command::runAgainstRegistered("admin.$cmd", splitCmd, splitResult);
-                                if (!res) {
-                                    errmsg = str::stream() << "Could not split sharded output collection " << finalColLong << ": " << splitResult.obj().toString();
-                                    return false;
-                                }
+                        BSONObj finalCmdObj = finalCmd.obj();
+                        results.clear();
 
-                                // move to a shard
-                                Shard s = allShards[sidx];
-                                if (skipPrimary && s == confOut->getPrimary()) {
-                                    skipPrimary = false;
-                                    sidx = (sidx + 1) % numShards;
-                                    s = allShards[sidx];
-                                }
-                                BSONObj mvCmd = BSON("moveChunk" << finalColLong << "find" << *it << "to" << s.getName());
-                                BSONObjBuilder mvResult(32);
-                                res = Command::runAgainstRegistered("admin.$cmd", mvCmd, mvResult);
-                                if (!res) {
-                                    errmsg = str::stream() << "Could not move chunk for sharded output collection " << finalColLong << ": " << mvResult.obj().toString();
-                                    return false;
-                                }
-
-                                sidx = (sidx + 1) % numShards;
-                            }
-                        }
-                    }
-
-                    // group chunks per shard
-                    ChunkManagerPtr cm = confOut->getChunkManager( finalColLong );
-                    set<Shard> outShards;
-                    cm->getShardsForQuery(outShards, BSONObj());
-
-                    // spawn sharded finish jobs on each shard
-                    // command will fetch appropriate results from other shards, do final reduce and post processing
-                    futures.clear();
-                    BSONObj finalCmdObj = finalCmd.obj();
-
-                    for ( set<Shard>::iterator i=outShards.begin(), end=outShards.end() ; i != end ; i++ ) {
-                        Shard shard = *i;
-                        shared_ptr<ShardConnection> temp( new ShardConnection( shard.getConnString() , finalColLong ) );
-                        assert( temp->get() );
-                        futures.push_back( Future::spawnCommand( shard.getConnString() , outDB , finalCmdObj , 0 , temp->get() ) );
-                        shardConns.push_back(temp);
-                    }
-
-                    // now wait for the result of all shards
-                    ok = true;
-                    for ( list< shared_ptr<Future::CommandResult> >::iterator i=futures.begin(); i!=futures.end(); ++i ) {
-                        string server;
                         try {
-                            shared_ptr<Future::CommandResult> res = *i;
-                            if ( ! res->join() ) {
-                                error() << "final reduce failed on shard: " << res->getServer() << " error: " << res->result() << endl;
-                                result.append( "cause" , res->result() );
-                                errmsg = "final reduce failed: ";
-                                errmsg += res->result().toString();
-                                ok = false;
-                                continue;
-                            }
-                            singleResult = res->result();
+                            SHARDED->commandOp( outDB, finalCmdObj, 0, finalColLong, BSONObj(), results );
+                            ok = true;
+                        }
+                        catch( DBException& e ){
+                            e.addContext( str::stream() << "could not run final reduce command on all shards for ns " << fullns << ", output " << finalColLong );
+                            throw;
+                        }
+
+                        for ( map<Shard,BSONObj>::iterator i = results.begin(); i != results.end(); ++i ){
+
+                            string server = i->first.getConnString();
+                            singleResult = i->second;
+
                             BSONObj counts = singleResult.getObjectField("counts");
                             reduceCount += counts.getIntField("reduce");
                             outputCount += counts.getIntField("output");
-                            server = res->getServer();
                             postCountsB.append(server, counts);
 
-                            // check on splitting, now that results are in the final collection
+                            // get the size inserted for each chunk
+                            // split cannot be called here since we already have the distributed lock
                             if (singleResult.hasField("chunkSizes")) {
-                                const ChunkMap& chunkMap = cm->getChunkMap();
-                                vector<BSONElement> chunkSizes = singleResult.getField("chunkSizes").Array();
-                                for (unsigned int i = 0; i < chunkSizes.size(); i += 2) {
-                                    BSONObj key = chunkSizes[i].Obj();
-                                    long long size = chunkSizes[i+1].numberLong();
+                                vector<BSONElement> sizes = singleResult.getField("chunkSizes").Array();
+                                for (unsigned int i = 0; i < sizes.size(); i += 2) {
+                                    BSONObj key = sizes[i].Obj().getOwned();
+                                    long long size = sizes[i+1].numberLong();
                                     assert( size < 0x7fffffff );
-
-                                    ChunkMap::const_iterator cit = chunkMap.find(key);
-                                    if (cit == chunkMap.end()) {
-                                        warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
-                                    } else {
-                                        ChunkPtr c = cit->second;
-                                        c->splitIfShould(static_cast<int>(size));
-                                    }
+                                    chunkSizes[key] = static_cast<int>(size);
                                 }
                             }
                         }
-                        catch( RecvStaleConfigException& e ){
-                            log() << "final reduce error due to stale config on a shard" << causedBy( e ) << endl;
-                            ok = false;
-                            continue;
+                    }
+
+                    // do the splitting round
+                    ChunkManagerPtr cm = confOut->getChunkManagerIfExists( finalColLong );
+                    for ( map<BSONObj, int>::iterator it = chunkSizes.begin() ; it != chunkSizes.end() ; ++it ) {
+                        BSONObj key = it->first;
+                        int size = it->second;
+                        assert( size < 0x7fffffff );
+
+                        // key reported should be the chunk's minimum
+                        ChunkPtr c =  cm->findChunk(key);
+                        if ( !c ) {
+                            warning() << "Mongod reported " << size << " bytes inserted for key " << key << " but can't find chunk" << endl;
+                        } else {
+                            c->splitIfShould( size );
                         }
                     }
                 }
@@ -1336,9 +1301,6 @@ namespace mongo {
                 } catch ( std::exception e ) {
                     log() << "Cannot cleanup shard results" << causedBy( e ) << endl;
                 }
-
-                for ( unsigned i=0; i<shardConns.size(); i++ )
-                    shardConns[i]->done();
 
                 if ( ! ok ) {
                     errmsg = "final reduce failed: ";
@@ -1363,14 +1325,14 @@ namespace mongo {
 
                 // ouput is determined by post processing on each shard
                 countsB.append("output", outputCount);
-                result.append( "counts" , countsB.obj() );
+                result.append( "counts" , countsB.done() );
 
                 timingBuilder.append( "postProcessing" , t2.millis() );
 
                 result.append( "timeMillis" , t.millis() );
-                result.append( "timing" , timingBuilder.obj() );
+                result.append( "timing" , timingBuilder.done() );
                 result.append("shardCounts", shardCounts);
-                result.append("postProcessCounts", postCountsB.obj());
+                result.append("postProcessCounts", postCountsB.done());
                 return 1;
             }
         } mrCmd;

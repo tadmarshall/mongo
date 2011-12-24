@@ -111,7 +111,11 @@ namespace mongo {
         _desc(desc),
         _god(0),
         _lastOp(0),
-        _mp(p) {
+        _mp(p),
+        _sometimes(0)
+    {
+        _hasWrittenThisPass = false;
+        _pageFaultRetryableSection = 0;
         _connectionId = setThreadName(desc);
         _curOp = new CurOp( this );
 #ifndef _WIN32
@@ -165,8 +169,6 @@ namespace mongo {
     }
 
     BSONObj CachedBSONObj::_tooBig = fromjson("{\"$msg\":\"query not recording (too large)\"}");
-    AtomicUInt CurOp::_nextOpNum;
-
     Client::Context::Context( string ns , Database * db, bool doauth ) :
         _client( currentClient.get() ), 
         _oldContext( _client->_context ),
@@ -208,7 +210,7 @@ namespace mongo {
 
         // we usually don't get here, so doesn't matter how fast this part is
         {
-            int x = dbMutex.getState();
+            int x = d.dbMutex.getState();
             if( x > 0 ) { 
                 // write locked already
                 DEV RARELY log() << "write locked on ReadContext construction " << ns << endl;
@@ -265,12 +267,12 @@ namespace mongo {
         checkNotStale();
         _client->_context = this;
         _client->_curOp->enter( this );
-        checkNsAccess( doauth, dbMutex.getState() );
+        checkNsAccess( doauth, d.dbMutex.getState() );
         _client->checkLocks();
     }
        
     void Client::Context::_finishInit( bool doauth ) {
-        int lockState = dbMutex.getState();
+        int lockState = d.dbMutex.getState();
         assert( lockState );        
         if ( lockState > 0 && FileAllocator::get()->hasFailed() ) {
             uassert(14031, "Can't take a write lock while out of disk space", false);
@@ -403,82 +405,6 @@ namespace mongo {
         if ( found ) {
             interruptJs( &i );
         }
-    }
-
-    CurOp::~CurOp() {
-        if ( _wrapped ) {
-            scoped_lock bl(Client::clientsMutex);
-            _client->_curOp = _wrapped;
-        }
-        _client = 0;
-    }
-
-    void CurOp::enter( Client::Context * context ) {
-        ensureStarted();
-        setNS( context->ns() );
-        _dbprofile = context->_db ? context->_db->profile : 0;
-    }
-    
-    void CurOp::leave( Client::Context * context ) {
-        unsigned long long now = curTimeMicros64();
-        Top::global.record( _ns , _op , _lockType , now - _checkpoint , _command );
-        _checkpoint = now;
-    }
-
-
-    BSONObj CurOp::infoNoauth() {
-        BSONObjBuilder b;
-        b.append("opid", _opNum);
-        bool a = _active && _start;
-        b.append("active", a);
-        if ( _lockType )
-            b.append("lockType" , _lockType > 0 ? "write" : "read"  );
-        b.append("waitingForLock" , _waitingForLock );
-
-        if( a ) {
-            b.append("secs_running", elapsedSeconds() );
-        }
-
-        b.append( "op" , opToString( _op ) );
-
-        b.append("ns", _ns);
-
-        _query.append( b , "query" );
-
-        // b.append("inLock",  ??
-        stringstream clientStr;
-        clientStr << _remote.toString();
-        b.append("client", clientStr.str());
-
-        if ( _client ) {
-            b.append( "desc" , _client->desc() );
-            if ( _client->_threadId.size() ) 
-                b.append( "threadId" , _client->_threadId );
-            if ( _client->_connectionId )
-                b.appendNumber( "connectionId" , _client->_connectionId );
-        }
-        
-        if ( ! _message.empty() ) {
-            if ( _progressMeter.isActive() ) {
-                StringBuilder buf(128);
-                buf << _message.toString() << " " << _progressMeter.toString();
-                b.append( "msg" , buf.str() );
-                BSONObjBuilder sub( b.subobjStart( "progress" ) );
-                sub.appendNumber( "done" , (long long)_progressMeter.done() );
-                sub.appendNumber( "total" , (long long)_progressMeter.total() );
-                sub.done();
-            }
-            else {
-                b.append( "msg" , _message.toString() );
-            }
-        }
-
-        if( killed() ) 
-            b.append("killed", true);
-        
-        b.append( "numYields" , _numYields );
-
-        return b.obj();
     }
 
     void Client::gotHandshake( const BSONObj& o ) {
@@ -678,7 +604,8 @@ namespace mongo {
     }
 
 
-#define OPDEBUG_TOSTRING_HELP(x) if( x ) s << " " #x ":" << (x)
+#define OPDEBUG_TOSTRING_HELP(x) if( x >= 0 ) s << " " #x ":" << (x)
+#define OPDEBUG_TOSTRING_HELP_BOOL(x) if( x ) s << " " #x ":" << (x)
     string OpDebug::toString() const {
         StringBuilder s( ns.size() + 64 );
         if ( iscommand )
@@ -703,15 +630,15 @@ namespace mongo {
         OPDEBUG_TOSTRING_HELP( cursorid );
         OPDEBUG_TOSTRING_HELP( ntoreturn );
         OPDEBUG_TOSTRING_HELP( ntoskip );
-        OPDEBUG_TOSTRING_HELP( exhaust );
+        OPDEBUG_TOSTRING_HELP_BOOL( exhaust );
 
         OPDEBUG_TOSTRING_HELP( nscanned );
-        OPDEBUG_TOSTRING_HELP( idhack );
-        OPDEBUG_TOSTRING_HELP( scanAndOrder );
-        OPDEBUG_TOSTRING_HELP( moved );
-        OPDEBUG_TOSTRING_HELP( fastmod );
-        OPDEBUG_TOSTRING_HELP( fastmodinsert );
-        OPDEBUG_TOSTRING_HELP( upsert );
+        OPDEBUG_TOSTRING_HELP_BOOL( idhack );
+        OPDEBUG_TOSTRING_HELP_BOOL( scanAndOrder );
+        OPDEBUG_TOSTRING_HELP_BOOL( moved );
+        OPDEBUG_TOSTRING_HELP_BOOL( fastmod );
+        OPDEBUG_TOSTRING_HELP_BOOL( fastmodinsert );
+        OPDEBUG_TOSTRING_HELP_BOOL( upsert );
         OPDEBUG_TOSTRING_HELP( keyUpdates );
         
         if ( extra.len() )

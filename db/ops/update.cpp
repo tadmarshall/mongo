@@ -929,7 +929,7 @@ namespace mongo {
 
         if ( ! r->likelyInPhysicalMemory() ) {
             {
-                auto_ptr<RWLockRecursive::Shared> lk( new RWLockRecursive::Shared( MongoFile::mmmutex) );
+                scoped_ptr<LockMongoFilesShared> lk( new LockMongoFilesShared() );
                 dbtempreleasewritelock t;
                 r->touch();
                 lk.reset(0); // we have to release mmmutex before we can re-acquire dbmutex
@@ -1169,9 +1169,9 @@ namespace mongo {
 
                     auto_ptr<ModSetState> mss = useMods->prepare( onDisk );
 
-                    bool indexHack = multi && ( modsIsIndexed || ! mss->canApplyInPlace() );
+                    bool willAdvanceCursor = multi && c->ok() && ( modsIsIndexed || ! mss->canApplyInPlace() );
 
-                    if ( indexHack ) {
+                    if ( willAdvanceCursor ) {
                         if ( cc.get() ) {
                             cc->setDoingDeletes( true );
                         }
@@ -1227,7 +1227,7 @@ namespace mongo {
                     numModded++;
                     if ( ! multi )
                         return UpdateResult( 1 , 1 , numModded );
-                    if ( indexHack )
+                    if ( willAdvanceCursor )
                         c->recoverFromTouchingEarlierIterate();
 
                     if ( nscanned % 64 == 0 && ! atomic ) {

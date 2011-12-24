@@ -508,6 +508,7 @@ doneCheckOrder:
 
         PlanSet plans;
         QueryPlanPtr optimalPlan;
+        QueryPlanPtr specialPlan;
         for( int i = 0; i < d->nIndexes; ++i ) {
             if ( normalQuery ) {
                 BSONObj keyPattern = d->idx( i ).keyPattern();
@@ -530,15 +531,27 @@ doneCheckOrder:
                 }
             }
             else if ( !p->unhelpful() ) {
-                plans.push_back( p );
+                if ( p->special().empty() ) {
+                    plans.push_back( p );
+                }
+                else {
+                    specialPlan = p;
+                }
             }
         }
         if ( optimalPlan.get() ) {
             addPlan( optimalPlan, checkFirst );
             return;
         }
-        for( PlanSet::iterator i = plans.begin(); i != plans.end(); ++i )
+        for( PlanSet::const_iterator i = plans.begin(); i != plans.end(); ++i ) {
             addPlan( *i, checkFirst );
+        }
+
+        // Only add a special plan if no standard btree plans have been added. SERVER-4531
+        if ( plans.empty() && specialPlan ) {
+            addPlan( specialPlan, checkFirst );
+            return;
+        }
 
         // Table scan plan
         addPlan( QueryPlanPtr( new QueryPlan( d, -1, *_frsp, _originalFrsp.get(), _originalQuery, _order, _mustAssertOnYieldFailure ) ), checkFirst );
@@ -553,6 +566,7 @@ doneCheckOrder:
             if ( _bestGuessOnly || res->complete() || _plans.size() > 1 )
                 return res;
             // A cached plan was used, so clear the plan for this query pattern and retry the query without a cached plan.
+            // Carefull here, as the namespace may have been dropped.
             QueryUtilIndexed::clearIndexesForPatterns( *_frsp, _order );
             init();
         }
@@ -667,7 +681,7 @@ doneCheckOrder:
         int micros = ClientCursor::suggestYieldMicros();
         if ( micros <= 0 ) 
             return;
-        
+
         if ( !prepareToYield() ) 
             return;   
         
@@ -738,7 +752,6 @@ doneCheckOrder:
         if ( op.error() ) {
             return holder._op;
         }
-        _queue.push( holder );
         if ( !_plans._bestGuessOnly && _plans._usingCachedPlan && op.nscanned() > _plans._oldNScanned * 10 && _plans._special.empty() ) {
             holder._offset = -op.nscanned();
             _plans.addOtherPlans( /* avoid duplicating the initial plan */ true );
@@ -755,6 +768,7 @@ doneCheckOrder:
             }
             _plans._usingCachedPlan = false;
         }
+        _queue.push( holder );
         return holder._op;
     }
     
