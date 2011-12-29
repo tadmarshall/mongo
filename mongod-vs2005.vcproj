@@ -700,11 +700,28 @@
 				RelativePath=".\db\common.cpp"
 				>
 				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
 					Name="Debug|x64"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
 						DisableSpecificWarnings="4267"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
 					/>
 				</FileConfiguration>
 				<FileConfiguration
@@ -712,6 +729,7 @@
 					>
 					<Tool
 						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
 						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
@@ -833,6 +851,42 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\ops\count.cpp"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+						UsePrecompiledHeader="0"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
 				RelativePath=".\db\stats\counters.cpp"
 				>
 				<FileConfiguration
@@ -851,6 +905,10 @@
 						DisableSpecificWarnings="4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\db\curop.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\cursor.cpp"
@@ -894,6 +952,10 @@
 			</File>
 			<File
 				RelativePath=".\db\d_concurrency.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\db\d_globals.cpp"
 				>
 			</File>
 			<File
@@ -1235,6 +1297,10 @@
 						DisableSpecificWarnings="4244;4267"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\s\default_version.cpp"
+				>
 			</File>
 			<File
 				RelativePath=".\db\ops\delete.cpp"
@@ -2271,6 +2337,10 @@
 				</FileConfiguration>
 			</File>
 			<File
+				RelativePath=".\db\pagefault.cpp"
+				>
+			</File>
+			<File
 				RelativePath=".\client\parallel.cpp"
 				>
 				<FileConfiguration
@@ -3179,11 +3249,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\util\background.h"
+				RelativePath=".\db\background.h"
 				>
 			</File>
 			<File
-				RelativePath=".\db\background.h"
+				RelativePath=".\util\background.h"
 				>
 			</File>
 			<File
@@ -3239,11 +3309,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\util\checksum.h"
+				RelativePath=".\util\mongoutils\checksum.h"
 				>
 			</File>
 			<File
-				RelativePath=".\util\mongoutils\checksum.h"
+				RelativePath=".\util\checksum.h"
 				>
 			</File>
 			<File
@@ -3307,6 +3377,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\db\ops\count.h"
+				>
+			</File>
+			<File
 				RelativePath=".\db\stats\counters.h"
 				>
 			</File>
@@ -3328,6 +3402,10 @@
 			</File>
 			<File
 				RelativePath=".\db\d_concurrency.h"
+				>
+			</File>
+			<File
+				RelativePath=".\db\d_globals.h"
 				>
 			</File>
 			<File
@@ -3663,6 +3741,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\db\pagefault.h"
+				>
+			</File>
+			<File
 				RelativePath=".\client\parallel.h"
 				>
 			</File>
@@ -3788,6 +3870,10 @@
 			</File>
 			<File
 				RelativePath=".\s\shard.h"
+				>
+			</File>
+			<File
+				RelativePath=".\s\shard_version.h"
 				>
 			</File>
 			<File
