@@ -1110,6 +1110,25 @@ static void freeCompletions( linenoiseCompletions* lc ) {
         free( lc->cvec );
 }
 
+// convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
+// leave META alone
+//
+static int cleanupCtrl( int c ) {
+    if ( c & CTRL ) {
+        int d = c & 0x1FF;
+        if ( d >= 'a' && d <= 'z' ) {
+            c = ( c + ( 'a' - ctrlChar( 'A' ) ) ) & ~CTRL;
+        }
+        if ( d >= 'A' && d <= 'Z' ) {
+            c = ( c + ( 'A' - ctrlChar( 'A' ) ) ) & ~CTRL;
+        }
+        if ( d >= ctrlChar( 'A' ) && d <= ctrlChar( 'Z' ) ) {
+            c = c & ~CTRL;
+        }
+    }
+    return c;
+}
+
 // break characters that may precede items to be completed
 static const char breakChars[] = " =+-/\\*?\"'`&<>;|@{([])}";
 
@@ -1148,7 +1167,135 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
     if ( lc.len == 0 ) {
         beep();
     }
+    else if ( lc.len == 1 ) {
+        size_t clen = strlen( lc.cvec[0] );
+        displayLength = len + clen - itemLength;
+        displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
+        int j = 0;
+        for ( ; j < startIndex; ++j ) {
+            displayText[j] = buf[j];
+        }
+        strcpy( &displayText[j], lc.cvec[0] );
+        strcpy( &displayText[j + clen], &buf[pos] );
+        //displayText[displayLength] = 0;
+        strcpy( buf, displayText );
+        free( displayText );
+        pos = startIndex + clen;
+        len = displayLength;
+        refreshLine( pi );
+    }
     else {
+#if 1
+        int longest = 0;
+        char c1;
+        char c2;
+        bool keepGoing = true;
+        while ( keepGoing ) {
+            for ( size_t i = 0; i < lc.len - 1; ++i ) {
+                if ( ( c1 = lc.cvec[i][longest] ) && ( c2 = lc.cvec[i + 1][longest] ) && ( c1 == c2 ) ) {
+                    ++longest;
+                }
+                else {
+                    keepGoing = false;
+                    break;
+                }
+            }
+        }
+
+        if ( longest > itemLength ) {
+            displayLength = len + longest - itemLength;
+            displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
+            InputBuffer temp( displayText, displayLength + 1 );
+            temp.len = displayLength;
+            temp.pos = startIndex + longest;
+            int j = 0;
+            for ( ; j < startIndex; ++j ) {
+                displayText[j] = buf[j];
+            }
+            for ( int k = 0 ; k < longest; ++j, ++k ) {
+                displayText[j] = lc.cvec[0][k];
+            }
+            strcpy( &displayText[j], &buf[pos] );
+            //displayText[displayLength] = 0;
+            temp.refreshLine( pi );
+            free( displayText );
+        }
+        else {
+            do {
+                c = linenoiseReadChar();
+                c = cleanupCtrl( c );
+            } while ( c == static_cast<char>( -1 ) );
+
+            if ( c == ctrlChar( 'I' ) ) {
+
+                // display a list of matches
+            }
+
+        }
+
+#if 0 // inner if 0
+        size_t i = 0;
+        size_t clen;
+
+        bool stop = false;
+        while ( ! stop ) {
+            /* Show completion or original buffer */
+            if ( i < lc.len ) {
+                clen = strlen( lc.cvec[i] );
+                displayLength = len + clen - itemLength;
+                displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
+                InputBuffer temp( displayText, displayLength + 1 );
+                temp.len = displayLength;
+                temp.pos = startIndex + clen;
+                int j = 0;
+                for ( ; j < startIndex; ++j )
+                    displayText[j] = buf[j];
+                strcpy( &displayText[j], lc.cvec[i] );
+                strcpy( &displayText[j+clen], &buf[pos] );
+                displayText[displayLength] = 0;
+                temp.refreshLine( pi );
+                free( displayText );
+            }
+            else {
+                refreshLine( pi );
+            }
+
+            switch ( c ) {
+
+                case 0:
+                    freeCompletions( &lc );
+                    return -1;
+
+                case ctrlChar( 'I' ):   // ctrl-I/tab
+                    i = ( i + 1 ) % ( lc.len + 1 );
+                    if ( i == lc.len )
+                        beep();         // beep after completing cycle
+                    break;
+
+                default:
+                    /* Update buffer and return */
+                    if ( i < lc.len ) {
+                        clen = strlen( lc.cvec[i] );
+                        displayLength = len + clen - itemLength;
+                        displayText = (char *)malloc( displayLength + 1 );
+                        int j = 0;
+                        for ( ; j < startIndex; ++j )
+                            displayText[j] = buf[j];
+                        strcpy( &displayText[j], lc.cvec[i] );
+                        strcpy( &displayText[j+clen], &buf[pos] );
+                        displayText[displayLength] = 0;
+                        strcpy( buf, displayText );
+                        free( displayText );
+                        pos = startIndex + clen;
+                        len = displayLength;
+                    }
+                    stop = true;
+                    break;
+            }
+        }
+#endif // #if 0 // inner if 0
+
+#else
         size_t i = 0;
         size_t clen;
 
@@ -1191,16 +1338,6 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
                         beep();         // beep after completing cycle
                     break;
 
-#if 0 // SERVER-4011 -- Escape only works to end command completion in Windows
-      // leaving code here for now in case this is where we will add Meta-R (revert-line) later
-                case 27: /* escape */
-                    /* Re-show original buffer */
-                    if ( i < lc.len )
-                        refreshLine( pi, buf, *len, *pos );
-                    stop = true;
-                    break;
-#endif // SERVER-4011 -- Escape only works to end command completion in Windows
-
                 default:
                     /* Update buffer and return */
                     if ( i < lc.len ) {
@@ -1222,6 +1359,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
                     break;
             }
         }
+#endif
     }
 
     freeCompletions( &lc );
@@ -1255,25 +1393,6 @@ void InputBuffer::clearScreen( PromptInfo& pi ) {
 #endif
     pi.promptCursorRowOffset = pi.promptExtraLines;
     refreshLine( pi );
-}
-
-// convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
-// leave META alone
-//
-static int cleanupCtrl( int c ) {
-    if ( c & CTRL ) {
-        int d = c & 0x1FF;
-        if ( d >= 'a' && d <= 'z' ) {
-            c = ( c + ( 'a' - ctrlChar( 'A' ) ) ) & ~CTRL;
-        }
-        if ( d >= 'A' && d <= 'Z' ) {
-            c = ( c + ( 'A' - ctrlChar( 'A' ) ) ) & ~CTRL;
-        }
-        if ( d >= ctrlChar( 'A' ) && d <= ctrlChar( 'Z' ) ) {
-            c = c & ~CTRL;
-        }
-    }
-    return c;
 }
 
 /**
