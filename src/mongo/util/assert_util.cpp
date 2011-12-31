@@ -17,9 +17,6 @@
 
 #include "pch.h"
 #include "assert_util.h"
-#include "assert.h"
-//#include "file.h"
-#include <cmath>
 using namespace std;
 
 #ifndef _WIN32
@@ -27,8 +24,17 @@ using namespace std;
 #include <sys/file.h>
 #endif
 
-//#include "../bson/bson.h"
-#include "../db/jsobj.h"
+#include "../bson/bsonobjbuilder.h"
+
+#if defined(_DEBUG)
+namespace boost {
+    void assertion_failed(char const * expr, char const * function, char const * file, long line) {
+        mongo::log() << "boost assertion failure " << expr << ' ' << function << ' ' << file << ' ' << line << endl;
+        // for _DEBUG, abort so we notice for sure
+        ::abort();
+    }
+}
+#endif
 
 namespace mongo {
 
@@ -85,7 +91,8 @@ namespace mongo {
         static time_t lastWhen;
         static unsigned lastLine;
         if( lastLine == line && time(0)-lastWhen < 5 ) { 
-            if( rateLimited++ == 0 ) { 
+            if( !rateLimited ) { 
+                rateLimited = true;
                 log() << "rate limiting wassert" << endl;
             }
             return;
