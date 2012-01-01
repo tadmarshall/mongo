@@ -1177,7 +1177,6 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
         }
         strcpy( &displayText[j], lc.cvec[0] );
         strcpy( &displayText[j + clen], &buf[pos] );
-        //displayText[displayLength] = 0;
         strcpy( buf, displayText );
         free( displayText );
         pos = startIndex + clen;
@@ -1192,13 +1191,13 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
         bool keepGoing = true;
         while ( keepGoing ) {
             for ( size_t i = 0; i < lc.len - 1; ++i ) {
-                if ( ( c1 = lc.cvec[i][longest] ) && ( c2 = lc.cvec[i + 1][longest] ) && ( c1 == c2 ) ) {
-                    ++longest;
-                }
-                else {
+                if ( ( 0 == ( c1 = lc.cvec[i][longest] ) ) || ( 0 == ( c2 = lc.cvec[i + 1][longest] ) ) || ( c1 != c2 ) ) {
                     keepGoing = false;
                     break;
                 }
+            }
+            if ( keepGoing ) {
+                ++longest;
             }
         }
 
@@ -1216,7 +1215,6 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
                 displayText[j] = lc.cvec[0][k];
             }
             strcpy( &displayText[j], &buf[pos] );
-            //displayText[displayLength] = 0;
             temp.refreshLine( pi );
             free( displayText );
         }
