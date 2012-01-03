@@ -1298,6 +1298,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
                 }
             }
         }
+        fflush( stdout );
         freeCompletions( &lc );
     }
 
