@@ -1132,6 +1132,9 @@ static int cleanupCtrl( int c ) {
 // break characters that may precede items to be completed
 static const char breakChars[] = " =+-/\\*?\"'`&<>;|@{([])}";
 
+// maximum number of completions to display without asking
+static const int completionCountCutoff = 100;
+
 /**
  * Handle command completion, using a completionCallback() routine to provide possible substitutions
  * This routine handles the mechanics of updating the user's input buffer with possible replacement of
@@ -1155,43 +1158,34 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
     char* parseItem = reinterpret_cast<char *>( malloc( itemLength + 1 ) );
     int i = 0;
     for ( ; i < itemLength; ++i ) {
-        parseItem[i] = buf[startIndex+i];
+        parseItem[i] = buf[startIndex + i];
     }
     parseItem[i] = 0;
 
     // get a list of completions
     completionCallback( parseItem, &lc );
     free( parseItem );
-    int displayLength = 0;
-    char * displayText = 0;
+
+    // if no completions, we are done
     if ( lc.len == 0 ) {
         beep();
+        freeCompletions( &lc );
+        return 0;
     }
-    else if ( lc.len == 1 ) {
-        size_t clen = strlen( lc.cvec[0] );
-        displayLength = len + clen - itemLength;
-        displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
-        int j = 0;
-        for ( ; j < startIndex; ++j ) {
-            displayText[j] = buf[j];
-        }
-        strcpy( &displayText[j], lc.cvec[0] );
-        strcpy( &displayText[j + clen], &buf[pos] );
-        strcpy( buf, displayText );
-        free( displayText );
-        pos = startIndex + clen;
-        len = displayLength;
-        refreshLine( pi );
+
+    // at least one completion
+    int longest = 0;
+    int displayLength = 0;
+    char * displayText = 0;
+    if ( lc.len == 1 ) {
+        longest = strlen( lc.cvec[0] );
     }
     else {
-#if 1
-        int longest = 0;
-        char c1;
-        char c2;
         bool keepGoing = true;
         while ( keepGoing ) {
-            for ( size_t i = 0; i < lc.len - 1; ++i ) {
-                if ( ( 0 == ( c1 = lc.cvec[i][longest] ) ) || ( 0 == ( c2 = lc.cvec[i + 1][longest] ) ) || ( c1 != c2 ) ) {
+            for ( size_t j = 0; j < lc.len - 1; ++j ) {
+                char c1, c2;
+                if ( ( 0 == ( c1 = lc.cvec[j][longest] ) ) || ( 0 == ( c2 = lc.cvec[j + 1][longest] ) ) || ( c1 != c2 ) ) {
                     keepGoing = false;
                     break;
                 }
@@ -1200,168 +1194,116 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
                 ++longest;
             }
         }
+    }
+    if ( lc.len != 1 ) {    // beep if ambiguous
+        beep();
+    }
 
-        if ( longest > itemLength ) {
-            displayLength = len + longest - itemLength;
-            displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
-            InputBuffer temp( displayText, displayLength + 1 );
-            temp.len = displayLength;
-            temp.pos = startIndex + longest;
-            int j = 0;
-            for ( ; j < startIndex; ++j ) {
-                displayText[j] = buf[j];
-            }
-            for ( int k = 0 ; k < longest; ++j, ++k ) {
-                displayText[j] = lc.cvec[0][k];
-            }
-            strcpy( &displayText[j], &buf[pos] );
-            temp.refreshLine( pi );
-            free( displayText );
+    // if we can extend the item, extend it and return to main loop
+    if ( longest > itemLength ) {
+        displayLength = len + longest - itemLength;
+        displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
+        int j = 0;
+        for ( ; j < startIndex; ++j ) {
+            displayText[j] = buf[j];
         }
-        else {
+        for ( int k = 0; k < longest; ++j, ++k ) {
+            displayText[j] = lc.cvec[0][k];
+        }
+        strcpy( &displayText[j], &buf[pos] );
+        strcpy( buf, displayText );
+        free( displayText );
+        pos = startIndex + longest;
+        len = displayLength;
+        refreshLine( pi );
+        return 0;
+    }
+
+    // we can't complete any further, wait for second tab
+    do {
+        c = linenoiseReadChar();
+        c = cleanupCtrl( c );
+    } while ( c == static_cast<char>( -1 ) );
+
+    // if any character other than tab, pass it to the main loop
+    if ( c != ctrlChar( 'I' ) ) {
+        freeCompletions( &lc );
+        return c;
+    }
+
+    // we got a second tab, maybe show list of possible completions
+    bool showCompletions = true;
+    if ( lc.len >= completionCountCutoff ) {
+        int savePos = pos;
+        pos = len;
+        refreshLine( pi );
+        pos = savePos;
+        printf( "\nDisplay all %d possibilities? (y or n)", lc.len );
+        while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
             do {
                 c = linenoiseReadChar();
                 c = cleanupCtrl( c );
             } while ( c == static_cast<char>( -1 ) );
-
-            if ( c == ctrlChar( 'I' ) ) {
-
-                // display a list of matches
-            }
-
         }
-
-#if 0 // inner if 0
-        size_t i = 0;
-        size_t clen;
-
-        bool stop = false;
-        while ( ! stop ) {
-            /* Show completion or original buffer */
-            if ( i < lc.len ) {
-                clen = strlen( lc.cvec[i] );
-                displayLength = len + clen - itemLength;
-                displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
-                InputBuffer temp( displayText, displayLength + 1 );
-                temp.len = displayLength;
-                temp.pos = startIndex + clen;
-                int j = 0;
-                for ( ; j < startIndex; ++j )
-                    displayText[j] = buf[j];
-                strcpy( &displayText[j], lc.cvec[i] );
-                strcpy( &displayText[j+clen], &buf[pos] );
-                displayText[displayLength] = 0;
-                temp.refreshLine( pi );
-                free( displayText );
-            }
-            else {
-                refreshLine( pi );
-            }
-
-            switch ( c ) {
-
-                case 0:
-                    freeCompletions( &lc );
-                    return -1;
-
-                case ctrlChar( 'I' ):   // ctrl-I/tab
-                    i = ( i + 1 ) % ( lc.len + 1 );
-                    if ( i == lc.len )
-                        beep();         // beep after completing cycle
-                    break;
-
-                default:
-                    /* Update buffer and return */
-                    if ( i < lc.len ) {
-                        clen = strlen( lc.cvec[i] );
-                        displayLength = len + clen - itemLength;
-                        displayText = (char *)malloc( displayLength + 1 );
-                        int j = 0;
-                        for ( ; j < startIndex; ++j )
-                            displayText[j] = buf[j];
-                        strcpy( &displayText[j], lc.cvec[i] );
-                        strcpy( &displayText[j+clen], &buf[pos] );
-                        displayText[displayLength] = 0;
-                        strcpy( buf, displayText );
-                        free( displayText );
-                        pos = startIndex + clen;
-                        len = displayLength;
-                    }
-                    stop = true;
-                    break;
-            }
+        switch ( c ) {
+        case 'n':
+        case 'N':
+            showCompletions = false;
+            freeCompletions( &lc );
+            break;
+        case ctrlChar( 'C' ):
+            showCompletions = false;
+            freeCompletions( &lc );
+            if ( write( 1, "^C", 2 ) == -1 ) return -1;    // Display the ^C we got
+            c = 0;
+            break;
         }
-#endif // #if 0 // inner if 0
-
-#else
-        size_t i = 0;
-        size_t clen;
-
-        bool stop = false;
-        while ( ! stop ) {
-            /* Show completion or original buffer */
-            if ( i < lc.len ) {
-                clen = strlen( lc.cvec[i] );
-                displayLength = len + clen - itemLength;
-                displayText = reinterpret_cast<char *>( malloc( displayLength + 1 ) );
-                InputBuffer temp( displayText, displayLength + 1 );
-                temp.len = displayLength;
-                temp.pos = startIndex + clen;
-                int j = 0;
-                for ( ; j < startIndex; ++j )
-                    displayText[j] = buf[j];
-                strcpy( &displayText[j], lc.cvec[i] );
-                strcpy( &displayText[j+clen], &buf[pos] );
-                displayText[displayLength] = 0;
-                temp.refreshLine( pi );
-                free( displayText );
-            }
-            else {
-                refreshLine( pi );
-            }
-
-            do {
-                c = linenoiseReadChar();
-            } while ( c == static_cast<char>( -1 ) );
-
-            switch ( c ) {
-
-                case 0:
-                    freeCompletions( &lc );
-                    return -1;
-
-                case ctrlChar( 'I' ):   // ctrl-I/tab
-                    i = ( i + 1 ) % ( lc.len + 1 );
-                    if ( i == lc.len )
-                        beep();         // beep after completing cycle
-                    break;
-
-                default:
-                    /* Update buffer and return */
-                    if ( i < lc.len ) {
-                        clen = strlen( lc.cvec[i] );
-                        displayLength = len + clen - itemLength;
-                        displayText = (char *)malloc( displayLength + 1 );
-                        int j = 0;
-                        for ( ; j < startIndex; ++j )
-                            displayText[j] = buf[j];
-                        strcpy( &displayText[j], lc.cvec[i] );
-                        strcpy( &displayText[j+clen], &buf[pos] );
-                        displayText[displayLength] = 0;
-                        strcpy( buf, displayText );
-                        free( displayText );
-                        pos = startIndex + clen;
-                        len = displayLength;
-                    }
-                    stop = true;
-                    break;
-            }
-        }
-#endif
     }
 
-    freeCompletions( &lc );
-    return c; /* Return last read character */
+    // if showing the list, do it the way readline does it
+    if ( showCompletions ) {
+        longest = 0;
+        for ( size_t j = 0; j < lc.len; ++j) {
+            itemLength = strlen( lc.cvec[j] );
+            if ( itemLength > longest ) {
+                longest = itemLength;
+            }
+        }
+        longest += 2;
+        size_t columnCount = pi.promptScreenColumns / longest;
+        if ( columnCount < 1) {
+            columnCount = 1;
+        }
+        int rowCount = ( lc.len + columnCount - 1) / columnCount;
+        for ( int row = 0; row < rowCount; ++row ) {
+            printf( "\n" );
+            for ( size_t column = 0; column < columnCount; ++column ) {
+                size_t index = ( column * rowCount ) + row;
+                if ( index < lc.len ) {
+                    itemLength = strlen( lc.cvec[index] );
+                    printf( "%s", lc.cvec[index] );
+                    if ( ( ( column + 1 ) * rowCount ) + row < lc.len ) {
+                        for ( int k = itemLength; k < longest; ++k ) {
+                            printf( " " );
+                        }
+                    }
+                }
+            }
+        }
+        freeCompletions( &lc );
+    }
+
+    // display the prompt on a new line, then redisplay the input buffer
+    if ( write( 1, "\n", 1 ) == -1 ) return 0;
+    if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
+#ifndef _WIN32
+    // we have to generate our own newline on line wrap on Linux
+    if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
+        if ( write( 1, "\n", 1 ) == -1 ) return 0;
+#endif
+    pi.promptCursorRowOffset = pi.promptExtraLines;
+    refreshLine( pi );
+    return 0;
 }
 
 /**
