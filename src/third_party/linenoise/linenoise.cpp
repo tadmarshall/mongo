@@ -115,7 +115,6 @@
 #include "linenoise.h"
 #include <string>
 #include <vector>
-#include <iostream>
 
 using std::string;
 using std::vector;
@@ -1234,7 +1233,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
 
     // we got a second tab, maybe show list of possible completions
     bool showCompletions = true;
-    if ( lc.completionCount >= completionCountCutoff ) {
+    if ( lc.completionCount > completionCountCutoff ) {
         int savePos = pos;
         pos = len;
         refreshLine( pi );
