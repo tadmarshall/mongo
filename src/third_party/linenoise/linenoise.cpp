@@ -115,6 +115,7 @@
 #include "linenoise.h"
 #include <string>
 #include <vector>
+#include <iostream>
 
 using std::string;
 using std::vector;
@@ -1238,7 +1239,14 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
         pos = len;
         refreshLine( pi );
         pos = savePos;
+        //std::cout << "\nDisplay all " << lc.len <<  " possibilities? (y or n)";
+        //std::cout.flush();
         printf( "\nDisplay all %d possibilities? (y or n)", lc.len );
+        fflush( stdout );
+        //string s( "\nDisplay all " );
+        //s += lc.len;
+        //s += " possibilities? (y or n)";
+        //if ( write( 1, s.c_str(), s.length() ) == -1 ) return 0;
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
             do {
                 c = linenoiseReadChar();
