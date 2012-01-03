@@ -1133,7 +1133,7 @@ static int cleanupCtrl( int c ) {
 static const char breakChars[] = " =+-/\\*?\"'`&<>;|@{([])}";
 
 // maximum number of completions to display without asking
-static const int completionCountCutoff = 100;
+static const size_t completionCountCutoff = 100;
 
 /**
  * Handle command completion, using a completionCallback() routine to provide possible substitutions
