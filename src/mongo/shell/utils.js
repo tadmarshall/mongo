@@ -62,7 +62,7 @@ doassert = function (msg) {
 assert = function( b , msg ){
     if ( assert._debug && msg ) print( "in assert for: " + msg );
     if ( b )
-        return;    
+        return;
     doassert( msg == undefined ? "assert failed" : "assert failed : " + msg );
 }
 
@@ -708,7 +708,7 @@ if ( typeof _threadInject != "undefined" ){
         var t = new Thread( function() {} );
         Thread.apply( t, arguments );
         return t;
-    }    
+    }
 
     // Helper class to generate a list of events which may be executed by a ParallelTester
     EventGenerator = function( me, collectionName, mean, host ) {

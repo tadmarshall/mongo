@@ -1105,10 +1105,10 @@ static int linenoiseReadChar( void ){
 }
 
 static void freeCompletions( linenoiseCompletions* lc ) {
-    for ( size_t i = 0; i < lc->len; ++i )
-        free( lc->cvec[i] );
-    if ( lc->cvec )
-        free( lc->cvec );
+    for ( int i = 0; i < lc->completionCount; ++i )
+        free( lc->completionStrings[i] );
+    if ( lc->completionStrings )
+        free( lc->completionStrings );
 }
 
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
@@ -1168,7 +1168,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
     free( parseItem );
 
     // if no completions, we are done
-    if ( lc.len == 0 ) {
+    if ( lc.completionCount == 0 ) {
         beep();
         freeCompletions( &lc );
         return 0;
@@ -1178,15 +1178,15 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
     int longest = 0;
     int displayLength = 0;
     char * displayText = 0;
-    if ( lc.len == 1 ) {
-        longest = strlen( lc.cvec[0] );
+    if ( lc.completionCount == 1 ) {
+        longest = strlen( lc.completionStrings[0] );
     }
     else {
         bool keepGoing = true;
         while ( keepGoing ) {
-            for ( size_t j = 0; j < lc.len - 1; ++j ) {
+            for ( int j = 0; j < lc.completionCount - 1; ++j ) {
                 char c1, c2;
-                if ( ( 0 == ( c1 = lc.cvec[j][longest] ) ) || ( 0 == ( c2 = lc.cvec[j + 1][longest] ) ) || ( c1 != c2 ) ) {
+                if ( ( 0 == ( c1 = lc.completionStrings[j][longest] ) ) || ( 0 == ( c2 = lc.completionStrings[j + 1][longest] ) ) || ( c1 != c2 ) ) {
                     keepGoing = false;
                     break;
                 }
@@ -1196,7 +1196,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
             }
         }
     }
-    if ( lc.len != 1 ) {    // beep if ambiguous
+    if ( lc.completionCount != 1 ) {    // beep if ambiguous
         beep();
     }
 
@@ -1209,7 +1209,7 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
             displayText[j] = buf[j];
         }
         for ( int k = 0; k < longest; ++j, ++k ) {
-            displayText[j] = lc.cvec[0][k];
+            displayText[j] = lc.completionStrings[0][k];
         }
         strcpy( &displayText[j], &buf[pos] );
         strcpy( buf, displayText );
@@ -1234,14 +1234,14 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
 
     // we got a second tab, maybe show list of possible completions
     bool showCompletions = true;
-    if ( lc.len >= completionCountCutoff ) {
+    if ( lc.completionCount >= completionCountCutoff ) {
         int savePos = pos;
         pos = len;
         refreshLine( pi );
         pos = savePos;
         //std::cout << "\nDisplay all " << lc.len <<  " possibilities? (y or n)";
         //std::cout.flush();
-        printf( "\nDisplay all %d possibilities? (y or n)", lc.len );
+        printf( "\nDisplay all %d possibilities? (y or n)", lc.completionCount );
         fflush( stdout );
         //string s( "\nDisplay all " );
         //s += lc.len;
@@ -1271,26 +1271,26 @@ int InputBuffer::completeLine( PromptInfo& pi ) {
     // if showing the list, do it the way readline does it
     if ( showCompletions ) {
         longest = 0;
-        for ( size_t j = 0; j < lc.len; ++j) {
-            itemLength = strlen( lc.cvec[j] );
+        for ( int j = 0; j < lc.completionCount; ++j) {
+            itemLength = strlen( lc.completionStrings[j] );
             if ( itemLength > longest ) {
                 longest = itemLength;
             }
         }
         longest += 2;
-        size_t columnCount = pi.promptScreenColumns / longest;
+        int columnCount = pi.promptScreenColumns / longest;
         if ( columnCount < 1) {
             columnCount = 1;
         }
-        int rowCount = ( lc.len + columnCount - 1) / columnCount;
+        int rowCount = ( lc.completionCount + columnCount - 1) / columnCount;
         for ( int row = 0; row < rowCount; ++row ) {
             printf( "\n" );
-            for ( size_t column = 0; column < columnCount; ++column ) {
-                size_t index = ( column * rowCount ) + row;
-                if ( index < lc.len ) {
-                    itemLength = strlen( lc.cvec[index] );
-                    printf( "%s", lc.cvec[index] );
-                    if ( ( ( column + 1 ) * rowCount ) + row < lc.len ) {
+            for ( int column = 0; column < columnCount; ++column ) {
+                int index = ( column * rowCount ) + row;
+                if ( index < lc.completionCount ) {
+                    itemLength = strlen( lc.completionStrings[index] );
+                    printf( "%s", lc.completionStrings[index] );
+                    if ( ( ( column + 1 ) * rowCount ) + row < lc.completionCount ) {
                         for ( int k = itemLength; k < longest; ++k ) {
                             printf( " " );
                         }
@@ -2051,8 +2051,8 @@ void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
     size_t len = strlen( str );
     char* copy = reinterpret_cast<char *>( malloc( len + 1 ) );
     memcpy( copy, str, len + 1 );
-    lc->cvec = reinterpret_cast<char**>( realloc( lc->cvec, sizeof( char* ) * ( lc->len + 1 ) ) );
-    lc->cvec[lc->len++] = copy;
+    lc->completionStrings = reinterpret_cast<char**>( realloc( lc->completionStrings, sizeof( char* ) * ( lc->completionCount + 1 ) ) );
+    lc->completionStrings[lc->completionCount++] = copy;
 }
 
 int linenoiseHistoryAdd( const char* line ) {
