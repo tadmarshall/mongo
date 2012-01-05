@@ -86,9 +86,7 @@
 
 #include <conio.h>
 #include <windows.h>
-#include <stdio.h>
 #include <io.h>
-#include <errno.h>
 #define snprintf _snprintf  // Microsoft headers use underscores in some names
 #define strcasecmp _stricmp
 #define strdup _strdup
@@ -97,21 +95,20 @@
 #define STDIN_FILENO 0
 
 #else /* _WIN32 */
+
 #include <signal.h>
 #include <termios.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <errno.h>
 #include <string.h>
-#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
 #include <cctype>
 
 #endif /* _WIN32 */
 
+#include <stdio.h>
+#include <errno.h>
 #include "linenoise.h"
 #include <string>
 #include <vector>
@@ -410,6 +407,8 @@ static int atexit_registered = 0; /* register atexit just 1 time */
 static int historyMaxLen = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int historyLen = 0;
 static int historyIndex = 0;
+static int historyPreviousIndex = -1;
+static bool historyRecallMostRecent = false;
 static char** history = NULL;
 
 static void linenoiseAtExit( void );
@@ -1595,6 +1594,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     pb.promptScreenColumns = pi.promptScreenColumns;
     pb.previousPromptLen = dp.promptChars;
     if ( useSearchedLine ) {
+        historyRecallMostRecent = true;
         strcpy( buf, history[historyIndex] );
         len = historyLineLength;
         pos = historyLinePosition;
@@ -1612,6 +1612,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
     // The latest history entry is always our current buffer
     linenoiseHistoryAdd( "" );
     historyIndex = historyLen - 1;
+    historyRecallMostRecent = false;
 
     // display the prompt
     if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return -1;
@@ -1654,6 +1655,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         // ctrl-I/tab, command completion, needs to be before switch statement
         if ( c == ctrlChar( 'I' ) && completionCallback ) {
             killRing.lastAction = KillRing::actionOther;
+            historyRecallMostRecent = false;
 
             // completeLine does the actual completion and replacement
             c = completeLine( pi );
@@ -1703,6 +1705,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
 
         case ctrlChar( 'C' ):   // ctrl-C, abort this line
             killRing.lastAction = KillRing::actionOther;
+            historyRecallMostRecent = false;
             errno = EAGAIN;
             --historyLen;
             free( history[historyLen] );
@@ -1716,6 +1719,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case META + 'c':        // meta-C, give word initial Cap
         case META + 'C':
             killRing.lastAction = KillRing::actionOther;
+            historyRecallMostRecent = false;
             if ( pos < len ) {
                 while ( pos < len && !isalnum( static_cast<unsigned char>( buf[pos] ) ) ) {
                     ++pos;
@@ -1741,6 +1745,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case ctrlChar( 'D' ):
             killRing.lastAction = KillRing::actionOther;
             if ( len > 0 && pos < len ) {
+                historyRecallMostRecent = false;
                 memmove( buf + pos, buf + pos + 1, len - pos );
                 --len;
                 refreshLine( pi );
@@ -1755,6 +1760,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case META + 'd':        // meta-D, kill word to right of cursor
         case META + 'D':
             if ( pos < len ) {
+                historyRecallMostRecent = false;
                 int endingPos = pos;
                 while ( endingPos < len && !isalnum( static_cast<unsigned char>( buf[endingPos] ) ) ) {
                     ++endingPos;
@@ -1805,6 +1811,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
             killRing.lastAction = KillRing::actionOther;
             if ( pos > 0 ) {
+                historyRecallMostRecent = false;
                 memmove( buf + pos - 1, buf + pos, 1 + len - pos );
                 --pos;
                 --len;
@@ -1815,6 +1822,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         // meta-Backspace, kill word to left of cursor
         case META + ctrlChar( 'H' ):
             if ( pos > 0 ) {
+                historyRecallMostRecent = false;
                 int startingPos = pos;
                 while ( pos > 0 && !isalnum( static_cast<unsigned char>( buf[pos - 1] ) ) ) {
                     --pos;
@@ -1837,6 +1845,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             // so we don't display the next prompt over the previous input line
             pos = len;    // pass len as pos for EOL
             refreshLine( pi );
+            historyPreviousIndex = historyRecallMostRecent ? historyIndex : -1;
             --historyLen;
             free( history[historyLen] );
             return len;
@@ -1847,6 +1856,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             len = pos;
             refreshLine( pi );
             killRing.lastAction = KillRing::actionKill;
+            historyRecallMostRecent = false;
             break;
 
         case ctrlChar( 'L' ):   // ctrl-L, clear screen and redisplay line
@@ -1857,6 +1867,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case META + 'L':
             killRing.lastAction = KillRing::actionOther;
             if ( pos < len ) {
+                historyRecallMostRecent = false;
                 while ( pos < len && !isalnum( static_cast<unsigned char>( buf[pos] ) ) ) {
                     ++pos;
                 }
@@ -1876,15 +1887,16 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case UP_ARROW_KEY:
             killRing.lastAction = KillRing::actionOther;
             if ( historyLen > 1 ) {
-                /* Update the current history entry before we
-                 * overwrite it with the next one. */
-                free( history[historyIndex] );
-                history[historyIndex] = strdup (buf );
-                /* Show the new entry */
                 if ( c == UP_ARROW_KEY ) {
                     c = ctrlChar( 'P' );
                 }
-                historyIndex += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
+                if ( historyPreviousIndex != -1 && c != ctrlChar( 'P' ) ) {
+                    historyIndex = 1 + historyPreviousIndex;    // emulate Windows down-arrow
+                }
+                else {
+                    historyIndex += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
+                }
+                historyPreviousIndex = -1;
                 if ( historyIndex < 0 ) {
                     historyIndex = 0;
                     break;
@@ -1893,6 +1905,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     historyIndex = historyLen - 1;
                     break;
                 }
+                historyRecallMostRecent = true;
                 strncpy( buf, history[historyIndex], buflen );
                 buf[buflen] = '\0';
                 len = pos = strlen( buf );  // place cursor at end of line
@@ -1908,6 +1921,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
             killRing.lastAction = KillRing::actionOther;
             if ( pos > 0 && len > 1 ) {
+                historyRecallMostRecent = false;
                 size_t leftCharPos = ( pos == len ) ? pos - 2 : pos - 1;
                 char aux = buf[leftCharPos];
                 buf[leftCharPos] = buf[leftCharPos+1];
@@ -1920,6 +1934,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
 
         case ctrlChar( 'U' ):   // ctrl-U, kill all characters to the left of the cursor
             if ( pos > 0 ) {
+                historyRecallMostRecent = false;
                 killRing.kill( &buf[0], pos, false );
                 len -= pos;
                 memmove( buf, buf + pos, len + 1 );
@@ -1933,6 +1948,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case META + 'U':
             killRing.lastAction = KillRing::actionOther;
             if ( pos < len ) {
+                historyRecallMostRecent = false;
                 while ( pos < len && !isalnum( static_cast<unsigned char>( buf[pos] ) ) ) {
                     ++pos;
                 }
@@ -1949,6 +1965,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         // ctrl-W, kill to whitespace (not word) to left of cursor
         case ctrlChar( 'W' ):
             if ( pos > 0 ) {
+                historyRecallMostRecent = false;
                 int startingPos = pos;
                 while ( pos > 0 && buf[pos - 1] == ' ' ) {
                     --pos;
@@ -1965,6 +1982,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             break;
 
         case ctrlChar( 'Y' ):   // ctrl-Y, yank killed text
+            historyRecallMostRecent = false;
             {
                 string* restoredText = killRing.yank();
                 if ( restoredText ) {
@@ -1986,6 +2004,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case META + 'y':        // meta-Y, "yank-pop", rotate popped text
         case META + 'Y':
             if ( killRing.lastAction == KillRing::actionYank ) {
+                historyRecallMostRecent = false;
                 string* restoredText = killRing.yankPop();
                 if ( restoredText ) {
                     int restoredTextLen = restoredText->length();
@@ -2022,6 +2041,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case DELETE_KEY:
             killRing.lastAction = KillRing::actionOther;
             if ( len > 0 && pos < len ) {
+                historyRecallMostRecent = false;
                 memmove( buf + pos, buf + pos + 1, len - pos );
                 --len;
                 refreshLine( pi );
@@ -2031,6 +2051,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         // not one of our special characters, maybe insert it in the buffer
         default:
             killRing.lastAction = KillRing::actionOther;
+            historyRecallMostRecent = false;
             if ( c > 0xFF ) {   // beep on unknown Ctrl and/or Meta keys
                 beep();
                 break;
