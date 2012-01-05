@@ -407,9 +407,13 @@ static int atexit_registered = 0; /* register atexit just 1 time */
 static int historyMaxLen = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int historyLen = 0;
 static int historyIndex = 0;
-static int historyPreviousIndex = -1;
-static bool historyRecallMostRecent = false;
 static char** history = NULL;
+
+// used to emulate Windows command prompt on down-arrow after a recall
+// we use -2 as our "not set" value because we add 1 to the previous index on down-arrow,
+// and zero is a valid index (so -1 is a valid "previous index")
+static int historyPreviousIndex = -2;
+static bool historyRecallMostRecent = false;
 
 static void linenoiseAtExit( void );
 
@@ -1845,7 +1849,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             // so we don't display the next prompt over the previous input line
             pos = len;    // pass len as pos for EOL
             refreshLine( pi );
-            historyPreviousIndex = historyRecallMostRecent ? historyIndex : -1;
+            historyPreviousIndex = historyRecallMostRecent ? historyIndex : -2;
             --historyLen;
             free( history[historyLen] );
             return len;
@@ -1890,13 +1894,13 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 if ( c == UP_ARROW_KEY ) {
                     c = ctrlChar( 'P' );
                 }
-                if ( historyPreviousIndex != -1 && c != ctrlChar( 'P' ) ) {
+                if ( historyPreviousIndex != -2 && c != ctrlChar( 'P' ) ) {
                     historyIndex = 1 + historyPreviousIndex;    // emulate Windows down-arrow
                 }
                 else {
                     historyIndex += ( c == ctrlChar( 'P' ) ) ? -1 : 1;
                 }
-                historyPreviousIndex = -1;
+                historyPreviousIndex = -2;
                 if ( historyIndex < 0 ) {
                     historyIndex = 0;
                     break;
@@ -2157,6 +2161,9 @@ int linenoiseHistoryAdd( const char* line ) {
         free( history[0] );
         memmove( history, history + 1, sizeof(char*) * ( historyMaxLen - 1 ) );
         --historyLen;
+        if ( --historyPreviousIndex < -1 ) {
+            historyPreviousIndex = -2;
+        }
     }
 
     // convert newlines in multi-line code to spaces before storing
