@@ -163,6 +163,55 @@ struct PromptBase {                 // a convenience struct for grouping prompt 
 
 struct PromptInfo : public PromptBase {
 
+#if 1
+    void newWidth( int columns ) {
+        promptScreenColumns = columns;
+        promptExtraLines = 0;
+        promptLastLinePosition = 0;
+        promptPreviousInputLen = 0;
+        int x = 0;
+        for ( int i = 0; i < promptChars; ++i ) {
+            char c = promptText[i];
+            if ( '\n' == c ) {
+                x = 0;
+                ++promptExtraLines;
+                promptLastLinePosition = i + 1;
+            }
+            else {
+                ++x;
+                if ( x >= promptScreenColumns ) {
+                    x = 0;
+                    ++promptExtraLines;
+                    promptLastLinePosition = i + 1;
+                }
+            }
+        }
+        promptIndentation = promptChars - promptLastLinePosition;
+        promptCursorRowOffset = promptExtraLines;
+    }
+
+    PromptInfo( const char* textPtr, int columns ) {
+        promptScreenColumns = columns;
+
+        promptText = new char[strlen( textPtr ) + 1];
+        strcpy( promptText, textPtr );
+
+        // strip evil characters from the prompt -- we do allow newline
+        unsigned char* pIn = reinterpret_cast<unsigned char *>( promptText );
+        unsigned char* pOut = pIn;
+        while ( *pIn ) {
+            unsigned char c = *pIn;  // we need unsigned so chars 0x80 and above are allowed
+            if ( '\n' == c || c >= ' ' ) {
+                *pOut = c;
+                ++pOut;
+            }
+            ++pIn;
+        }
+        *pOut = 0;
+        promptChars = pOut - reinterpret_cast<unsigned char *>( promptText );
+        newWidth( columns );
+    }
+#else
     PromptInfo( const char* textPtr, int columns ) {
         promptScreenColumns = columns;
 
@@ -205,6 +254,8 @@ struct PromptInfo : public PromptBase {
         promptIndentation = promptChars - promptLastLinePosition;
         promptCursorRowOffset = promptExtraLines;
     }
+#endif
+
     ~PromptInfo() {
         delete [] promptText;
     }
@@ -345,15 +396,15 @@ class InputBuffer {
     int         pos;
 
     void clearScreen( PromptBase& pi );
-    int incrementalHistorySearch( PromptBase& pi, int startChar );
-    int completeLine( PromptBase& pi );
+    int incrementalHistorySearch( PromptInfo& pi, int startChar );
+    int completeLine( PromptInfo& pi );
     void refreshLine( PromptBase& pi );
 
 public:
     InputBuffer( char* buffer, int bufferLen ) : buf( buffer ), buflen( bufferLen - 1 ), len( 0 ), pos( 0 ) {
         buf[0] = 0;
     }
-    int getInputLine( PromptBase& pi );
+    int getInputLine( PromptInfo& pi );
 
 };
 
@@ -439,7 +490,7 @@ static int enableRawMode( void ) {
         console_out = GetStdHandle( STD_OUTPUT_HANDLE );
 
         GetConsoleMode( console_in, &oldMode );
-        SetConsoleMode( console_in, oldMode & ~( ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT ) );
+        SetConsoleMode( console_in, ( oldMode | ENABLE_WINDOW_INPUT ) & ~( ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT | ENABLE_PROCESSED_INPUT ) );
     }
     return 0;
 #else
@@ -1004,7 +1055,7 @@ static unsigned int setMetaRoutine( unsigned int c ) {
 //
 // A return value of zero means "no input available", and a return value of -1 means "invalid key".
 //
-static int linenoiseReadChar( void ){
+static int linenoiseReadChar( PromptInfo& pi ){
 #ifdef _WIN32
     INPUT_RECORD rec;
     DWORD count;
@@ -1012,6 +1063,9 @@ static int linenoiseReadChar( void ){
     bool escSeen = false;
     while ( true ) {
         ReadConsoleInputA( console_in, &rec, 1, &count );
+        if ( rec.EventType == WINDOW_BUFFER_SIZE_EVENT ) {
+            continue;
+        }
         if ( rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown ) {
             continue;
         }
@@ -1160,9 +1214,9 @@ static const int completionCountCutoff = 100;
  * Handle command completion, using a completionCallback() routine to provide possible substitutions
  * This routine handles the mechanics of updating the user's input buffer with possible replacement of
  * text as the user selects a proposed completion string, or cancels the completion attempt.
- * @param pi     PromptBase struct holding information about the prompt and our screen position
+ * @param pi     PromptInfo struct holding information about the prompt and our screen position
  */
-int InputBuffer::completeLine( PromptBase& pi ) {
+int InputBuffer::completeLine( PromptInfo& pi ) {
     linenoiseCompletions lc = { 0, NULL };
     char c = 0;
 
@@ -1242,7 +1296,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
 
     // we can't complete any further, wait for second tab
     do {
-        c = linenoiseReadChar();
+        c = linenoiseReadChar( pi );
         c = cleanupCtrl( c );
     } while ( c == static_cast<char>( -1 ) );
 
@@ -1263,7 +1317,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         fflush( stdout );
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
             do {
-                c = linenoiseReadChar();
+                c = linenoiseReadChar( pi );
                 c = cleanupCtrl( c );
             } while ( c == static_cast<char>( -1 ) );
         }
@@ -1315,7 +1369,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
                     }
                     doBeep = true;
                     do {
-                        c = linenoiseReadChar();
+                        c = linenoiseReadChar( pi );
                         c = cleanupCtrl( c );
                     } while ( c == static_cast<char>( -1 ) );
                 }
@@ -1415,10 +1469,10 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
  * Incremental history search -- take over the prompt and keyboard as the user types a search string,
  * deletes characters from it, changes direction, and either accepts the found line (for execution or
  * editing) or cancels.
- * @param pi        PromptBase struct holding information about the (old, static) prompt and our screen position
+ * @param pi        PromptInfo struct holding information about the (old, static) prompt and our screen position
  * @param startChar the character that began the search, used to set the initial direction
  */
-int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
+int InputBuffer::incrementalHistorySearch( PromptInfo& pi, int startChar ) {
 
     // if not already recalling, add the current line to the history list so we don't have to special case it
     if ( historyIndex == historyLen - 1 ) {
@@ -1442,7 +1496,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     bool useSearchedLine = true;
     bool searchAgain = false;
     while ( keepLooping ) {
-        c = linenoiseReadChar();
+        c = linenoiseReadChar( pi );
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
 
         switch ( c ) {
@@ -1614,7 +1668,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     return c;                               // pass a character or -1 back to main loop
 }
 
-int InputBuffer::getInputLine( PromptBase& pi ) {
+int InputBuffer::getInputLine( PromptInfo& pi ) {
 
     // The latest history entry is always our current buffer
     linenoiseHistoryAdd( "" );
@@ -1643,7 +1697,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
     while ( true ) {
         int c;
         if ( terminatingKeystroke == -1 ) {
-            c = linenoiseReadChar();    // get a new keystroke
+            c = linenoiseReadChar( pi );    // get a new keystroke
         }
         else {
             c = terminatingKeystroke;   // use the terminating keystroke from search
