@@ -22,6 +22,7 @@
 #include "../s/shard.h"
 #include "../util/timer.h"
 #include "clientOnly-private.h"
+#include "../util/assert_util.h"
 
 namespace mongo {
 

@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\clientAndShell.cpp" />
     <ClCompile Include="..\mongo_client_lib.cpp" />
     <ClCompile Include="..\simple_client_demo.cpp" />
   </ItemGroup>
