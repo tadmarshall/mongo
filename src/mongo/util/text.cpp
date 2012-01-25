@@ -18,6 +18,9 @@
 #include "pch.h"
 #include "text.h"
 #include "unittest.h"
+#if defined(_WIN32)
+#include <boost/system/system_error.hpp>
+#endif
 
 namespace mongo {
 
@@ -90,8 +93,7 @@ namespace mongo {
             }
         }
 
-        throw boost::system::system_error(
-            ::GetLastError(), boost::system::system_category);
+        msgasserted( 16062 , str::stream() << "can't wstring to utf8: " << ::GetLastError() );
     }
 
 #if defined(_UNICODE)
