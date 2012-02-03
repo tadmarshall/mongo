@@ -93,7 +93,7 @@ namespace mongo {
         windows.add_options()
         ("install", "install mongodb service")
         ("remove", "remove mongodb service")
-        ("reinstall", "reinstall mongodb service (equivilant of mongod --remove followed by mongod --install)")
+        ("reinstall", "reinstall mongodb service (equivalent of mongod --remove followed by mongod --install)")
         ("serviceName", po::value<string>(), "windows service name")
         ("serviceDisplayName", po::value<string>(), "windows service display name")
         ("serviceDescription", po::value<string>(), "windows service description")
