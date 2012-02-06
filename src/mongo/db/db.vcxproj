@@ -1174,7 +1174,7 @@
     <None Include="..\jstests\replsets\rollback2.js" />
     <None Include="..\jstests\replsets\sync1.js" />
     <None Include="..\jstests\replsets\twosets.js" />
-    <None Include="..\SConstruct" />
+    <None Include="..\..\..\SConstruct" />
     <None Include="..\util\mongoutils\README" />
     <None Include="mongo.ico" />
     <None Include="repl\notes.txt" />
