@@ -18,6 +18,7 @@
 #include "pch.h"
 #include <stdio.h>
 #include <string.h>
+//#include <fcntl.h>
 
 #include "../third_party/linenoise/linenoise.h"
 #include "../scripting/engine.h"
@@ -957,7 +958,21 @@ int _main( int argc, char* argv[] ) {
 int main( int argc, char* argv[] ) {
     static mongo::StaticObserver staticObserver;
     try {
+#ifdef _WIN32
+        UINT initialConsoleInputCodePage = GetConsoleCP();
+        UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
+        SetConsoleCP( CP_UTF8 );
+        SetConsoleOutputCP( CP_UTF8 );
+
+        int returnValue = _main( argc , argv );
+
+        SetConsoleCP( initialConsoleInputCodePage );
+        SetConsoleOutputCP( initialConsoleOutputCodePage );
+
+        return returnValue;
+#else
         return _main( argc , argv );
+#endif
     }
     catch ( mongo::DBException& e ) {
         cerr << "exception: " << e.what() << endl;
