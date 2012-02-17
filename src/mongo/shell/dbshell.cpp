@@ -746,6 +746,9 @@ int _main( int argc, char* argv[] ) {
     if ( ! mongo::cmdLine.quiet )
         cout << "MongoDB shell version: " << mongo::versionString << endl;
 
+    wchar_t wcht = 0;
+    cout << "sizeof(wchar_t) == " << sizeof(wcht) << endl;
+
     mongo::UnitTest::runTests();
 
     if ( !nodb ) { // connect to db
