@@ -15,4 +15,6 @@
  *    limitations under the License.
  */
 
+#include <wchar.h>
+#include <wctype.h>
 #include "linenoise_utf8.h"
