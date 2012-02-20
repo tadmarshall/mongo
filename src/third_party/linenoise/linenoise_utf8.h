@@ -16,5 +16,28 @@
  */
 
 typedef unsigned char   UChar8;     // UTF-8 octet
-typedef unsigned short  UChar16;    // UTF-16 code unit
+//typedef unsigned short  UChar16;    // UTF-16 code unit
 typedef unsigned int    UChar32;    // Unicode code point
+
+// Error codes returned from utf8toUChar32string
+//
+enum BadUTF8 {
+    BadUTF8_no_error = 0,
+    BadUTF8_invalid_byte,
+    BadUTF8_surrogate
+};
+
+//size_t strlen32( const UChar3 2* str32 );
+UChar32 * strcpy32( UChar32 * dest32, const UChar32 * source32 );
+//UChar32 * strncpy32( UChar32 * dest32, const UChar32 * source32, size_t destLength );
+//UChar32 * strcat32( UChar32 * dest32, const UChar32 * source32 );
+UChar32 * strchr32( const char * string, UChar32 ch32 );
+int write32( int fileHandle, const UChar32 * string32, unsigned int len );
+size_t uChar32toUTF8string( UChar8 * dest8, const UChar32 * string32, const size_t outputBufferSizeInBytes );
+
+bool utf8toUChar32string(
+        UChar32 * uchar32output,
+        const UChar8 * utf8input,
+        const size_t outputBufferSizeInCharacters,
+        size_t & outputUnicodeCharacterCount,
+        int & conversionErrorCode );
