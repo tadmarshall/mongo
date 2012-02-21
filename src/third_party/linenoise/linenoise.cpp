@@ -383,7 +383,6 @@ public:
         buf32[0] = 0;
     }
     int getInputLine( PromptBase& pi );
-
 };
 
 // Special codes for keyboard input:
@@ -551,7 +550,6 @@ static int getScreenColumns( void ) {
     return (cols > 0) ? cols : 80;
 }
 
-//#if 0 // unused until command completion is reenabled
 static int getScreenRows( void ) {
     int rows;
 #ifdef _WIN32
@@ -564,7 +562,6 @@ static int getScreenRows( void ) {
 #endif
     return (rows > 0) ? rows : 24;
 }
-//#endif // #if 0 // unused until command completion is reenabled
 
 static void setDisplayAttribute( bool enhancedDisplay ) {
 #ifdef _WIN32
@@ -1014,6 +1011,10 @@ static unsigned int escRoutine( unsigned int c ) {
     if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escDispatch );
 }
+#if 1
+static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, normalKeyRoutine };
+static CharacterDispatch initialDispatch = { 2, "\x1B\x7F", initialRoutines };
+#else
 static unsigned int hibitCRoutine( unsigned int c ) {
     // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
     if ( read( 0, &c, 1 ) <= 0 ) return 0;
@@ -1027,6 +1028,7 @@ static unsigned int hibitCRoutine( unsigned int c ) {
 }
 static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, hibitCRoutine, normalKeyRoutine };
 static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xC3", initialRoutines };
+#endif
 
 // Special handling for the ESC key because it does double duty
 //
@@ -1200,14 +1202,12 @@ static int linenoiseReadChar( void ){
 #endif // #_WIN32
 }
 
-//#if 0 // unused until command completion is reenabled
 static void freeCompletions( linenoiseCompletions* lc ) {
     for ( int i = 0; i < lc->completionCount; ++i )
         free( lc->completionStrings[i] );
     if ( lc->completionStrings )
         free( lc->completionStrings );
 }
-//#endif // #if 0 // unused until command completion is reenabled
 
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
 // leave META alone
