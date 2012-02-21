@@ -2328,7 +2328,7 @@ void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
     UChar32* unicodeString = new UChar32[ bufferSize ];
     size_t ucharCount;
     int errorCode;
-    bool success = utf8toUChar32string( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
+    utf8toUChar32string( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
     lc->completionStrings = reinterpret_cast< UChar32** >( realloc( lc->completionStrings, sizeof( UChar32* ) * ( lc->completionCount + 1 ) ) );
     lc->completionStrings[lc->completionCount++] = unicodeString;
 }
