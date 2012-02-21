@@ -119,17 +119,10 @@
 using std::string;
 using std::vector;
 
-#if 1
 struct linenoiseCompletions {
   int       completionCount;
-  char * *  completionStrings;
+  UChar32** completionStrings;
 };
-#else
-struct linenoiseCompletions {
-  int       completionCount;
-  char * *  completionStrings;
-};
-#endif
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
@@ -179,13 +172,13 @@ struct PromptBase {                 // a convenience struct for grouping prompt 
 
 struct PromptInfo : public PromptBase {
 
-    PromptInfo( const UChar8 * textPtr, int columns ) {
+    PromptInfo( const UChar8* textPtr, int columns ) {
         promptExtraLines = 0;
         promptLastLinePosition = 0;
         promptPreviousInputLen = 0;
         promptPreviousLen = 0;
         promptScreenColumns = columns;
-        size_t bufferSize = strlen( reinterpret_cast< const char * >( textPtr ) ) + 1;
+        size_t bufferSize = strlen( reinterpret_cast< const char* >( textPtr ) ) + 1;
         UChar32* tempUnicodePromptSource = new UChar32[bufferSize];
         size_t ucharCount;
         bool success = utf8toUChar32string( tempUnicodePromptSource, textPtr, bufferSize, ucharCount, promptErrorCode );
@@ -323,14 +316,14 @@ public:
         if ( textLen == 0 ) {
             return;
         }
-        UChar32 * unicodeCopy = new UChar32[ textLen + 1 ];
+        UChar32* unicodeCopy = new UChar32[ textLen + 1 ];
         memcpy( unicodeCopy, text, sizeof( UChar32 ) * textLen );
         unicodeCopy[ textLen ] = 0;
         size_t tempBufferSize = sizeof( UChar32 ) * textLen + 1;
-        UChar8 * textCopy = new UChar8[ tempBufferSize ];
+        UChar8* textCopy = new UChar8[ tempBufferSize ];
         uChar32toUTF8string( textCopy, unicodeCopy, tempBufferSize );
         delete [] unicodeCopy;
-        string textCopyString( reinterpret_cast< const char * >( textCopy ) );
+        string textCopyString( reinterpret_cast< const char* >( textCopy ) );
         delete[] textCopy;
         if ( lastAction == actionKill ) {
             int slot = indexToSlot[0];
@@ -445,7 +438,7 @@ static int atexit_registered = 0; /* register atexit just 1 time */
 static int historyMaxLen = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
 static int historyLen = 0;
 static int historyIndex = 0;
-static UChar8 * * history = NULL;
+static UChar8** history = NULL;
 
 // used to emulate Windows command prompt on down-arrow after a recall
 // we use -2 as our "not set" value because we add 1 to the previous index on down-arrow,
@@ -618,7 +611,7 @@ static void setDisplayAttribute( bool enhancedDisplay ) {
  * @param len  count of characters in the buffer
  * @param pos  current cursor position within the buffer (0 <= pos <= len)
  */
-static void dynamicRefresh( PromptBase & pi, UChar32 * buf32, int len, int pos ) {
+static void dynamicRefresh( PromptBase & pi, UChar32* buf32, int len, int pos ) {
 
     // calculate the position of the end of the prompt
     int xEndOfPrompt, yEndOfPrompt;
@@ -1161,9 +1154,9 @@ static int linenoiseReadChar( void ){
             }
             for ( int i = 0; i < ret; ++i ) {
                 unsigned int key = static_cast<unsigned int>( keys[i] );
-                char * friendlyTextPtr;
+                char* friendlyTextPtr;
                 char friendlyTextBuf[10];
-                const char * prefixText = (key < 0x80) ? "" : "highbit-";
+                const char* prefixText = (key < 0x80) ? "" : "highbit-";
                 unsigned int keyCopy = (key < 0x80) ? key : key - 0x80;
                 if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
                     friendlyTextBuf[0] = '\'';
@@ -1261,16 +1254,16 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     }
     ++startIndex;
     int itemLength = pos - startIndex;
-    UChar32 * unicodeCopy = new UChar32[ itemLength + 1 ];
+    UChar32* unicodeCopy = new UChar32[ itemLength + 1 ];
     memcpy( unicodeCopy, &buf32[startIndex], sizeof( UChar32 ) * itemLength );
     unicodeCopy[ itemLength ] = 0;
     size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
-    UChar8 * parseItem = new UChar8[ tempBufferSize ];
+    UChar8* parseItem = new UChar8[ tempBufferSize ];
     uChar32toUTF8string( parseItem, unicodeCopy, tempBufferSize );
     delete [] unicodeCopy;
 
     // get a list of completions
-    completionCallback( reinterpret_cast< char * >( parseItem ), &lc );
+    completionCallback( reinterpret_cast< char* >( parseItem ), &lc );
     delete [] parseItem;
 
     // if no completions, we are done
@@ -1283,9 +1276,9 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // at least one completion
     int longest = 0;
     int displayLength = 0;
-    UChar32 * displayText = 0;
+    UChar32* displayText = 0;
     if ( lc.completionCount == 1 ) {
-        longest = strlen( lc.completionStrings[0] );
+        longest = strlen32( lc.completionStrings[0] );
     }
     else {
         bool keepGoing = true;
@@ -1373,7 +1366,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     if ( showCompletions ) {
         longest = 0;
         for ( int j = 0; j < lc.completionCount; ++j) {
-            itemLength = strlen( lc.completionStrings[j] );
+            itemLength = strlen32( lc.completionStrings[j] );
             if ( itemLength > longest ) {
                 longest = itemLength;
             }
@@ -1439,8 +1432,9 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             for ( int column = 0; column < columnCount; ++column ) {
                 int index = ( column * rowCount ) + row;
                 if ( index < lc.completionCount ) {
-                    itemLength = strlen( lc.completionStrings[index] );
-                    printf( "%s", lc.completionStrings[index] );
+                    itemLength = strlen32( lc.completionStrings[index] );
+                    fflush( stdout );
+                    if ( write32( 1, lc.completionStrings[index], itemLength ) == -1 ) return -1;
                     if ( ( ( column + 1 ) * rowCount ) + row < lc.completionCount ) {
                         for ( int k = itemLength; k < longest; ++k ) {
                             printf( " " );
@@ -1990,10 +1984,10 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             // if not already recalling, add the current line to the history list so we don't have to special case it
             if ( historyIndex == historyLen - 1 ) {
                 free( history[historyLen - 1] );
-                size_t tempBufferSize = 4 * len + 1;
-                UChar8 * tempBuffer = new UChar8[tempBufferSize];
+                size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
+                UChar8* tempBuffer = new UChar8[tempBufferSize];
                 uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer ) ) );
+                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
                 delete [] tempBuffer;
             }
             if ( historyLen > 1 ) {
@@ -2105,13 +2099,13 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         case ctrlChar( 'Y' ):   // ctrl-Y, yank killed text
             historyRecallMostRecent = false;
             {
-                string * restoredText = killRing.yank();
+                string* restoredText = killRing.yank();
                 if ( restoredText ) {
                     size_t bufferSize = restoredText->length() + 1;
-                    UChar32 * restoredUnicode = new UChar32[ bufferSize ];
+                    UChar32* restoredUnicode = new UChar32[ bufferSize ];
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8 * >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     if ( success ) {
                         memmove( buf32 + pos + ucharCount, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
                         memmove( buf32 + pos, restoredUnicode, sizeof( UChar32 ) * ucharCount );
@@ -2142,7 +2136,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     UChar32* restoredUnicode = new UChar32[ bufferSize ];
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8 * >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     if ( success ) {
                         if ( ucharCount > killRing.lastYankSize ) {
                             memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
@@ -2195,10 +2189,10 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             // if not already recalling, add the current line to the history list so we don't have to special case it
             if ( historyIndex == historyLen - 1 ) {
                 free( history[historyLen - 1] );
-                size_t tempBufferSize = 4 * len + 1;
-                UChar8 * tempBuffer = new UChar8[tempBufferSize];
+                size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
+                UChar8* tempBuffer = new UChar8[tempBufferSize];
                 uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer ) ) );
+                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
                 delete [] tempBuffer;
             }
             if ( historyLen > 1 ) {
@@ -2275,7 +2269,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
  */
 char* linenoise( const char* prompt ) {
     if ( isatty( STDIN_FILENO ) ) {             // input is from a terminal
-        PromptInfo pi( reinterpret_cast< const UChar8 * >( prompt ), getScreenColumns() );
+        PromptInfo pi( reinterpret_cast< const UChar8* >( prompt ), getScreenColumns() );
         if ( isUnsupportedTerm() ) {
             if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
             fflush( stdout );
@@ -2304,7 +2298,7 @@ char* linenoise( const char* prompt ) {
             }
             UChar8 buf8[ LINENOISE_MAX_LINE ];
             uChar32toUTF8string( buf8, buf32, LINENOISE_MAX_LINE );
-            return strdup( reinterpret_cast< char * >( buf8 ) );               // caller must free buffer
+            return strdup( reinterpret_cast< char* >( buf8 ) );               // caller must free buffer
         }
     }
     else {  // input not from a terminal, we should work with piped input, i.e. redirected stdin
@@ -2329,11 +2323,14 @@ void linenoiseSetCompletionCallback( linenoiseCompletionCallback* fn ) {
 }
 
 void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
-    size_t len = strlen( str );
-    char* copy = reinterpret_cast<char *>( malloc( len + 1 ) );
-    memcpy( copy, str, len + 1 );
-    lc->completionStrings = reinterpret_cast<char**>( realloc( lc->completionStrings, sizeof( char* ) * ( lc->completionCount + 1 ) ) );
-    lc->completionStrings[lc->completionCount++] = copy;
+
+    size_t bufferSize = strlen( str ) + 1;
+    UChar32* unicodeString = new UChar32[ bufferSize ];
+    size_t ucharCount;
+    int errorCode;
+    bool success = utf8toUChar32string( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
+    lc->completionStrings = reinterpret_cast< UChar32** >( realloc( lc->completionStrings, sizeof( UChar32* ) * ( lc->completionCount + 1 ) ) );
+    lc->completionStrings[lc->completionCount++] = unicodeString;
 }
 
 int linenoiseHistoryAdd( const char* line ) {
@@ -2341,19 +2338,19 @@ int linenoiseHistoryAdd( const char* line ) {
         return 0;
     }
     if ( history == NULL ) {
-        history = reinterpret_cast< UChar8 * * >( malloc( sizeof( UChar8 * ) * historyMaxLen ) );
+        history = reinterpret_cast< UChar8** >( malloc( sizeof( UChar8* ) * historyMaxLen ) );
         if (history == NULL) {
             return 0;
         }
-        memset( history, 0, ( sizeof(char*) * historyMaxLen ) );
+        memset( history, 0, ( sizeof( char* ) * historyMaxLen ) );
     }
-    UChar8 * linecopy = reinterpret_cast< UChar8 * >( strdup( line ) );
+    UChar8* linecopy = reinterpret_cast< UChar8* >( strdup( line ) );
     if ( ! linecopy ) {
         return 0;
     }
     if ( historyLen == historyMaxLen ) {
         free( history[0] );
-        memmove( history, history + 1, sizeof(char*) * ( historyMaxLen - 1 ) );
+        memmove( history, history + 1, sizeof( char* ) * ( historyMaxLen - 1 ) );
         --historyLen;
         if ( --historyPreviousIndex < -1 ) {
             historyPreviousIndex = -2;
@@ -2361,7 +2358,7 @@ int linenoiseHistoryAdd( const char* line ) {
     }
 
     // convert newlines in multi-line code to spaces before storing
-    UChar8 * p = linecopy;
+    UChar8* p = linecopy;
     while ( *p ) {
         if ( *p == '\n' ) {
             *p = ' ';
@@ -2379,14 +2376,14 @@ int linenoiseHistorySetMaxLen( int len ) {
     }
     if ( history ) {
         int tocopy = historyLen;
-        UChar8 * * newHistory = reinterpret_cast< UChar8 * * >( malloc( sizeof( UChar8 * ) * len ) );
+        UChar8** newHistory = reinterpret_cast< UChar8** >( malloc( sizeof( UChar8* ) * len ) );
         if ( newHistory == NULL ) {
             return 0;
         }
         if ( len < tocopy ) {
             tocopy = len;
         }
-        memcpy( newHistory, history + historyMaxLen - tocopy, sizeof( UChar8 * ) * tocopy );
+        memcpy( newHistory, history + historyMaxLen - tocopy, sizeof( UChar8* ) * tocopy );
         free( history );
         history = newHistory;
     }

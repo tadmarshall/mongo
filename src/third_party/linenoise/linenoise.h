@@ -36,18 +36,11 @@
 #ifndef __LINENOISE_H
 #define __LINENOISE_H
 
-#if 1
 struct linenoiseCompletions;
-#else
-struct linenoiseCompletions {
-  int       completionCount;
-  char * *  completionStrings;
-};
-#endif
 
-typedef void( linenoiseCompletionCallback )( const char *, linenoiseCompletions * );
-void linenoiseSetCompletionCallback( linenoiseCompletionCallback * fn );
-void linenoiseAddCompletion( linenoiseCompletions * lc, const char * str );
+typedef void( linenoiseCompletionCallback )( const char *, linenoiseCompletions* );
+void linenoiseSetCompletionCallback( linenoiseCompletionCallback* fn );
+void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str );
 
 char *linenoise( const char* prompt );
 int linenoiseHistoryAdd( const char* line );

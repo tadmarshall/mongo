@@ -28,17 +28,16 @@
 #define write _write  // Microsoft headers use underscores in some names
 #endif
 
-int write32( int fileHandle, const UChar32 * string32, unsigned int len ) {
-    size_t tempBufferBytes = 4 * len + 1;
-    UChar8 * tempCharString = new UChar8[ tempBufferBytes ];
-    size_t count = uChar32toUTF8string( tempCharString, string32, tempBufferBytes );
-    int returnValue = write( fileHandle, tempCharString, count );
-    delete [] tempCharString;
-    return returnValue;
+size_t strlen32( const UChar32* str32 ) {
+    size_t length = 0;
+    while ( *str32++ ) {
+        ++length;
+    }
+    return length;
 }
 
-UChar32 * strcpy32( UChar32 * dest32, const UChar32 * source32 ) {
-    UChar32 * pOut = dest32;
+UChar32* strcpy32( UChar32* dest32, const UChar32* source32 ) {
+    UChar32* pOut = dest32;
     while ( *source32 ) {
         *pOut = *source32;
         ++pOut;
@@ -48,7 +47,48 @@ UChar32 * strcpy32( UChar32 * dest32, const UChar32 * source32 ) {
     return dest32;
 }
 
-size_t uChar32toUTF8string( UChar8 * dest8, const UChar32 * string32, const size_t outputBufferSizeInBytes ) {
+int write32( int fileHandle, const UChar32* string32, unsigned int len ) {
+    size_t tempBufferBytes = sizeof( UChar32 ) * len + 1;
+    UChar8* tempCharString = new UChar8[ tempBufferBytes ];
+    size_t count = uChar32toUTF8byCount( tempCharString, string32, len, tempBufferBytes );
+    int returnValue = write( fileHandle, tempCharString, count );
+    delete [] tempCharString;
+    return returnValue;
+}
+
+size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes ) {
+    size_t outputUTF8ByteCount = 0;
+    size_t reducedBufferSize = outputBufferSizeInBytes - 4;
+    while ( *string32 && charCount-- && outputUTF8ByteCount < reducedBufferSize ) {
+        UChar32 c = *string32++;
+        if ( c <= 0x7F ) {
+            *dest8++ = c;
+            outputUTF8ByteCount += 1;
+        }
+        else if ( c <= 0x7FF ) {
+            *dest8++ = 0xC0 | ( c >> 6 );
+            *dest8++ = 0x80 | ( 0x3F & c );
+            outputUTF8ByteCount += 2;
+        }
+        else if ( c <= 0xFFFF ) {
+            *dest8++ = 0xE0 | ( c >> 12 );
+            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
+            *dest8++ = 0x80 | ( 0x3F & c );
+            outputUTF8ByteCount += 3;
+        }
+        else if ( c <= 0x1FFFFF ) {
+            *dest8++ = 0xF0 | ( c >> 18 );
+            *dest8++ = 0x80 | ( 0x3F & ( c >> 12) );
+            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
+            *dest8++ = 0x80 | ( 0x3F & c );
+            outputUTF8ByteCount += 4;
+        }
+    }
+    *dest8 = 0;
+    return outputUTF8ByteCount;
+}
+
+size_t uChar32toUTF8string( UChar8* dest8, const UChar32* string32, size_t outputBufferSizeInBytes ) {
     size_t outputUTF8ByteCount = 0;
     size_t reducedBufferSize = outputBufferSizeInBytes - 4;
     while ( *string32 && outputUTF8ByteCount < reducedBufferSize ) {
@@ -81,14 +121,14 @@ size_t uChar32toUTF8string( UChar8 * dest8, const UChar32 * string32, const size
 }
 
 bool utf8toUChar32string(
-        UChar32 * uchar32output,
-        const UChar8 * utf8input,
-        const size_t outputBufferSizeInCharacters,
+        UChar32* uchar32output,
+        const UChar8* utf8input,
+        size_t outputBufferSizeInCharacters,
         size_t & outputUnicodeCharacterCount,
         int & conversionErrorCode ) {
     conversionErrorCode = BadUTF8_no_error;
-    unsigned char * pIn = const_cast< UChar8 * >( utf8input );
-    UChar32 * pOut = uchar32output;
+    unsigned char* pIn = const_cast< UChar8* >( utf8input );
+    UChar32* pOut = uchar32output;
     int reducedBufferSize = outputBufferSizeInCharacters - 1;
     while ( *pIn && ( pOut - uchar32output ) < reducedBufferSize ) {
         if ( pIn[0] <= 0x7F ) {         // 0x00000000 to 0x0000007F
