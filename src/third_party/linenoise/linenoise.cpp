@@ -546,6 +546,7 @@ static int getScreenColumns( void ) {
     return (cols > 0) ? cols : 80;
 }
 
+#if 0 // unused until command completion is reenabled
 static int getScreenRows( void ) {
     int rows;
 #ifdef _WIN32
@@ -558,6 +559,7 @@ static int getScreenRows( void ) {
 #endif
     return (rows > 0) ? rows : 24;
 }
+#endif // #if 0 // unused until command completion is reenabled
 
 static void setDisplayAttribute( bool enhancedDisplay ) {
 #ifdef _WIN32
@@ -2315,9 +2317,9 @@ char* linenoise( const char* prompt ) {
     if ( isatty( STDIN_FILENO ) ) {             // input is from a terminal
         PromptInfo pi( reinterpret_cast< const UChar8 * >( prompt ), getScreenColumns() );
         if ( isUnsupportedTerm() ) {
-            char buf8[ LINENOISE_MAX_LINE ];
-            printf( "%s", pi.promptText );
+            if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
             fflush( stdout );
+            char buf8[ LINENOISE_MAX_LINE ];
             if ( fgets( buf8, LINENOISE_MAX_LINE, stdin ) == NULL ) {
                 return NULL;
             }
