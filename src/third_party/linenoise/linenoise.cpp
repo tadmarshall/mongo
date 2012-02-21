@@ -104,6 +104,7 @@
 #include <sys/types.h>
 #include <sys/ioctl.h>
 #include <cctype>
+#include <wctype.h>
 
 #endif /* _WIN32 */
 
@@ -595,15 +596,15 @@ static void setDisplayAttribute( bool enhancedDisplay ) {
 #endif
 }
 
+#if 0 // unused until history search is reenabled
 /**
  * Display the dynamic incremental search prompt and the current user input line.
  * @param pi   PromptBase struct holding information about the prompt and our screen position
- * @param buf  input buffer to be displayed
+ * @param buf32  input buffer to be displayed
  * @param len  count of characters in the buffer
  * @param pos  current cursor position within the buffer (0 <= pos <= len)
  */
-//static void dynamicRefresh( DynamicPrompt& pi, char *buf, int len, int pos ) {
-static void dynamicRefresh( PromptBase& pi, UChar32* buf32, int len, int pos ) {
+static void dynamicRefresh( PromptBase & pi, UChar32 * buf32, int len, int pos ) {
 
     // calculate the position of the end of the prompt
     int xEndOfPrompt, yEndOfPrompt;
@@ -653,10 +654,10 @@ static void dynamicRefresh( PromptBase& pi, UChar32* buf32, int len, int pos ) {
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
 
     // display the prompt
-    if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return;
+    if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return;
 
     // display the input line
-    if ( write( 1, buf, len ) == -1 ) return;
+    if ( write32( 1, buf32, len ) == -1 ) return;
 
     // we have to generate our own newline on line wrap
     if ( xEndOfInput == 0 && yEndOfInput > 0 )
@@ -675,6 +676,7 @@ static void dynamicRefresh( PromptBase& pi, UChar32* buf32, int len, int pos ) {
 
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
+#endif // #if 0 // unused until history search is reenabled
 
 /**
  * Refresh the user's input line: the prompt is already onscreen and is not redrawn here
@@ -685,7 +687,7 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     // check for a matching brace/bracket/paren, remember its position if found
     int highlight = -1;
     if ( pos < len ) {
-        /* this scans for a brace matching buf[pos] to highlight */
+        /* this scans for a brace matching buf32[pos] to highlight */
         int scanDirection = 0;
         if ( strchr32( "}])", buf32[pos] ) )
             scanDirection = -1; /* backwards */
@@ -758,14 +760,14 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
 
     if ( highlight == -1 ) {  // write unhighlighted text
-        if ( write( 1, buf, len ) == -1 ) return;
+        if ( write32( 1, buf32, len ) == -1 ) return;
     }
     else {  // highlight the matching brace/bracket/parenthesis
-        if ( write( 1, buf, highlight ) == -1 ) return;
+        if ( write32( 1, buf32, highlight ) == -1 ) return;
         setDisplayAttribute( true );
-        if ( write( 1, &buf[highlight], 1 ) == -1 ) return;
+        if ( write32( 1, &buf32[highlight], 1 ) == -1 ) return;
         setDisplayAttribute( false );
-        if ( write( 1, buf + highlight + 1, len - highlight - 1 ) == -1 ) return;
+        if ( write32( 1, buf32 + highlight + 1, len - highlight - 1 ) == -1 ) return;
     }
 
     // we have to generate our own newline on line wrap
@@ -1240,12 +1242,14 @@ static int linenoiseReadChar( void ){
 #endif // #_WIN32
 }
 
+#if 0 // unused until command completion is reenabled
 static void freeCompletions( linenoiseCompletions* lc ) {
     for ( int i = 0; i < lc->completionCount; ++i )
         free( lc->completionStrings[i] );
     if ( lc->completionStrings )
         free( lc->completionStrings );
 }
+#endif // #if 0 // unused until command completion is reenabled
 
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
 // leave META alone
@@ -1488,7 +1492,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     if ( ! stopList || c == ctrlChar( 'C' ) ) {
         if ( write( 1, "\n", 1 ) == -1 ) return 0;
     }
-    if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
+    if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
 #ifndef _WIN32
     // we have to generate our own newline on line wrap on Linux
     if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
@@ -1519,7 +1523,7 @@ void linenoiseClearScreen( void ) {
 
 void InputBuffer::clearScreen( PromptBase& pi ) {
     linenoiseClearScreen();
-    if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) return;
+    if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return;
 #ifndef _WIN32
     // we have to generate our own newline on line wrap on Linux
     if ( pi.promptIndentation == 0 && pi.promptExtraLines > 0 )
@@ -2206,7 +2210,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
             raise( SIGSTOP );                       // Break out in mid-line
             enableRawMode();                        // Back from Linux shell, re-enter raw mode
-            if ( write( 1, pi.promptText, pi.promptChars ) == -1 ) break; // Redraw prompt
+            if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) break; // Redraw prompt
             refreshLine( pi );                      // Refresh the line
             break;
 #endif
