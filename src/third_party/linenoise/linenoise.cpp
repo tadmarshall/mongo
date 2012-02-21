@@ -119,6 +119,18 @@
 using std::string;
 using std::vector;
 
+#if 1
+struct linenoiseCompletions {
+  int       completionCount;
+  char * *  completionStrings;
+};
+#else
+struct linenoiseCompletions {
+  int       completionCount;
+  char * *  completionStrings;
+};
+#endif
+
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
 #define LINENOISE_MAX_LINE 4096
 
