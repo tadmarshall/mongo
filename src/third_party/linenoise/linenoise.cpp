@@ -546,7 +546,7 @@ static int getScreenColumns( void ) {
     return (cols > 0) ? cols : 80;
 }
 
-#if 0 // unused until command completion is reenabled
+//#if 0 // unused until command completion is reenabled
 static int getScreenRows( void ) {
     int rows;
 #ifdef _WIN32
@@ -559,7 +559,7 @@ static int getScreenRows( void ) {
 #endif
     return (rows > 0) ? rows : 24;
 }
-#endif // #if 0 // unused until command completion is reenabled
+//#endif // #if 0 // unused until command completion is reenabled
 
 static void setDisplayAttribute( bool enhancedDisplay ) {
 #ifdef _WIN32
@@ -691,18 +691,18 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     if ( pos < len ) {
         /* this scans for a brace matching buf32[pos] to highlight */
         int scanDirection = 0;
-        if ( strchr32( "}])", buf32[pos] ) )
+        if ( strchr( "}])", buf32[pos] ) )
             scanDirection = -1; /* backwards */
-        else if ( strchr32( "{[(", buf32[pos] ) )
+        else if ( strchr( "{[(", buf32[pos] ) )
             scanDirection = 1; /* forwards */
 
         if ( scanDirection ) {
             int unmatched = scanDirection;
             for ( int i = pos + scanDirection; i >= 0 && i < len; i += scanDirection ) {
                 /* TODO: the right thing when inside a string */
-                if ( strchr32( "}])", buf32[i] ) )
+                if ( strchr( "}])", buf32[i] ) )
                     --unmatched;
-                else if ( strchr32( "{[(", buf32[i] ) )
+                else if ( strchr( "{[(", buf32[i] ) )
                     ++unmatched;
 
                 if ( unmatched == 0 ) {
@@ -1047,7 +1047,6 @@ static unsigned int setMetaRoutine( unsigned int c ) {
 static int linenoiseReadChar( void ){
 #ifdef _WIN32
 
-#if 1 // if 1/0 -- testing
     INPUT_RECORD rec;
     DWORD count;
     int modifierKeys = 0;
@@ -1123,62 +1122,14 @@ static int linenoiseReadChar( void ){
             return modifierKeys | rec.Event.KeyEvent.uChar.UnicodeChar;
         }
     }
-#else // if 1/0 -- testing
-    INPUT_RECORD rec;
-    DWORD count;
-    int modifierKeys = 0;
-    bool escSeen = false;
-    while ( true ) {
-        ReadConsoleInputW( console_in, &rec, 1, &count );
-        if ( rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown ) {
-            continue;
-        }
-        modifierKeys = 0;
-        // AltGr is encoded as ( LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED ), so don't treat this combination as either CTRL or META
-        // we just turn off those two bits, so it is still possible to combine CTRL and/or META with an AltGr key by using right-Ctrl and/or left-Alt
-        if ( ( rec.Event.KeyEvent.dwControlKeyState & ( LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED ) ) == ( LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED ) ) {
-            rec.Event.KeyEvent.dwControlKeyState &= ~( LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED );
-        }
-        if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_CTRL_PRESSED | LEFT_CTRL_PRESSED ) ) {
-            modifierKeys |= CTRL;
-        }
-        if ( rec.Event.KeyEvent.dwControlKeyState & ( RIGHT_ALT_PRESSED | LEFT_ALT_PRESSED ) ) {
-            modifierKeys |= META;
-        }
-        if ( escSeen ) {
-            modifierKeys |= META;
-        }
-        if ( rec.Event.KeyEvent.uChar.UnicodeChar == 0 ) {
-            switch ( rec.Event.KeyEvent.wVirtualKeyCode ) {
-                case VK_LEFT:   return modifierKeys | LEFT_ARROW_KEY;
-                case VK_RIGHT:  return modifierKeys | RIGHT_ARROW_KEY;
-                case VK_UP:     return modifierKeys | UP_ARROW_KEY;
-                case VK_DOWN:   return modifierKeys | DOWN_ARROW_KEY;
-                case VK_DELETE: return modifierKeys | DELETE_KEY;
-                case VK_HOME:   return modifierKeys | HOME_KEY;
-                case VK_END:    return modifierKeys | END_KEY;
-                default: continue;                      // in raw mode, ReadConsoleInput shows shift, ctrl ...
-            }                                           //  ... ignore them
-        }
-        else if ( rec.Event.KeyEvent.uChar.UnicodeChar == ctrlChar( '[' ) ) { // ESC, set flag for later
-            escSeen = true;
-            continue;
-        }
-        else {
-            // we got a real character, return it
-            return modifierKeys | rec.Event.KeyEvent.uChar.UnicodeChar;
-        }
-    }
-#endif // if 1/0 -- testing
 
 #else
     unsigned int c;
     unsigned char oneChar;
-    int nread;
-
-    nread = read( 0, &oneChar, 1 );
-    if ( nread <= 0 )
+    int nread = read( 0, &oneChar, 1 );
+    if ( nread <= 0 ) {
         return 0;
+    }
     c = static_cast<unsigned int>( oneChar );
 
     // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
@@ -1244,14 +1195,14 @@ static int linenoiseReadChar( void ){
 #endif // #_WIN32
 }
 
-#if 0 // unused until command completion is reenabled
+//#if 0 // unused until command completion is reenabled
 static void freeCompletions( linenoiseCompletions* lc ) {
     for ( int i = 0; i < lc->completionCount; ++i )
         free( lc->completionStrings[i] );
     if ( lc->completionStrings )
         free( lc->completionStrings );
 }
-#endif // #if 0 // unused until command completion is reenabled
+//#endif // #if 0 // unused until command completion is reenabled
 
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
 // leave META alone
@@ -1278,7 +1229,6 @@ static const char breakChars[] = " =+-/\\*?\"'`&<>;|@{([])}";
 // maximum number of completions to display without asking
 static const int completionCountCutoff = 100;
 
-#if 0 // TODO -- disable command completion until UTF8 is working
 /**
  * Handle command completion, using a completionCallback() routine to provide possible substitutions
  * This routine handles the mechanics of updating the user's input buffer with possible replacement of
@@ -1293,22 +1243,23 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // a copy to parse.  we also handle the case where tab is hit while not at end-of-line.
     int startIndex = pos;
     while ( --startIndex >= 0 ) {
-        if ( strchr32( breakChars, buf32[startIndex] ) ) {
+        if ( strchr( breakChars, buf32[startIndex] ) ) {
             break;
         }
     }
     ++startIndex;
     int itemLength = pos - startIndex;
-    UChar32* parseItem = reinterpret_cast<UChar32 *>( malloc( sizeof( UChar32 ) * ( itemLength + 1 ) ) );
-    int i = 0;
-    for ( ; i < itemLength; ++i ) {
-        parseItem[i] = buf32[startIndex + i];
-    }
-    parseItem[i] = 0;
+    UChar32 * unicodeCopy = new UChar32[ itemLength + 1 ];
+    memcpy( unicodeCopy, &buf32[startIndex], sizeof( UChar32 ) * itemLength );
+    unicodeCopy[ itemLength ] = 0;
+    size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
+    UChar8 * parseItem = new UChar8[ tempBufferSize ];
+    uChar32toUTF8string( parseItem, unicodeCopy, tempBufferSize );
+    delete [] unicodeCopy;
 
     // get a list of completions
-    completionCallback( parseItem, &lc );
-    free( parseItem );
+    completionCallback( reinterpret_cast< char * >( parseItem ), &lc );
+    delete [] parseItem;
 
     // if no completions, we are done
     if ( lc.completionCount == 0 ) {
@@ -1504,7 +1455,6 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     refreshLine( pi );
     return 0;
 }
-#endif // #if 0 // TODO -- disable command completion until UTF8 is working
 
 /**
  * Clear the screen ONLY (no redisplay of anything)
@@ -1765,7 +1715,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
     // when history search returns control to us, we execute its terminating keystroke
     int terminatingKeystroke = -1;
 
-    // loop collecting characters, responding to ctrl characters
+    // loop collecting characters, respond to line editing characters
     while ( true ) {
         int c;
         if ( terminatingKeystroke == -1 ) {
@@ -1785,7 +1735,6 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             continue;
         }
 
-#if 0 // TODO -- disable command completion until we fix UTF8
         // ctrl-I/tab, command completion, needs to be before switch statement
         if ( c == ctrlChar( 'I' ) && completionCallback ) {
 
@@ -1808,7 +1757,6 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
 
             // deliberate fall-through here, so we use the terminating character
         }
-#endif
 
         switch ( c ) {
 
