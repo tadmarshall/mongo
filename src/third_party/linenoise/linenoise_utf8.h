@@ -16,7 +16,6 @@
  */
 
 typedef unsigned char   UChar8;     // UTF-8 octet
-//typedef unsigned short  UChar16;    // UTF-16 code unit
 typedef unsigned int    UChar32;    // Unicode code point
 
 // Error codes returned from utf8toUChar32string
@@ -28,9 +27,14 @@ enum BadUTF8 {
 };
 
 size_t strlen32( const UChar32* str32 );
+
 UChar32* strcpy32( UChar32* dest32, const UChar32* source32 );
+
+UChar32* strcpy8to32( UChar32* dest32, const char* source8 );
+
+int strncmp32( UChar32* first32, UChar32* second32, size_t length );
+
 //UChar32* strncpy32( UChar32* dest32, const UChar32* source32, size_t destLength );
-//UChar32* strcat32( UChar32* dest32, const UChar32* source32 );
 int write32( int fileHandle, const UChar32* string32, unsigned int len );
 
 size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes );

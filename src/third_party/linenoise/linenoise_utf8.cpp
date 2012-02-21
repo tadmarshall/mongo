@@ -47,6 +47,17 @@ UChar32* strcpy32( UChar32* dest32, const UChar32* source32 ) {
     return dest32;
 }
 
+UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
+    UChar32* pOut = dest32;
+    while ( *source8 ) {
+        *pOut = *source8;
+        ++pOut;
+        ++source8;
+    }
+    *pOut = 0;
+    return dest32;
+}
+
 int write32( int fileHandle, const UChar32* string32, unsigned int len ) {
     size_t tempBufferBytes = sizeof( UChar32 ) * len + 1;
     UChar8* tempCharString = new UChar8[ tempBufferBytes ];

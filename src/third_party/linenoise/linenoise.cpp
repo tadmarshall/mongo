@@ -233,13 +233,13 @@ struct PromptInfo : public PromptBase {
     }
 };
 
-#if 0 // TODO -- disable DynamicPrompt until UTF8 is working
+//#if 0 // TODO -- disable DynamicPrompt until UTF8 is working
 // Used with DynamicPrompt (history search)
 //
 static const char forwardSearchBasePrompt[] = "(i-search)`";
 static const char reverseSearchBasePrompt[] = "(reverse-i-search)`";
 static const char endSearchBasePrompt[] = "': ";
-static string previousSearchText;
+static UChar32* previousSearchText = 0;
 
 // changing prompt for "(reverse-i-search)`text':" etc.
 //
@@ -266,19 +266,19 @@ struct DynamicPrompt : public PromptBase {
         promptPreviousInputLen = 0;
         promptPreviousLen = promptChars;
         promptText = new UChar32[promptChars + 1];
-        strcpy32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
-        strcpy32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
+        strcpy8to32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
+        strcpy8to32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
         calculateScreenPosition( 0, 0, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
     }
 
     void updateSearchPrompt( void ) {
         delete [] promptText;
-        promptChars = endSearchBasePromptLen + searchTextLen +
-            ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
+        size_t promptStartLength = ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen;
+        promptChars = endSearchBasePromptLen + searchTextLen + promptStartLength;
         promptText = new UChar32[promptChars + 1];
-        strcpy32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
-        strcat32( promptText, searchText );
-        strcpy32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
+        strcpy8to32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
+        strcpy32( &promptText[ promptStartLength ], searchText );
+        strcpy8to32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
     }
 
     void updateSearchText( const UChar32* textPtr ) {
@@ -294,7 +294,7 @@ struct DynamicPrompt : public PromptBase {
         delete [] promptText;
     }
 };
-#endif // #if 0 // TODO -- disable DynamicPrompt until UTF8 is working
+//#endif // #if 0 // TODO -- disable DynamicPrompt until UTF8 is working
 
 class KillRing {
     static const int    capacity = 10;
@@ -374,7 +374,7 @@ class InputBuffer {
     int         pos;
 
     void clearScreen( PromptBase& pi );
-    //int incrementalHistorySearch( PromptBase& pi, int startChar );
+    int incrementalHistorySearch( PromptBase& pi, int startChar );
     int completeLine( PromptBase& pi );
     void refreshLine( PromptBase& pi );
 
@@ -600,7 +600,7 @@ static void setDisplayAttribute( bool enhancedDisplay ) {
 #endif
 }
 
-#if 0 // unused until history search is reenabled
+//#if 0 // unused until history search is reenabled
 /**
  * Display the dynamic incremental search prompt and the current user input line.
  * @param pi   PromptBase struct holding information about the prompt and our screen position
@@ -680,7 +680,7 @@ static void dynamicRefresh( PromptBase & pi, UChar32* buf32, int len, int pos ) 
 
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
-#endif // #if 0 // unused until history search is reenabled
+//#endif // #if 0 // unused until history search is reenabled
 
 /**
  * Refresh the user's input line: the prompt is already onscreen and is not redrawn here
@@ -1011,24 +1011,8 @@ static unsigned int escRoutine( unsigned int c ) {
     if ( read( 0, &c, 1 ) <= 0 ) return 0;
     return doDispatch( c, escDispatch );
 }
-#if 1
 static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, normalKeyRoutine };
 static CharacterDispatch initialDispatch = { 2, "\x1B\x7F", initialRoutines };
-#else
-static unsigned int hibitCRoutine( unsigned int c ) {
-    // xterm sends a bizarre sequence for Alt combos: 'C'+0x80 then '!'+0x80 for Alt-a for example
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
-    if ( c >= ( ' ' | 0x80 ) && c <= ( '?' | 0x80 ) ) {
-        if ( c == ( '?' | 0x80 ) ) {        // have to special case this, normal code would send
-            return META | ctrlChar( 'H' );  // Meta-_ (thank you xterm)
-        }
-        return META | ( c - 0x40 );
-    }
-    return escFailureRoutine( c );
-}
-static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, hibitCRoutine, normalKeyRoutine };
-static CharacterDispatch initialDispatch = { 3, "\x1B\x7F\xC3", initialRoutines };
-#endif
 
 // Special handling for the ESC key because it does double duty
 //
@@ -1203,10 +1187,12 @@ static int linenoiseReadChar( void ){
 }
 
 static void freeCompletions( linenoiseCompletions* lc ) {
-    for ( int i = 0; i < lc->completionCount; ++i )
+    for ( int i = 0; i < lc->completionCount; ++i ) {
         free( lc->completionStrings[i] );
-    if ( lc->completionStrings )
+    }
+    if ( lc->completionStrings ) {
         free( lc->completionStrings );
+    }
 }
 
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
@@ -1491,7 +1477,7 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
     refreshLine( pi );
 }
 
-#if 0 // TODO -- disable incremental search until UTF8 is working
+//#if 0 // TODO -- disable incremental search until UTF8 is working
 /**
  * Incremental history search -- take over the prompt and keyboard as the user types a search string,
  * deletes characters from it, changes direction, and either accepts the found line (for execution or
@@ -1501,10 +1487,19 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
  */
 int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
 
+    size_t bufferSize;
+    UChar32* tempUnicode;
+    size_t ucharCount;
+    int errorCode;
+
     // if not already recalling, add the current line to the history list so we don't have to special case it
     if ( historyIndex == historyLen - 1 ) {
-        history[historyLen - 1] = reinterpret_cast<char *>( realloc( history[historyLen - 1], len + 1 ) );
-        uChar32toUTF8string( history[historyLen - 1], buf32 );
+        free( history[historyLen - 1] );
+        size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
+        UChar8* tempBuffer = new UChar8[tempBufferSize];
+        uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
+        history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
+        delete [] tempBuffer;
     }
     int historyLineLength = len;
     int historyLinePosition = pos;
@@ -1581,7 +1576,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         case ctrlChar( 'S' ):
         case ctrlChar( 'R' ):
             if ( dp.searchTextLen == 0 ) {  // if no current search text, recall previous text
-                dp.updateSearchText( previousSearchText.c_str() );
+                if ( previousSearchText ) {
+                    dp.updateSearchText( previousSearchText );
+                }
             }
             if ( ( dp.direction ==  1 && c == ctrlChar( 'R' ) ) ||
                  ( dp.direction == -1 && c == ctrlChar( 'S' ) ) ) {
@@ -1594,23 +1591,29 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             break;
 
             // job control is its own thing
-#ifndef _WIN32
+//#ifndef _WIN32
         case ctrlChar( 'Z' ):   // ctrl-Z, job control
-            disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
-            raise( SIGSTOP );                       // Break out in mid-line
-            enableRawMode();                        // Back from Linux shell, re-enter raw mode
-            dynamicRefresh( dp, history[historyIndex], historyLineLength, historyLinePosition );
+//            disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
+//            raise( SIGSTOP );                       // Break out in mid-line
+//            enableRawMode();                        // Back from Linux shell, re-enter raw mode
+            bufferSize = historyLineLength + 1;
+            tempUnicode = new UChar32[ bufferSize ];
+            utf8toUChar32string( tempUnicode, history[historyIndex], bufferSize, ucharCount, errorCode );
+            dynamicRefresh( dp, tempUnicode, historyLineLength, historyLinePosition );
+            delete [] tempUnicode;
             continue;
             break;
-#endif
+//#endif
 
         // these characters update the search string, and hence the selected input line
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
             if ( dp.searchTextLen > 0 ) {
+                tempUnicode = new UChar32[ dp.searchTextLen ];
                 --dp.searchTextLen;
                 dp.searchText[dp.searchTextLen] = 0;
-                string newSearchText( dp.searchText );
-                dp.updateSearchText( newSearchText.c_str() );
+                strcpy32( tempUnicode, dp.searchText );
+                dp.updateSearchText( tempUnicode );
+                delete [] tempUnicode;
             }
             else {
                 beep();
@@ -1621,9 +1624,13 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             break;
 
         default:
-            if ( c >= ' ' && c < 256 ) {    // not an action character
-                string newSearchText = string( dp.searchText ) + static_cast<char>( c );
-                dp.updateSearchText( newSearchText.c_str() );
+            if ( c >= ' ' && c <= 0x0010FFFF ) {    // not an action character
+                tempUnicode = new UChar32[ dp.searchTextLen + 2 ];
+                strcpy32( tempUnicode, dp.searchText );
+                tempUnicode[ dp.searchTextLen ] = c;
+                tempUnicode[ dp.searchTextLen + 1 ] = 0;
+                dp.updateSearchText( tempUnicode );
+                delete [] tempUnicode;
             }
             else {
                 beep();
@@ -1632,6 +1639,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
 
         // if we are staying in search mode, search now
         if ( keepLooping ) {
+            UChar32* activeHistoryLine = new UChar32[ historyLineLength + 1 ];
+            utf8toUChar32string( activeHistoryLine, history[historyIndex], historyLineLength + 1, ucharCount, errorCode );
             if ( dp.searchTextLen > 0 ) {
                 bool found = false;
                 int historySearchIndex = historyIndex;
@@ -1643,7 +1652,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                 searchAgain = false;
                 while ( true ) {
                     while ( ( dp.direction > 0 ) ? ( lineSearchPos < lineLength ) : ( lineSearchPos >= 0 ) ) {
-                        if ( strncmp32( dp.searchText, &history[historySearchIndex][lineSearchPos], dp.searchTextLen) == 0 ) {
+                        if ( strncmp32( dp.searchText, &activeHistoryLine[lineSearchPos], dp.searchTextLen) == 0 ) {
                             found = true;
                             break;
                         }
@@ -1657,7 +1666,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                     else if ( ( dp.direction > 0 ) ? ( historySearchIndex < historyLen - 1 ) : ( historySearchIndex > 0 ) ) {
                         historySearchIndex += dp.direction;
+                        delete [] activeHistoryLine;
                         lineLength = strlen( history[historySearchIndex] );
+                        activeHistoryLine = new UChar32[ historyLineLength + 1 ];
                         lineSearchPos = ( dp.direction > 0 ) ? 0 : ( lineLength - dp.searchTextLen );
                     }
                     else {
@@ -1666,7 +1677,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                 }; // while
             }
-            dynamicRefresh( dp, history[historyIndex], historyLineLength, historyLinePosition ); // draw user's text with our prompt
+            dynamicRefresh( dp, activeHistoryLine, historyLineLength, historyLinePosition ); // draw user's text with our prompt
+            delete [] activeHistoryLine;
         }
     } // while
 
@@ -1690,11 +1702,17 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     dynamicRefresh( pb, buf32, len, pos );    // redraw the original prompt with current input
     pi.promptPreviousInputLen = len;
     pi.promptCursorRowOffset = pi.promptExtraLines + pb.promptCursorRowOffset;
-
-    previousSearchText = dp.searchText;     // save search text for possible reuse on ctrl-R ctrl-R
+    if ( previousSearchText ) {
+        free( previousSearchText );
+        previousSearchText = 0;
+    }
+    if ( dp.searchText ) {     // save search text for possible reuse on ctrl-R ctrl-R
+        previousSearchText = reinterpret_cast< UChar32* >( malloc( sizeof( UChar32 ) * ( dp.searchTextLen + 1 ) ) );
+        strcpy32( previousSearchText, dp.searchText );
+    }
     return c;                               // pass a character or -1 back to main loop
 }
-#endif // #if 0 // TODO -- disable incremental search until UTF8 is working
+//#endif // #if 0 // TODO -- disable incremental search until UTF8 is working
 
 int InputBuffer::getInputLine( PromptBase& pi ) {
 
@@ -2026,12 +2044,12 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             }
             break;
 
-#if 0 // TODO -- reenable history search
+//#if 0 // TODO -- reenable history search
         case ctrlChar( 'R' ):   // ctrl-R, reverse history search
         case ctrlChar( 'S' ):   // ctrl-S, forward history search
             terminatingKeystroke = incrementalHistorySearch( pi, c );
             break;
-#endif
+//#endif
 
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
             killRing.lastAction = KillRing::actionOther;
