@@ -1486,7 +1486,6 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
  * @param startChar the character that began the search, used to set the initial direction
  */
 int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
-
     size_t bufferSize;
     UChar32* tempUnicode;
     size_t ucharCount;
@@ -1496,9 +1495,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     if ( historyIndex == historyLen - 1 ) {
         free( history[historyLen - 1] );
         size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
-        UChar8* tempBuffer = new UChar8[tempBufferSize];
+        UChar8* tempBuffer = new UChar8[ tempBufferSize ];
         uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
-        history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
+        history[ historyLen - 1 ] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
         delete [] tempBuffer;
     }
     int historyLineLength = len;
@@ -1591,26 +1590,26 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             break;
 
             // job control is its own thing
-//#ifndef _WIN32
+#ifndef _WIN32
         case ctrlChar( 'Z' ):   // ctrl-Z, job control
-//            disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
-//            raise( SIGSTOP );                       // Break out in mid-line
-//            enableRawMode();                        // Back from Linux shell, re-enter raw mode
+            disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
+            raise( SIGSTOP );                       // Break out in mid-line
+            enableRawMode();                        // Back from Linux shell, re-enter raw mode
             bufferSize = historyLineLength + 1;
             tempUnicode = new UChar32[ bufferSize ];
-            utf8toUChar32string( tempUnicode, history[historyIndex], bufferSize, ucharCount, errorCode );
+            utf8toUChar32string( tempUnicode, history[ historyIndex ], bufferSize, ucharCount, errorCode );
             dynamicRefresh( dp, tempUnicode, historyLineLength, historyLinePosition );
             delete [] tempUnicode;
             continue;
             break;
-//#endif
+#endif
 
         // these characters update the search string, and hence the selected input line
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
             if ( dp.searchTextLen > 0 ) {
                 tempUnicode = new UChar32[ dp.searchTextLen ];
                 --dp.searchTextLen;
-                dp.searchText[dp.searchTextLen] = 0;
+                dp.searchText[ dp.searchTextLen ] = 0;
                 strcpy32( tempUnicode, dp.searchText );
                 dp.updateSearchText( tempUnicode );
                 delete [] tempUnicode;
