@@ -58,6 +58,18 @@ UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
     return dest32;
 }
 
+int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
+    while ( length-- ) {
+        if ( *first32 == 0 || *first32 != *second32 ) {
+            return *first32 - *second32;
+        }
+        ++first32;
+        ++second32;
+    }
+    return 0;
+}
+
+
 int write32( int fileHandle, const UChar32* string32, unsigned int len ) {
     size_t tempBufferBytes = sizeof( UChar32 ) * len + 1;
     UChar8* tempCharString = new UChar8[ tempBufferBytes ];
@@ -140,15 +152,16 @@ bool utf8toUChar32string(
     conversionErrorCode = BadUTF8_no_error;
     unsigned char* pIn = const_cast< UChar8* >( utf8input );
     UChar32* pOut = uchar32output;
+    UChar32 uchar32;
     int reducedBufferSize = outputBufferSizeInCharacters - 1;
     while ( *pIn && ( pOut - uchar32output ) < reducedBufferSize ) {
         if ( pIn[0] <= 0x7F ) {         // 0x00000000 to 0x0000007F
-            *pOut++ = pIn[0];
+            uchar32 = pIn[0];
             pIn += 1;
         }
         else if ( pIn[0] <= 0xDF ) {    // 0x00000080 to 0x000007FF
             if ( ( pIn[0] >= 0xC2 ) && ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[0] & 0x1F ) << 6 ) | ( pIn[1] & 0x3F );
+                uchar32 = ( ( pIn[0] & 0x1F ) << 6 ) | ( pIn[1] & 0x3F );
                 pIn += 2;
             }
             else {
@@ -158,7 +171,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] == 0xE0 ) {    // 0x00000800 to 0x00000FFF
             if ( ( pIn[1] >= 0xA0 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                uchar32 = ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
                 pIn += 3;
             }
             else {
@@ -168,7 +181,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] <= 0xEC ) {    // 0x00001000 to 0x0000CFFF
             if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
                 pIn += 3;
             }
             else {
@@ -178,7 +191,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] == 0xED ) {    // 0x0000D000 to 0x0000D7FF
             if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0x9F ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                *pOut++ = ( 0x0D << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                uchar32 = ( 0x0D << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
                 pIn += 3;
             }
             //                          // 0x0000D800 to 0x0000DFFF -- illegal surrogate value
@@ -193,7 +206,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] <= 0xEF ) {    // 0x0000E000 to 0x0000FFFF
             if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
                 pIn += 3;
             }
             else {
@@ -203,7 +216,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] == 0xF0 ) {    // 0x00010000 to 0x0003FFFF
             if ( ( pIn[1] >= 0x90 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF )  && ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
+                uchar32 = ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
                 pIn += 4;
             }
             else {
@@ -213,7 +226,7 @@ bool utf8toUChar32string(
         }
         else if ( pIn[0] <= 0xF4 ) {    // 0x00040000 to 0x0010FFFF
             if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF )  && ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
-                *pOut++ = ( ( pIn[0] & 0x07 ) << 18 ) | ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
+                uchar32 = ( ( pIn[0] & 0x07 ) << 18 ) | ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
                 pIn += 4;
             }
             else {
@@ -224,6 +237,9 @@ bool utf8toUChar32string(
         else {
             conversionErrorCode = BadUTF8_invalid_byte;
             break;
+        }
+        if ( uchar32 != 0xFEFF ) {  // do not store Byte Order Mark
+            *pOut++ = uchar32;
         }
     }
     *pOut = 0;

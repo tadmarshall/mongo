@@ -1494,9 +1494,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     // if not already recalling, add the current line to the history list so we don't have to special case it
     if ( historyIndex == historyLen - 1 ) {
         free( history[historyLen - 1] );
-        size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
-        UChar8* tempBuffer = new UChar8[ tempBufferSize ];
-        uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
+        bufferSize = sizeof( UChar32 ) * len + 1;
+        UChar8* tempBuffer = new UChar8[ bufferSize ];
+        uChar32toUTF8string( tempBuffer, buf32, bufferSize );
         history[ historyLen - 1 ] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
         delete [] tempBuffer;
     }
@@ -1516,6 +1516,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     bool keepLooping = true;
     bool useSearchedLine = true;
     bool searchAgain = false;
+    UChar32* activeHistoryLine = 0;
     while ( keepLooping ) {
         c = linenoiseReadChar();
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
@@ -1638,8 +1639,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
 
         // if we are staying in search mode, search now
         if ( keepLooping ) {
-            UChar32* activeHistoryLine = new UChar32[ historyLineLength + 1 ];
-            utf8toUChar32string( activeHistoryLine, history[historyIndex], historyLineLength + 1, ucharCount, errorCode );
+            bufferSize = historyLineLength + 1;
+            activeHistoryLine = new UChar32[ bufferSize ];
+            utf8toUChar32string( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
             if ( dp.searchTextLen > 0 ) {
                 bool found = false;
                 int historySearchIndex = historyIndex;
@@ -1651,7 +1653,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                 searchAgain = false;
                 while ( true ) {
                     while ( ( dp.direction > 0 ) ? ( lineSearchPos < lineLength ) : ( lineSearchPos >= 0 ) ) {
-                        if ( strncmp32( dp.searchText, &activeHistoryLine[lineSearchPos], dp.searchTextLen) == 0 ) {
+                        if ( strncmp32( dp.searchText, &activeHistoryLine[ lineSearchPos ], dp.searchTextLen) == 0 ) {
                             found = true;
                             break;
                         }
@@ -1665,9 +1667,11 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                     else if ( ( dp.direction > 0 ) ? ( historySearchIndex < historyLen - 1 ) : ( historySearchIndex > 0 ) ) {
                         historySearchIndex += dp.direction;
+                        lineLength = strlen( reinterpret_cast< char* >( history[ historySearchIndex ] ) );
+                        bufferSize = lineLength + 1;
                         delete [] activeHistoryLine;
-                        lineLength = strlen( history[historySearchIndex] );
-                        activeHistoryLine = new UChar32[ historyLineLength + 1 ];
+                        activeHistoryLine = new UChar32[ bufferSize ];
+                        utf8toUChar32string( activeHistoryLine, history[ historySearchIndex ], bufferSize, ucharCount, errorCode );
                         lineSearchPos = ( dp.direction > 0 ) ? 0 : ( lineLength - dp.searchTextLen );
                     }
                     else {
@@ -1676,14 +1680,19 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                 }; // while
             }
+            if ( activeHistoryLine ) {
+                delete [] activeHistoryLine;
+            }
+            bufferSize = historyLineLength + 1;
+            activeHistoryLine = new UChar32[ bufferSize ];
+            utf8toUChar32string( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
             dynamicRefresh( dp, activeHistoryLine, historyLineLength, historyLinePosition ); // draw user's text with our prompt
-            delete [] activeHistoryLine;
         }
     } // while
 
     // leaving history search, restore previous prompt, maybe make searched line current
     PromptBase pb;
-    pb.promptText = &pi.promptText[pi.promptLastLinePosition];
+    pb.promptText = &pi.promptText[ pi.promptLastLinePosition ];
     pb.promptChars = pi.promptIndentation;
     pb.promptExtraLines = 0;
     pb.promptIndentation = pi.promptIndentation;
@@ -1694,9 +1703,12 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     pb.promptPreviousLen = dp.promptChars;
     if ( useSearchedLine ) {
         historyRecallMostRecent = true;
-        strcpy32( buf32, history[historyIndex] );
+        strcpy32( buf32, activeHistoryLine );
         len = historyLineLength;
         pos = historyLinePosition;
+    }
+    if ( activeHistoryLine ) {
+        delete [] activeHistoryLine;
     }
     dynamicRefresh( pb, buf32, len, pos );    // redraw the original prompt with current input
     pi.promptPreviousInputLen = len;
