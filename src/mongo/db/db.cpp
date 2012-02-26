@@ -74,6 +74,14 @@ namespace mongo {
     void startReplication();
     void exitCleanly( ExitCode code );
 
+#ifdef _WIN32
+    ntServiceDefaultStrings defaultServiceStrings = {
+        L"MongoDB",
+        L"Mongo DB",
+        L"Mongo DB Server"
+    };
+#endif
+
     CmdLine cmdLine;
     static bool scriptingEnabled = true;
     bool noHttpInterface = false;
@@ -669,7 +677,6 @@ int main(int argc, char* argv[]) {
     ("opIdMem", "DEPRECATED")
     ;
 
-
     positional_options.add("command", 3);
     visible_options.add(general_options);
 #if defined(_WIN32)
@@ -1066,11 +1073,10 @@ int main(int argc, char* argv[]) {
 #endif
 
 #if defined(_WIN32)
-        if (serviceParamsCheck( params, dbpath, argc, argv )) {
+        if (serviceParamsCheck( params, dbpath, defaultServiceStrings, argc, argv )) {
             return 0;
         }
 #endif
-
 
         if (sizeof(void*) == 4 && !journalExplicit){
             // trying to make this stand out more like startup warnings

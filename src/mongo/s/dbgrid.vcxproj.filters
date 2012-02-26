@@ -554,6 +554,9 @@
     <ClCompile Include="..\util\version.cpp">
       <Filter>Shared Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\ntservice.cpp">
+      <Filter>Shared Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Library Include="..\..\..\..\js\js32d.lib" />
@@ -620,6 +623,9 @@
       <Filter>Header Shared</Filter>
     </ClInclude>
     <ClInclude Include="..\util\version.h">
+      <Filter>Header Shared</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\ntservice.h">
       <Filter>Header Shared</Filter>
     </ClInclude>
   </ItemGroup>
