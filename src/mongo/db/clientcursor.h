@@ -139,6 +139,10 @@ namespace mongo {
             }
             operator bool() { return _c; }
             ClientCursor * operator-> () { return _c; }
+            void release() {
+                _c = 0;
+                _id = -1;
+            }
         private:
             ClientCursor *_c;
             CursorId _id;
@@ -358,6 +362,9 @@ namespace mongo {
         void setDoingDeletes( bool doingDeletes ) {_doingDeletes = doingDeletes; }
 
         void slaveReadTill( const OpTime& t ) { _slaveReadTill = t; }
+        
+        /** Just for testing. */
+        OpTime getSlaveReadTill() const { return _slaveReadTill; }
 
     public: // static methods
 
