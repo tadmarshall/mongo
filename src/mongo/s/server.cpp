@@ -192,12 +192,22 @@ namespace mongo {
     }
 
 void printShardingVersionInfo(bool out) {
+#ifdef _WIN32
+    DWORD pid = GetCurrentProcessId();
+#else
+    pid_t pid = getpid();
+#endif
     if (out) {
-        cout << mongosCommand << " " << mongodVersion() << " starting (--help for usage)" << endl;
+        cout << "MongoS " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
+                ( sizeof(int*) == 4 ? " 32" : " 64" ) << "-bit host=" << getHostNameCached() << " (--help for usage)" << endl;
+        DEV cout << "_DEBUG build" << endl;
         cout << "git version: " << gitVersion() << endl;
         cout <<  "build sys info: " << sysInfo() << endl;
-    } else {
-        log() << mongosCommand << " " << mongodVersion() << " starting (--help for usage)" << endl;
+    } else
+    {
+        log() << "MongoS " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
+                ( sizeof(int*) == 4 ? " 32" : " 64" ) << "-bit host=" << getHostNameCached() << " (--help for usage)" << endl;
+        DEV log() << "_DEBUG build" << endl;
         printGitVersion();
         printSysInfo();
         printCommandLineOpts();
@@ -339,8 +349,6 @@ int _main(int argc, char* argv[]) {
 
     upgradeFlagOnCommandLine = params.count( "upgrade" ) > 0;
 
-    printShardingVersionInfo(false);
-
 #if defined(_WIN32)
     if ( serviceParamsCheck( params, "", defaultServiceStrings, argc, argv ) ) {
         return 0;   // this means that we are running as a service, and we won't
@@ -352,6 +360,7 @@ int _main(int argc, char* argv[]) {
 #endif
 
     setThreadName( "mongosMain" );
+    printShardingVersionInfo( false );
 
     // set some global state
 
@@ -431,10 +440,9 @@ int _main(int argc, char* argv[]) {
 namespace mongo {
     bool initService() {
         ServiceController::reportStatus( SERVICE_RUNNING );
-
-        setThreadName( "mongosService" );
-
         log() << "Service running" << endl;
+        setThreadName( "mongosService" );
+        printShardingVersionInfo( false );
 
         // set some global state
 
@@ -468,7 +476,7 @@ namespace mongo {
             task::repeat(new CheckConfigServers, 60*1000);
         }
 
-        int configError = configServer.checkConfigVersion( upgradeFlagOnCommandLine );
+        int configError = configServer.checkConfigVersion( false );
         if ( configError ) {
             if ( configError > 0 ) {
                 cout << "upgrade success!" << endl;
@@ -503,15 +511,15 @@ int main(int argc, char* argv[]) {
         return _main(argc, argv);
     }
     catch(DBException& e) { 
-        cout << "uncaught exception in mongos main:" << endl;
+        cout << "uncaught DBException in mongos main:" << endl;
         cout << e.toString() << endl;
     }
     catch(std::exception& e) { 
-        cout << "uncaught exception in mongos main:" << endl;
+        cout << "uncaught std::exception in mongos main:" << endl;
         cout << e.what() << endl;
     }
     catch(...) { 
-        cout << "uncaught exception in mongos main" << endl;
+        cout << "uncaught unknown exception in mongos main" << endl;
     }
     return 20;
 }
@@ -525,6 +533,12 @@ void mongo::exitCleanly( ExitCode code ) {
 
 void mongo::dbexit( ExitCode rc, const char *why, bool tryToGetLock ) {
     dbexitCalled = true;
+#ifdef _WIN32
+    if ( rc == EXIT_WINDOWS_SERVICE_STOP ) {
+        log() << "dbexit: exiting because Windows service was stopped" << endl;
+        return;
+    }
+#endif
     log() << "dbexit: " << why
           << " rc:" << rc
           << " " << ( why ? why : "" )
