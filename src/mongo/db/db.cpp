@@ -554,6 +554,7 @@ namespace mongo {
 #if defined(_WIN32)
     bool initService() {
         ServiceController::reportStatus( SERVICE_RUNNING );
+        log() << "Service running" << endl;
         initAndListen( cmdLine.port );
         return true;
     }
