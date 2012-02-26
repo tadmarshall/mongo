@@ -20,7 +20,6 @@
 #include "../db/client.h"
 #include "winutil.h"
 #include "text.h"
-#include <direct.h>
 
 #if defined(_WIN32)
 
@@ -238,16 +237,9 @@ namespace mongo {
 
         log() << "Service '" << toUtf8String(serviceName) << "' (" << toUtf8String(displayName) <<
                 ") installed with command line '" << commandLine.str() << "'" << endl;
-        bool hasSpace = serviceName.find(L' ') != wstring::npos;
-        string typeableName;
-        if ( hasSpace ) {
-            typeableName = "\"";
-            typeableName += toUtf8String(serviceName);
-            typeableName += "\"";
-        }
-        else {
-            typeableName = toUtf8String(serviceName);
-        }
+        string typeableName( ( serviceName.find(L' ') != wstring::npos ) ?
+                             "\"" + toUtf8String(serviceName) + "\""     :
+                             toUtf8String(serviceName) );
         log() << "Service can be started from the command line with 'net start " << typeableName << "'" << endl;
 
         bool serviceInstalled;
