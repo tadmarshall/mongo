@@ -1074,9 +1074,14 @@ int main(int argc, char* argv[]) {
 #endif
 
 #if defined(_WIN32)
-        if (serviceParamsCheck( params, dbpath, defaultServiceStrings, argc, argv )) {
-            return 0;
+        vector<string> disallowedOptions;
+        if (serviceParamsCheck( params, dbpath, defaultServiceStrings, disallowedOptions, argc, argv )) {
+            return 0;   // this means that we are running as a service, and we won't
+                        // reach this statement until initService() has run and returned,
+                        // but it usually exits directly so we never actually get here
         }
+        // if we reach here, then we are not running as a service.  service installation
+        // exits directly and so never reaches here either.
 #endif
 
         if (sizeof(void*) == 4 && !journalExplicit){

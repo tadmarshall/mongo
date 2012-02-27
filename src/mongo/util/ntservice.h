@@ -34,6 +34,7 @@ namespace mongo {
             boost::program_options::variables_map& params,
             const std::string dbpath,
             const ntServiceDefaultStrings& defaultStrings,
+            const vector<string>& disallowedOptions,
             int argc,
             char* argv[]
     );

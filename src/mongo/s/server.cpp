@@ -59,7 +59,6 @@ namespace mongo {
     string mongosCommand;
     bool dbexitCalled = false;
     static bool scriptingEnabled = true;
-    static bool upgradeFlagOnCommandLine = false;
     static vector<string> configdbs;    // "leaks" memory until exit, but not much
 
     bool inShutdown() {
@@ -198,14 +197,14 @@ void printShardingVersionInfo(bool out) {
     pid_t pid = getpid();
 #endif
     if (out) {
-        cout << "MongoS " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
+        cout << "MongoS version " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
                 ( sizeof(int*) == 4 ? " 32" : " 64" ) << "-bit host=" << getHostNameCached() << " (--help for usage)" << endl;
         DEV cout << "_DEBUG build" << endl;
         cout << "git version: " << gitVersion() << endl;
         cout <<  "build sys info: " << sysInfo() << endl;
     } else
     {
-        log() << "MongoS " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
+        log() << "MongoS version " << versionString << " starting: pid=" << pid << " port=" << cmdLine.port <<
                 ( sizeof(int*) == 4 ? " 32" : " 64" ) << "-bit host=" << getHostNameCached() << " (--help for usage)" << endl;
         DEV log() << "_DEBUG build" << endl;
         printGitVersion();
@@ -347,10 +346,10 @@ int _main(int argc, char* argv[]) {
         }
     }
 
-    upgradeFlagOnCommandLine = params.count( "upgrade" ) > 0;
-
 #if defined(_WIN32)
-    if ( serviceParamsCheck( params, "", defaultServiceStrings, argc, argv ) ) {
+    vector<string> disallowedOptions;
+    disallowedOptions.push_back( "upgrade" );
+    if ( serviceParamsCheck( params, "", defaultServiceStrings, disallowedOptions, argc, argv ) ) {
         return 0;   // this means that we are running as a service, and we won't
                     // reach this statement until initService() has run and returned,
                     // but it usually exits directly so we never actually get here
@@ -406,7 +405,7 @@ int _main(int argc, char* argv[]) {
         task::repeat(new CheckConfigServers, 60*1000);
     }
 
-    int configError = configServer.checkConfigVersion( upgradeFlagOnCommandLine );
+    int configError = configServer.checkConfigVersion( params.count( "upgrade" ) > 0 );
     if ( configError ) {
         if ( configError > 0 ) {
             cout << "upgrade success!" << endl;
@@ -509,6 +508,10 @@ int main(int argc, char* argv[]) {
     try {
         doPreServerStartupInits();
         return _main(argc, argv);
+    }
+    catch(SocketException& e) { 
+        cout << "uncaught SocketException in mongos main:" << endl;
+        cout << e.toString() << endl;
     }
     catch(DBException& e) { 
         cout << "uncaught DBException in mongos main:" << endl;
