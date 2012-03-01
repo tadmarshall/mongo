@@ -1263,16 +1263,14 @@ namespace mongo {
 
     LPTOP_LEVEL_EXCEPTION_FILTER filtLast = 0;
 
-    LONG WINAPI exceptionFilter( struct _EXCEPTION_POINTERS *ExceptionInfo) {
+    LONG WINAPI exceptionFilter( struct _EXCEPTION_POINTERS *excPointers ) {
         char exceptionString[128];
-        sprintf( exceptionString, 
-                ( ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) ?
-                        "(access violation)" : "0x%08X",
-                        ExceptionInfo->ExceptionRecord->ExceptionCode );
+        sprintf_s( exceptionString, sizeof( exceptionString ),
+                ( excPointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) ?
+                "(access violation)" : "0x%08X", excPointers->ExceptionRecord->ExceptionCode );
         char addressString[128];
-        sprintf( addressString,
-                 ( sizeof( int* ) == 4 ) ? "0x%08X" : "0x%016X",
-                 ExceptionInfo->ExceptionRecord->ExceptionAddress );
+        sprintf_s( addressString, sizeof( addressString ), "0x%p",
+                 excPointers->ExceptionRecord->ExceptionAddress );
         log() << "*** unhandled exception " << exceptionString <<
                 " at " << addressString << ", terminating" << endl;
 
@@ -1283,7 +1281,7 @@ namespace mongo {
 
         // In debug builds, give debugger a chance to run
         if( filtLast ) 
-            return filtLast(ExceptionInfo);
+            return filtLast( excPointers );
         return EXCEPTION_EXECUTE_HANDLER;
     }
 
