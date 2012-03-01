@@ -1262,8 +1262,8 @@ namespace mongo {
     }
 
     LPTOP_LEVEL_EXCEPTION_FILTER filtLast = 0;
-    LONG WINAPI exceptionFilter( struct _EXCEPTION_POINTERS *ExceptionInfo) { 
 
+    LONG WINAPI exceptionFilter( struct _EXCEPTION_POINTERS *ExceptionInfo) {
         char exceptionString[128];
         sprintf( exceptionString, 
                 ( ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) ?
@@ -1276,7 +1276,7 @@ namespace mongo {
         log() << "*** unhandled exception " << exceptionString <<
                 " at " << addressString << ", terminating" << endl;
 
-        // If release builds, let dbexit() try to shut down cleanly
+        // In release builds, let dbexit() try to shut down cleanly
 #if !defined(_DEBUG)
         dbexit( EXIT_UNCAUGHT, "unhandled exception" );
 #endif
