@@ -115,6 +115,7 @@
 #include "linenoise_utf8.h"
 #include <string>
 #include <vector>
+#include <boost/smart_ptr/scoped_array.hpp>
 
 using std::string;
 using std::vector;
@@ -178,26 +179,26 @@ struct PromptInfo : public PromptBase {
         promptPreviousInputLen = 0;
         promptPreviousLen = 0;
         promptScreenColumns = columns;
-        size_t bufferSize = strlen( reinterpret_cast< const char* >( textPtr ) ) + 1;
-        UChar32* tempUnicodePromptSource = new UChar32[bufferSize];
+        size_t bufferSize = strlen( reinterpret_cast< const char * >( textPtr ) ) + 1;
+        boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
-        bool success = utf8toUChar32string( tempUnicodePromptSource, textPtr, bufferSize, ucharCount, promptErrorCode );
+        bool success = utf8toUChar32string( &tempUnicode[0], textPtr, bufferSize, ucharCount, promptErrorCode );
         if ( success ) {
             // strip control characters from the prompt -- we do allow newline
-            UChar32* pIn = tempUnicodePromptSource;
+            UChar32* pIn = &tempUnicode[0];
             UChar32* pOut = pIn;
             while ( *pIn ) {
                 UChar32 c = *pIn;
-                if ( '\n' == c || c >= ' ' ) {
+                if ( '\n' == c || ( 0x7F != c && c >= ' ' ) ) {
                     *pOut = c;
                     ++pOut;
                 }
                 ++pIn;
             }
             *pOut = 0;
-            promptChars = pOut - tempUnicodePromptSource;
+            promptChars = pOut - &tempUnicode[0];
             promptText = new UChar32[promptChars + 1];
-            strcpy32( promptText, tempUnicodePromptSource );
+            strcpy32( promptText, &tempUnicode[0] );
 
             int x = 0;
             for ( int i = 0; i < promptChars; ++i ) {
@@ -220,12 +221,12 @@ struct PromptInfo : public PromptBase {
             promptCursorRowOffset = promptExtraLines;
         }
         else {
-            promptText = 0;
+            promptText = new UChar32[ 1 ];
+            promptText[0] = 0;
             promptChars = 0;
             promptIndentation = 0;
             promptCursorRowOffset = 0;
         }
-        delete [] tempUnicodePromptSource;
     }
 
     ~PromptInfo() {
@@ -233,13 +234,12 @@ struct PromptInfo : public PromptBase {
     }
 };
 
-//#if 0 // TODO -- disable DynamicPrompt until UTF8 is working
 // Used with DynamicPrompt (history search)
 //
 static const char forwardSearchBasePrompt[] = "(i-search)`";
 static const char reverseSearchBasePrompt[] = "(reverse-i-search)`";
 static const char endSearchBasePrompt[] = "': ";
-static UChar32* previousSearchText = 0;
+static UChar32* previousSearchText = 0;     // remembered across invocations of linenoise()
 
 // changing prompt for "(reverse-i-search)`text':" etc.
 //
@@ -294,7 +294,6 @@ struct DynamicPrompt : public PromptBase {
         delete [] promptText;
     }
 };
-//#endif // #if 0 // TODO -- disable DynamicPrompt until UTF8 is working
 
 class KillRing {
     static const int    capacity = 10;
@@ -316,15 +315,16 @@ public:
         if ( textLen == 0 ) {
             return;
         }
-        UChar32* unicodeCopy = new UChar32[ textLen + 1 ];
-        memcpy( unicodeCopy, text, sizeof( UChar32 ) * textLen );
-        unicodeCopy[ textLen ] = 0;
-        size_t tempBufferSize = sizeof( UChar32 ) * textLen + 1;
-        UChar8* textCopy = new UChar8[ tempBufferSize ];
-        uChar32toUTF8string( textCopy, unicodeCopy, tempBufferSize );
-        delete [] unicodeCopy;
-        string textCopyString( reinterpret_cast< const char* >( textCopy ) );
-        delete[] textCopy;
+        string textCopyString;
+        {
+            boost::scoped_array< UChar32 > unicodeCopy( new UChar32[ textLen + 1 ] );
+            memcpy( &unicodeCopy[0], text, sizeof( UChar32 ) * textLen );
+            unicodeCopy[ textLen ] = 0;
+            size_t tempBufferSize = sizeof( UChar32 ) * textLen + 1;
+            boost::scoped_array< UChar8 > textCopy( new UChar8[ tempBufferSize ] );
+            uChar32toUTF8string( &textCopy[0], &unicodeCopy[0], tempBufferSize );
+            textCopyString = reinterpret_cast< const char* >( &textCopy[0] );
+        }
         if ( lastAction == actionKill ) {
             int slot = indexToSlot[0];
             theRing[slot] = forward ?
@@ -381,6 +381,19 @@ class InputBuffer {
 public:
     InputBuffer( UChar32* buffer, int bufferLen ) : buf32( buffer ), buflen( bufferLen - 1 ), len( 0 ), pos( 0 ) {
         buf32[0] = 0;
+    }
+    void preloadBuffer( const UChar8* preloadText, int preloadTextLen ) {
+        size_t bufferSize = preloadTextLen + 1;
+        boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
+        size_t ucharCount;
+        int errorCode;
+        bool success = utf8toUChar32string( &tempUnicode[0], preloadText, bufferSize, ucharCount, errorCode );
+        if ( success ) {
+            strcpy32( buf32, &tempUnicode[0] );
+            buf32[buflen] = 0;  // deal with edge case, note that buflen == bufferLen - 1
+            len = ucharCount;
+            pos = ucharCount;
+        }
     }
     int getInputLine( PromptBase& pi );
 };
@@ -554,7 +567,7 @@ static int getScreenRows( void ) {
     int rows;
 #ifdef _WIN32
     CONSOLE_SCREEN_BUFFER_INFO inf;
-    GetConsoleScreenBufferInfo( console_out, &inf );
+    GetConsoleScreenBufferInfo( GetStdHandle( STD_OUTPUT_HANDLE ), &inf );
     rows = 1 + inf.srWindow.Bottom - inf.srWindow.Top;
 #else
     struct winsize ws;
@@ -1186,15 +1199,6 @@ static int linenoiseReadChar( void ){
 #endif // #_WIN32
 }
 
-static void freeCompletions( linenoiseCompletions* lc ) {
-    for ( int i = 0; i < lc->completionCount; ++i ) {
-        free( lc->completionStrings[i] );
-    }
-    if ( lc->completionStrings ) {
-        free( lc->completionStrings );
-    }
-}
-
 // convert {CTRL + 'A'}, {CTRL + 'a'} and {CTRL + ctrlChar( 'A' )} into ctrlChar( 'A' )
 // leave META alone
 //
@@ -1212,6 +1216,21 @@ static int cleanupCtrl( int c ) {
         }
     }
     return c;
+}
+
+/**
+ * Free memory used in a recent command completion session
+ *
+ * @param lc pointer to a linenoiseCompletions struct
+ */
+static void freeCompletions( linenoiseCompletions* lc ) {
+    if ( lc->completionStrings ) {
+        for ( int i = 0; i < lc->completionCount; ++i ) {
+            delete [] lc->completionStrings[i];
+        }
+        free( lc->completionStrings );
+        lc->completionStrings = 0;
+    }
 }
 
 // break characters that may precede items to be completed
@@ -1240,17 +1259,17 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     }
     ++startIndex;
     int itemLength = pos - startIndex;
-    UChar32* unicodeCopy = new UChar32[ itemLength + 1 ];
-    memcpy( unicodeCopy, &buf32[startIndex], sizeof( UChar32 ) * itemLength );
-    unicodeCopy[ itemLength ] = 0;
-    size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
-    UChar8* parseItem = new UChar8[ tempBufferSize ];
-    uChar32toUTF8string( parseItem, unicodeCopy, tempBufferSize );
-    delete [] unicodeCopy;
+    {
+        boost::scoped_array< UChar32 > unicodeCopy( new UChar32[ itemLength + 1 ] );
+        memcpy( &unicodeCopy[0], &buf32[startIndex], sizeof( UChar32 ) * itemLength );
+        unicodeCopy[ itemLength ] = 0;
+        size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
+        boost::scoped_array< UChar8 > parseItem( new UChar8[ tempBufferSize ] );
+        uChar32toUTF8string( &parseItem[0], &unicodeCopy[0], tempBufferSize );
 
-    // get a list of completions
-    completionCallback( reinterpret_cast< char* >( parseItem ), &lc );
-    delete [] parseItem;
+        // get a list of completions
+        completionCallback( reinterpret_cast< char * >( &parseItem[0] ), &lc );
+    }
 
     // if no completions, we are done
     if ( lc.completionCount == 0 ) {
@@ -1262,7 +1281,6 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // at least one completion
     int longest = 0;
     int displayLength = 0;
-    UChar32* displayText = 0;
     if ( lc.completionCount == 1 ) {
         longest = strlen32( lc.completionStrings[0] );
     }
@@ -1288,7 +1306,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // if we can extend the item, extend it and return to main loop
     if ( longest > itemLength ) {
         displayLength = len + longest - itemLength;
-        displayText = reinterpret_cast<UChar32 *>( malloc( sizeof( UChar32 ) * ( displayLength + 1 ) ) );
+        boost::scoped_array< UChar32 > displayText( new UChar32[ displayLength + 1 ] );
         int j = 0;
         for ( ; j < startIndex; ++j ) {
             displayText[j] = buf32[j];
@@ -1297,8 +1315,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             displayText[j] = lc.completionStrings[0][k];
         }
         strcpy32( &displayText[j], &buf32[pos] );
-        strcpy32( buf32, displayText );
-        free( displayText );
+        strcpy32( buf32, &displayText[0] );
         pos = startIndex + longest;
         len = displayLength;
         refreshLine( pi );
@@ -1319,6 +1336,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
 
     // we got a second tab, maybe show list of possible completions
     bool showCompletions = true;
+    bool onNewLine = false;
     if ( lc.completionCount > completionCountCutoff ) {
         int savePos = pos;  // move cursor to EOL to avoid overwriting the command line
         pos = len;
@@ -1326,6 +1344,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         pos = savePos;
         printf( "\nDisplay all %d possibilities? (y or n)", lc.completionCount );
         fflush( stdout );
+        onNewLine = true;
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
             do {
                 c = linenoiseReadChar();
@@ -1362,10 +1381,12 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         if ( columnCount < 1) {
             columnCount = 1;
         }
-        int savePos = pos;  // move cursor to EOL to avoid overwriting the command line
-        pos = len;
-        refreshLine( pi );
-        pos = savePos;
+        if ( ! onNewLine ) {    // skip this if we showed "Display all %d possibilities?"
+            int savePos = pos;  // move cursor to EOL to avoid overwriting the command line
+            pos = len;
+            refreshLine( pi );
+            pos = savePos;
+        }
         int pauseRow = getScreenRows() - 1;
         int rowCount = ( lc.completionCount + columnCount - 1) / columnCount;
         for ( int row = 0; row < rowCount; ++row ) {
@@ -1477,7 +1498,6 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
     refreshLine( pi );
 }
 
-//#if 0 // TODO -- disable incremental search until UTF8 is working
 /**
  * Incremental history search -- take over the prompt and keyboard as the user types a search string,
  * deletes characters from it, changes direction, and either accepts the found line (for execution or
@@ -1487,7 +1507,6 @@ void InputBuffer::clearScreen( PromptBase& pi ) {
  */
 int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     size_t bufferSize;
-    UChar32* tempUnicode;
     size_t ucharCount;
     int errorCode;
 
@@ -1495,10 +1514,9 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     if ( historyIndex == historyLen - 1 ) {
         free( history[historyLen - 1] );
         bufferSize = sizeof( UChar32 ) * len + 1;
-        UChar8* tempBuffer = new UChar8[ bufferSize ];
-        uChar32toUTF8string( tempBuffer, buf32, bufferSize );
-        history[ historyLen - 1 ] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
-        delete [] tempBuffer;
+        boost::scoped_array< UChar8 > tempBuffer( new UChar8[ bufferSize ] );
+        uChar32toUTF8string( &tempBuffer[0], buf32, bufferSize );
+        history[ historyLen - 1 ] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( &tempBuffer[0] ) ) );
     }
     int historyLineLength = len;
     int historyLinePosition = pos;
@@ -1596,11 +1614,12 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
             raise( SIGSTOP );                       // Break out in mid-line
             enableRawMode();                        // Back from Linux shell, re-enter raw mode
-            bufferSize = historyLineLength + 1;
-            tempUnicode = new UChar32[ bufferSize ];
-            utf8toUChar32string( tempUnicode, history[ historyIndex ], bufferSize, ucharCount, errorCode );
-            dynamicRefresh( dp, tempUnicode, historyLineLength, historyLinePosition );
-            delete [] tempUnicode;
+            {
+                bufferSize = historyLineLength + 1;
+                boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
+                utf8toUChar32string( &tempUnicode[0], history[ historyIndex ], bufferSize, ucharCount, errorCode );
+                dynamicRefresh( dp, &tempUnicode[0], historyLineLength, historyLinePosition );
+            }
             continue;
             break;
 #endif
@@ -1608,12 +1627,11 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         // these characters update the search string, and hence the selected input line
         case ctrlChar( 'H' ):   // backspace/ctrl-H, delete char to left of cursor
             if ( dp.searchTextLen > 0 ) {
-                tempUnicode = new UChar32[ dp.searchTextLen ];
+                boost::scoped_array< UChar32 > tempUnicode( new UChar32[ dp.searchTextLen ] );
                 --dp.searchTextLen;
                 dp.searchText[ dp.searchTextLen ] = 0;
-                strcpy32( tempUnicode, dp.searchText );
-                dp.updateSearchText( tempUnicode );
-                delete [] tempUnicode;
+                strcpy32( &tempUnicode[0], dp.searchText );
+                dp.updateSearchText( &tempUnicode[0] );
             }
             else {
                 beep();
@@ -1625,12 +1643,11 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
 
         default:
             if ( c >= ' ' && c <= 0x0010FFFF ) {    // not an action character
-                tempUnicode = new UChar32[ dp.searchTextLen + 2 ];
-                strcpy32( tempUnicode, dp.searchText );
+                boost::scoped_array< UChar32 > tempUnicode( new UChar32[ dp.searchTextLen + 2 ] );
+                strcpy32( &tempUnicode[0], dp.searchText );
                 tempUnicode[ dp.searchTextLen ] = c;
                 tempUnicode[ dp.searchTextLen + 1 ] = 0;
-                dp.updateSearchText( tempUnicode );
-                delete [] tempUnicode;
+                dp.updateSearchText( &tempUnicode[0] );
             }
             else {
                 beep();
@@ -1645,7 +1662,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             if ( dp.searchTextLen > 0 ) {
                 bool found = false;
                 int historySearchIndex = historyIndex;
-                int lineLength = historyLineLength;
+                int lineLength = ucharCount;
                 int lineSearchPos = historyLinePosition;
                 if ( searchAgain ) {
                     lineSearchPos += dp.direction;
@@ -1667,11 +1684,11 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                     else if ( ( dp.direction > 0 ) ? ( historySearchIndex < historyLen - 1 ) : ( historySearchIndex > 0 ) ) {
                         historySearchIndex += dp.direction;
-                        lineLength = strlen( reinterpret_cast< char* >( history[ historySearchIndex ] ) );
-                        bufferSize = lineLength + 1;
+                        bufferSize = strlen( reinterpret_cast< char* >( history[ historySearchIndex ] ) ) + 1;
                         delete [] activeHistoryLine;
                         activeHistoryLine = new UChar32[ bufferSize ];
                         utf8toUChar32string( activeHistoryLine, history[ historySearchIndex ], bufferSize, ucharCount, errorCode );
+                        lineLength = ucharCount;
                         lineSearchPos = ( dp.direction > 0 ) ? 0 : ( lineLength - dp.searchTextLen );
                     }
                     else {
@@ -1714,21 +1731,28 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     pi.promptPreviousInputLen = len;
     pi.promptCursorRowOffset = pi.promptExtraLines + pb.promptCursorRowOffset;
     if ( previousSearchText ) {
-        free( previousSearchText );
+        delete [] previousSearchText;
         previousSearchText = 0;
     }
     if ( dp.searchText ) {     // save search text for possible reuse on ctrl-R ctrl-R
-        previousSearchText = reinterpret_cast< UChar32* >( malloc( sizeof( UChar32 ) * ( dp.searchTextLen + 1 ) ) );
+        previousSearchText = new UChar32[ dp.searchTextLen + 1 ];
         strcpy32( previousSearchText, dp.searchText );
     }
     return c;                               // pass a character or -1 back to main loop
 }
-//#endif // #if 0 // TODO -- disable incremental search until UTF8 is working
 
 int InputBuffer::getInputLine( PromptBase& pi ) {
 
     // The latest history entry is always our current buffer
-    linenoiseHistoryAdd( "" );
+    if ( len > 0 ) {
+        size_t bufferSize = sizeof( UChar32 ) * len + 1;
+        boost::scoped_array< char > tempBuffer( new char[ bufferSize ] );
+        uChar32toUTF8string( reinterpret_cast< UChar8 * >( &tempBuffer[0] ), buf32, bufferSize );
+        linenoiseHistoryAdd( &tempBuffer[0] );
+    }
+    else {
+        linenoiseHistoryAdd( "" );
+    }
     historyIndex = historyLen - 1;
     historyRecallMostRecent = false;
 
@@ -1749,6 +1773,11 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
 
     // when history search returns control to us, we execute its terminating keystroke
     int terminatingKeystroke = -1;
+
+    // if there is already text in the buffer, display it first
+    if ( len > 0 ) {
+        refreshLine( pi );
+    }
 
     // loop collecting characters, respond to line editing characters
     while ( true ) {
@@ -2014,10 +2043,9 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             if ( historyIndex == historyLen - 1 ) {
                 free( history[historyLen - 1] );
                 size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
-                UChar8* tempBuffer = new UChar8[tempBufferSize];
-                uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
-                delete [] tempBuffer;
+                boost::scoped_array< UChar8 > tempBuffer( new UChar8[ tempBufferSize ] );
+                uChar32toUTF8string( &tempBuffer[0], buf32, tempBufferSize );
+                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( &tempBuffer[0] ) ) );
             }
             if ( historyLen > 1 ) {
                 if ( c == UP_ARROW_KEY ) {
@@ -2055,12 +2083,10 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             }
             break;
 
-//#if 0 // TODO -- reenable history search
         case ctrlChar( 'R' ):   // ctrl-R, reverse history search
         case ctrlChar( 'S' ):   // ctrl-S, forward history search
             terminatingKeystroke = incrementalHistorySearch( pi, c );
             break;
-//#endif
 
         case ctrlChar( 'T' ):   // ctrl-T, transpose characters
             killRing.lastAction = KillRing::actionOther;
@@ -2131,13 +2157,13 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 string* restoredText = killRing.yank();
                 if ( restoredText ) {
                     size_t bufferSize = restoredText->length() + 1;
-                    UChar32* restoredUnicode = new UChar32[ bufferSize ];
+                    boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    bool success = utf8toUChar32string( &tempUnicode[0], reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     if ( success ) {
                         memmove( buf32 + pos + ucharCount, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
-                        memmove( buf32 + pos, restoredUnicode, sizeof( UChar32 ) * ucharCount );
+                        memmove( buf32 + pos, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
                         pos += ucharCount;
                         len += ucharCount;
                         refreshLine( pi );
@@ -2147,7 +2173,6 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     else {
                         beep();
                     }
-                    delete [] restoredUnicode;
                 }
                 else {
                     beep();
@@ -2162,17 +2187,17 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 string* restoredText = killRing.yankPop();
                 if ( restoredText ) {
                     size_t bufferSize = restoredText->length() + 1;
-                    UChar32* restoredUnicode = new UChar32[ bufferSize ];
+                    boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( restoredUnicode, reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    bool success = utf8toUChar32string( &tempUnicode[0], reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     if ( success ) {
                         if ( ucharCount > killRing.lastYankSize ) {
                             memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
-                            memmove( buf32 + pos - killRing.lastYankSize, restoredUnicode, sizeof( UChar32 ) * ucharCount );
+                            memmove( buf32 + pos - killRing.lastYankSize, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
                         }
                         else {
-                            memmove( buf32 + pos - killRing.lastYankSize, restoredUnicode, sizeof( UChar32 ) * ucharCount );
+                            memmove( buf32 + pos - killRing.lastYankSize, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
                             memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
                         }
                         pos += ucharCount - killRing.lastYankSize;
@@ -2183,7 +2208,6 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     else {
                         beep();
                     }
-                    delete [] restoredUnicode;
                     break;
                 }
             }
@@ -2219,10 +2243,9 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             if ( historyIndex == historyLen - 1 ) {
                 free( history[historyLen - 1] );
                 size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
-                UChar8* tempBuffer = new UChar8[tempBufferSize];
-                uChar32toUTF8string( tempBuffer, buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( tempBuffer ) ) );
-                delete [] tempBuffer;
+                boost::scoped_array< UChar8 > tempBuffer( new UChar8[tempBufferSize] );
+                uChar32toUTF8string( &tempBuffer[0], buf32, tempBufferSize );
+                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( &tempBuffer[0] ) ) );
             }
             if ( historyLen > 1 ) {
                 historyIndex = ( c == META + '<' ) ? 0 : historyLen - 1;
@@ -2288,6 +2311,70 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
     return len;
 }
 
+string preloadedBufferContents;     // used with linenoisePreloadBuffer
+string preloadErrorMessage;
+
+/**
+ * linenoisePreloadBuffer provides text to be inserted into the command buffer
+ *
+ * the provided text will be processed to be usable and will be used to preload
+ * the input buffer on the next call to linenoise()
+ *
+ * @param preloadText text to begin with on the next call to linenoise()
+ */
+void linenoisePreloadBuffer( const char* preloadText ) {
+
+    if ( ! preloadText ) {
+        return;
+    }
+    int bufferSize = strlen( preloadText ) + 1;
+    boost::scoped_array< char > tempBuffer( new char[ bufferSize ] );
+    strncpy( &tempBuffer[0], preloadText, bufferSize );
+
+    // remove characters that won't display correctly
+    char* pIn = &tempBuffer[0];
+    char* pOut = pIn;
+    bool controlsStripped = false;
+    bool whitespaceSeen = false;
+    while ( *pIn ) {
+        unsigned char c = *pIn++;       // we need unsigned so chars 0x80 and above are allowed
+        if ( '\r' == c ) {              // silently skip CR
+            continue;
+        }
+        if ( '\n' == c || '\t' == c ) { // note newline or tab
+            whitespaceSeen = true;
+            continue;
+        }
+        if ( 0x7F == c || c < ' ' ) {   // remove other control characters, flag for message
+            controlsStripped = true;
+            *pOut++ = ' ';
+            continue;
+        }
+        if ( whitespaceSeen ) {         // convert whitespace to a single space
+            *pOut++ = ' ';
+            whitespaceSeen = false;
+        }
+        *pOut++ = c;
+    }
+    *pOut = 0;
+    int processedLength = pOut - &tempBuffer[0];
+    bool lineTruncated = false;
+    if ( processedLength > ( LINENOISE_MAX_LINE - 1 ) ) {
+        lineTruncated = true;
+        tempBuffer[ LINENOISE_MAX_LINE - 1 ] = 0;
+    }
+    preloadedBufferContents = &tempBuffer[0];
+    if ( controlsStripped ) {
+        preloadErrorMessage += " [Edited line: control characters were converted to spaces]\n";
+    }
+    if ( lineTruncated ) {
+        preloadErrorMessage += " [Edited line: the line length was reduced from ";
+        char buf[128];
+        snprintf( buf, sizeof( buf ), "%d to %d]\n", processedLength, ( LINENOISE_MAX_LINE - 1 ) );
+        preloadErrorMessage += buf;
+    }
+}
+
 /**
  * linenoise is a readline replacement.
  *
@@ -2298,27 +2385,45 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
  */
 char* linenoise( const char* prompt ) {
     if ( isatty( STDIN_FILENO ) ) {             // input is from a terminal
+        UChar32 buf32[ LINENOISE_MAX_LINE ];
+        if ( ! preloadErrorMessage.empty() ) {
+            printf( "%s", preloadErrorMessage.c_str() );
+            fflush( stdout );
+            preloadErrorMessage.clear();
+        }
         PromptInfo pi( reinterpret_cast< const UChar8* >( prompt ), getScreenColumns() );
         if ( isUnsupportedTerm() ) {
             if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return 0;
             fflush( stdout );
-            char buf8[ LINENOISE_MAX_LINE ];
-            if ( fgets( buf8, LINENOISE_MAX_LINE, stdin ) == NULL ) {
-                return NULL;
+            if ( preloadedBufferContents.empty() ) {
+                char buf8[ LINENOISE_MAX_LINE ];
+                if ( fgets( buf8, LINENOISE_MAX_LINE, stdin ) == NULL ) {
+                    return NULL;
+                }
+                size_t len = strlen( buf8 );
+                while ( len && ( buf8[len - 1] == '\n' || buf8[len - 1] == '\r' ) ) {
+                    --len;
+                    buf8[len] = '\0';
+                }
+                return strdup( buf8 );          // caller must free buffer
             }
-            size_t len = strlen( buf8 );
-            while ( len && ( buf8[ len - 1 ] == '\n' || buf8[ len - 1 ] == '\r' ) ) {
-                --len;
-                buf8[ len ] = '\0';
+            else {
+                char* buf8 = strdup( preloadedBufferContents.c_str() );
+                preloadedBufferContents.clear();
+                return buf8;                    // caller must free buffer
             }
-            return strdup( buf8 );               // caller must free buffer
         }
         else {
-            UChar32 buf32[ LINENOISE_MAX_LINE ];
             if ( enableRawMode() == -1 ) {
                 return NULL;
             }
             InputBuffer ib( buf32, LINENOISE_MAX_LINE );
+            if ( ! preloadedBufferContents.empty() ) {
+                ib.preloadBuffer(
+                        reinterpret_cast< const UChar8 * >( preloadedBufferContents.c_str() ),
+                        preloadedBufferContents.length() );
+                preloadedBufferContents.clear();
+            }
             int count = ib.getInputLine( pi );
             disableRawMode();
             printf( "\n" );
