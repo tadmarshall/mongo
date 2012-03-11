@@ -112,6 +112,7 @@
 #include "linenoise.h"
 #include <string>
 #include <vector>
+#include <boost/smart_ptr/scoped_array.hpp>
 
 using std::string;
 using std::vector;
@@ -2173,12 +2174,12 @@ void linenoisePreloadBuffer( const char* preloadText ) {
         return;
     }
     int bufferSize = strlen( preloadText ) + 1;
-    unsigned char* tempBuffer = new unsigned char[ bufferSize ];
-    strncpy( reinterpret_cast< char * >( tempBuffer ), preloadText, bufferSize );
+    boost::scoped_array< char > tempBuffer(new char[ bufferSize ]);
+    strncpy( &tempBuffer[0], preloadText, bufferSize );
 
     // remove characters that won't display correctly
-    unsigned char* pIn = tempBuffer;
-    unsigned char* pOut = pIn;
+    char* pIn = &tempBuffer[0];
+    char* pOut = pIn;
     bool controlsStripped = false;
     bool whitespaceSeen = false;
     while ( *pIn ) {
@@ -2190,26 +2191,25 @@ void linenoisePreloadBuffer( const char* preloadText ) {
             whitespaceSeen = true;
             continue;
         }
-        if ( c < ' ' ) {            // remove other control characters, flag for message later
+        if ( 0x7F == c || c < ' ' ) {   // remove other control characters, flag for message
             controlsStripped = true;
             *pOut++ = ' ';
             continue;
         }
-        // convert newline and tabs to a single space on the following character
-        if ( whitespaceSeen ) {
+        if ( whitespaceSeen ) {         // convert whitespace to a single space
             *pOut++ = ' ';
             whitespaceSeen = false;
         }
         *pOut++ = c;
     }
     *pOut = 0;
-    int processedLength = pOut - tempBuffer;
+    int processedLength = pOut - &tempBuffer[0];
     bool lineTruncated = false;
     if ( processedLength > ( LINENOISE_MAX_LINE - 1 ) ) {
         lineTruncated = true;
         tempBuffer[ LINENOISE_MAX_LINE - 1 ] = 0;
     }
-    preloadedBufferContents = reinterpret_cast< char * >( tempBuffer );
+    preloadedBufferContents = &tempBuffer[0];
     if ( controlsStripped ) {
         preloadErrorMessage += " [Edited line: control characters were converted to spaces]\n";
     }
@@ -2219,7 +2219,6 @@ void linenoisePreloadBuffer( const char* preloadText ) {
         snprintf( buf, sizeof( buf ), "%d to %d]\n", processedLength, ( LINENOISE_MAX_LINE - 1 ) );
         preloadErrorMessage += buf;
     }
-    delete [] tempBuffer;
 }
 
 /**
