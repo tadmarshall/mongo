@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Resource Files">
@@ -265,7 +265,7 @@
       <Filter>shell</Filter>
     </ClCompile>
     <ClCompile Include="..\..\util\md5.cpp">
-      <Filter>shell</Filter>
+      <Filter>util</Filter>
     </ClCompile>
     <ClCompile Include="..\..\util\stringutils.cpp">
       <Filter>util</Filter>
@@ -347,6 +347,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\winmain.cpp">
       <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\linenoise\linenoise_utf8.cpp">
+      <Filter>third_party\linenoise</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -799,6 +802,9 @@
     </ClInclude>
     <ClInclude Include="..\..\util\assert_util.h">
       <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\linenoise\linenoise_utf8.h">
+      <Filter>third_party\linenoise</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
