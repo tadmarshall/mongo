@@ -182,7 +182,7 @@ struct PromptInfo : public PromptBase {
         size_t bufferSize = strlen( reinterpret_cast< const char * >( textPtr ) ) + 1;
         boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
-        utf8toUChar32string( tempUnicode.get(), textPtr, bufferSize, ucharCount, promptErrorCode );
+        copyString8to32( tempUnicode.get(), textPtr, bufferSize, ucharCount, promptErrorCode );
 
         // strip control characters from the prompt -- we do allow newline
         UChar32* pIn = tempUnicode.get();
@@ -260,13 +260,13 @@ struct DynamicPrompt : public PromptBase {
         promptText = new UChar32[ promptChars + 1 ];
         size_t ucharCount;
         int errorCode;
-        utf8toUChar32string(
+        copyString8to32(
                 promptText,
                 reinterpret_cast< const UChar8 * >( ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt ),
                 promptChars + 1,
                 ucharCount,
                 errorCode );
-        utf8toUChar32string(
+        copyString8to32(
                 &promptText[ ucharCount ],
                 reinterpret_cast< const UChar8 * >( endSearchBasePrompt ),
                 promptChars - ucharCount + 1,
@@ -282,14 +282,14 @@ struct DynamicPrompt : public PromptBase {
         promptText = new UChar32[ promptChars + 1 ];
         size_t ucharCount;
         int errorCode;
-        utf8toUChar32string(
+        copyString8to32(
                 promptText,
                 reinterpret_cast< const UChar8 * >( ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt ),
                 promptChars + 1,
                 ucharCount,
                 errorCode );
         copyString32( &promptText[ ucharCount ], searchText, promptChars - ucharCount + 1 );
-        utf8toUChar32string(
+        copyString8to32(
                 &promptText[ ucharCount + searchTextLen ],
                 reinterpret_cast< const UChar8 * >( endSearchBasePrompt ),
                 promptChars - ucharCount - searchTextLen + 1,
@@ -403,7 +403,7 @@ public:
         boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
         int errorCode;
-        utf8toUChar32string( tempUnicode.get(), preloadText, bufferSize, ucharCount, errorCode );
+        copyString8to32( tempUnicode.get(), preloadText, bufferSize, ucharCount, errorCode );
         copyString32( buf32, tempUnicode.get(), buflen + 1 );
         len = ucharCount;
         pos = ucharCount;
@@ -1635,7 +1635,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             {
                 bufferSize = historyLineLength + 1;
                 boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
-                utf8toUChar32string( tempUnicode.get(), history[ historyIndex ], bufferSize, ucharCount, errorCode );
+                copyString8to32( tempUnicode.get(), history[ historyIndex ], bufferSize, ucharCount, errorCode );
                 dynamicRefresh( dp, tempUnicode.get(), historyLineLength, historyLinePosition );
             }
             continue;
@@ -1676,7 +1676,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         if ( keepLooping ) {
             bufferSize = historyLineLength + 1;
             activeHistoryLine = new UChar32[ bufferSize ];
-            utf8toUChar32string( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
+            copyString8to32( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
             if ( dp.searchTextLen > 0 ) {
                 bool found = false;
                 int historySearchIndex = historyIndex;
@@ -1705,7 +1705,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                         bufferSize = strlen( reinterpret_cast< char* >( history[ historySearchIndex ] ) ) + 1;
                         delete [] activeHistoryLine;
                         activeHistoryLine = new UChar32[ bufferSize ];
-                        utf8toUChar32string( activeHistoryLine, history[ historySearchIndex ], bufferSize, ucharCount, errorCode );
+                        copyString8to32( activeHistoryLine, history[ historySearchIndex ], bufferSize, ucharCount, errorCode );
                         lineLength = ucharCount;
                         lineSearchPos = ( dp.direction > 0 ) ? 0 : ( lineLength - dp.searchTextLen );
                     }
@@ -1720,7 +1720,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             }
             bufferSize = historyLineLength + 1;
             activeHistoryLine = new UChar32[ bufferSize ];
-            utf8toUChar32string( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
+            copyString8to32( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
             dynamicRefresh( dp, activeHistoryLine, historyLineLength, historyLinePosition ); // draw user's text with our prompt
         }
     } // while
@@ -2087,7 +2087,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 historyRecallMostRecent = true;
                 size_t ucharCount;
                 int errorCode;
-                utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
+                copyString8to32( buf32, history[historyIndex], buflen, ucharCount, errorCode );
                 len = pos = ucharCount;
                 refreshLine( pi );
             }
@@ -2170,7 +2170,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    utf8toUChar32string( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    copyString8to32( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     memmove( buf32 + pos + ucharCount, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
                     memmove( buf32 + pos, tempUnicode.get(), sizeof( UChar32 ) * ucharCount );
                     pos += ucharCount;
@@ -2195,7 +2195,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    utf8toUChar32string( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    copyString8to32( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
                     if ( ucharCount > killRing.lastYankSize ) {
                         memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
                         memmove( buf32 + pos - killRing.lastYankSize, tempUnicode.get(), sizeof( UChar32 ) * ucharCount );
@@ -2253,7 +2253,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 historyRecallMostRecent = true;
                 size_t ucharCount;
                 int errorCode;
-                utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
+                copyString8to32( buf32, history[historyIndex], buflen, ucharCount, errorCode );
                 len = pos = ucharCount;
                 refreshLine( pi );
             }
@@ -2457,7 +2457,7 @@ void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
     UChar32* unicodeString = new UChar32[ bufferSize ];
     size_t ucharCount;
     int errorCode;
-    utf8toUChar32string( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
+    copyString8to32( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
     lc->completionStrings = reinterpret_cast< UChar32** >( realloc( lc->completionStrings, sizeof( UChar32* ) * ( lc->completionCount + 1 ) ) );
     lc->completionStrings[lc->completionCount++] = unicodeString;
 }

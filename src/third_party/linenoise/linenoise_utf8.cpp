@@ -29,6 +29,185 @@
 #endif
 
 /**
+ * Convert a null terminated UTF-8 string from UTF-8 and store it in a UChar32 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * Errors in the UTF-8 encoding will be handled in two ways: the erroneous characters will be
+ * converted to the Unicode error character U+FFFD and flag bits will be set in the conversionErrorCode
+ * int.
+ * 
+ * @param uchar32output                 Destination UChar32 buffer
+ * @param utf8input                     Source UTF-8 string
+ * @param outputBufferSizeInCharacters  Destination buffer size in characters
+ * @param outputUnicodeCharacterCount   Number of UChar32 characters placed in output buffer
+ * @param conversionErrorCode           Flag bits from enum BadUTF8, or zero if no error
+ */
+void copyString8to32(
+        UChar32* uchar32output,
+        const UChar8* utf8input,
+        size_t outputBufferSizeInCharacters,
+        size_t & outputUnicodeCharacterCount,
+        int & conversionErrorCode ) {
+    conversionErrorCode = BadUTF8_no_error;
+    if ( outputBufferSizeInCharacters == 0 ) {
+        outputUnicodeCharacterCount = 0;
+        return;
+    }
+    static const UChar32 errorCharacter = 0xFFFD;
+    unsigned char* pIn = const_cast< UChar8* >( utf8input );
+    UChar32* pOut = uchar32output;
+    UChar32 uchar32;
+    int reducedBufferSize = outputBufferSizeInCharacters - 1;
+    while ( *pIn && ( pOut - uchar32output ) < reducedBufferSize ) {
+
+        // default to error character so we don't set this in 18 places below
+        uchar32 = errorCharacter;
+
+        if ( pIn[0] <= 0x7F ) {         // 0x00000000 to 0x0000007F
+            uchar32 = pIn[0];
+            pIn += 1;
+        }
+        else if ( pIn[0] <= 0xDF ) {    // 0x00000080 to 0x000007FF
+            if ( ( pIn[0] >= 0xC2 ) && ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
+                uchar32 = ( ( pIn[0] & 0x1F ) << 6 ) | ( pIn[1] & 0x3F );
+                pIn += 2;
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] == 0xE0 ) {    // 0x00000800 to 0x00000FFF
+            if ( ( pIn[1] >= 0xA0 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    uchar32 = ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                    pIn += 3;
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] <= 0xEC ) {    // 0x00001000 to 0x0000CFFF
+            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                    pIn += 3;
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] == 0xED ) {    // 0x0000D000 to 0x0000D7FF
+            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0x9F ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    uchar32 = ( 0x0D << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                    pIn += 3;
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            //                          // 0x0000D800 to 0x0000DFFF -- illegal surrogate value
+            else if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    conversionErrorCode |= BadUTF8_surrogate;
+                    pIn += 3;
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] <= 0xEF ) {    // 0x0000E000 to 0x0000FFFF
+            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
+                    pIn += 3;
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] == 0xF0 ) {    // 0x00010000 to 0x0003FFFF
+            if ( ( pIn[1] >= 0x90 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    if ( ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
+                        uchar32 = ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
+                        pIn += 4;
+                    }
+                    else {
+                        conversionErrorCode |= BadUTF8_invalid_byte;
+                        pIn += 3;
+                    }
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else if ( pIn[0] <= 0xF4 ) {    // 0x00040000 to 0x0010FFFF
+            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
+                if ( ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
+                    if ( ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
+                        uchar32 = ( ( pIn[0] & 0x07 ) << 18 ) | ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
+                        pIn += 4;
+                    }
+                    else {
+                        conversionErrorCode |= BadUTF8_invalid_byte;
+                        pIn += 3;
+                    }
+                }
+                else {
+                    conversionErrorCode |= BadUTF8_invalid_byte;
+                    pIn += 2;
+                }
+            }
+            else {
+                conversionErrorCode |= BadUTF8_invalid_byte;
+                pIn += 1;
+            }
+        }
+        else {
+            conversionErrorCode |= BadUTF8_invalid_byte;
+            pIn += 1;
+        }
+        if ( uchar32 != 0xFEFF ) {      // do not store Byte Order Mark
+            *pOut++ = uchar32;
+        }
+    }
+    *pOut = 0;
+    outputUnicodeCharacterCount = pOut - uchar32output;
+}
+
+/**
  * Copy a null terminated UChar32 string to a UChar32 destination buffer
  * Always null terminates the destination string if at least one character position is available
  * 
@@ -134,109 +313,6 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
         ++second32;
     }
     return 0;
-}
-
-void utf8toUChar32string(
-        UChar32* uchar32output,
-        const UChar8* utf8input,
-        size_t outputBufferSizeInCharacters,
-        size_t & outputUnicodeCharacterCount,
-        int & conversionErrorCode ) {
-    conversionErrorCode = BadUTF8_no_error;
-    unsigned char* pIn = const_cast< UChar8* >( utf8input );
-    UChar32* pOut = uchar32output;
-    UChar32 uchar32;
-    int reducedBufferSize = outputBufferSizeInCharacters - 1;
-    while ( *pIn && ( pOut - uchar32output ) < reducedBufferSize ) {
-        if ( pIn[0] <= 0x7F ) {         // 0x00000000 to 0x0000007F
-            uchar32 = pIn[0];
-            pIn += 1;
-        }
-        else if ( pIn[0] <= 0xDF ) {    // 0x00000080 to 0x000007FF
-            if ( ( pIn[0] >= 0xC2 ) && ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[0] & 0x1F ) << 6 ) | ( pIn[1] & 0x3F );
-                pIn += 2;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] == 0xE0 ) {    // 0x00000800 to 0x00000FFF
-            if ( ( pIn[1] >= 0xA0 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
-                pIn += 3;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] <= 0xEC ) {    // 0x00001000 to 0x0000CFFF
-            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
-                pIn += 3;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] == 0xED ) {    // 0x0000D000 to 0x0000D7FF
-            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0x9F ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                uchar32 = ( 0x0D << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
-                pIn += 3;
-            }
-            //                          // 0x0000D800 to 0x0000DFFF -- illegal surrogate value
-            else if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                conversionErrorCode = BadUTF8_surrogate;
-                break;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] <= 0xEF ) {    // 0x0000E000 to 0x0000FFFF
-            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[0] & 0x0F ) << 12 ) | ( ( pIn[1] & 0x3F ) << 6 ) | ( pIn[2] & 0x3F );
-                pIn += 3;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] == 0xF0 ) {    // 0x00010000 to 0x0003FFFF
-            if ( ( pIn[1] >= 0x90 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF )  && ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
-                pIn += 4;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else if ( pIn[0] <= 0xF4 ) {    // 0x00040000 to 0x0010FFFF
-            if ( ( pIn[1] >= 0x80 ) && ( pIn[1] <= 0xBF ) && ( pIn[2] >= 0x80 ) && ( pIn[2] <= 0xBF )  && ( pIn[3] >= 0x80 ) && ( pIn[3] <= 0xBF ) ) {
-                uchar32 = ( ( pIn[0] & 0x07 ) << 18 ) | ( ( pIn[1] & 0x3F ) << 12 ) | ( ( pIn[2] & 0x3F ) << 6 ) | ( pIn[3] & 0x3F );
-                pIn += 4;
-            }
-            else {
-                conversionErrorCode = BadUTF8_invalid_byte;
-                break;
-            }
-        }
-        else {
-            conversionErrorCode = BadUTF8_invalid_byte;
-            break;
-        }
-        if ( uchar32 != 0xFEFF ) {      // do not store Byte Order Mark
-            *pOut++ = uchar32;
-        }
-    }
-    *pOut = 0;
-    outputUnicodeCharacterCount = pOut - uchar32output;
 }
 
 /**

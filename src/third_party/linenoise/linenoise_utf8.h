@@ -29,6 +29,26 @@ enum BadUTF8 {
 };
 
 /**
+ * Convert a null terminated UTF-8 string from UTF-8 and store it in a UChar32 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * Errors in the UTF-8 encoding will be handled in two ways: the erroneous characters will be
+ * converted to the Unicode error character U+FFFD and flag bits will be set in the conversionErrorCode
+ * int.
+ * 
+ * @param uchar32output                 Destination UChar32 buffer
+ * @param utf8input                     Source UTF-8 string
+ * @param outputBufferSizeInCharacters  Destination buffer size in characters
+ * @param outputUnicodeCharacterCount   Number of UChar32 characters placed in output buffer
+ * @param conversionErrorCode           Flag bits from enum BadUTF8, or zero if no error
+ */
+void copyString8to32(
+        UChar32* uchar32output,
+        const UChar8* utf8input,
+        size_t outputBufferSizeInCharacters,
+        size_t & outputUnicodeCharacterCount,
+        int & conversionErrorCode );
+
+/**
  * Copy a null terminated UChar32 string to a UChar32 destination buffer
  * Always null terminates the destination string if at least one character position is available
  * 
@@ -79,13 +99,6 @@ size_t strlen32( const UChar32* str32 );
  * @return          Negative if first < second, positive if first > second, zero if equal
  */
 int strncmp32( UChar32* first32, UChar32* second32, size_t length );
-
-void utf8toUChar32string(
-        UChar32* uchar32output,
-        const UChar8* utf8input,
-        size_t outputBufferSizeInCharacters,
-        size_t & outputUnicodeCharacterCount,
-        int & conversionErrorCode );
 
 /**
  * Internally convert an array of UChar32 characters of specified length to UTF-8 and write it to fileHandle
