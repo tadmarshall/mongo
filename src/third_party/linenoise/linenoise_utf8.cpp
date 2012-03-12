@@ -36,16 +36,29 @@ size_t strlen32( const UChar32* str32 ) {
     return length;
 }
 
-UChar32* strcpy32( UChar32* dest32, const UChar32* source32 ) {
-    UChar32* pOut = dest32;
-    while ( *source32 ) {
-        *pOut = *source32;
-        ++pOut;
-        ++source32;
+/**
+ * Copy a null terminated UChar32 string
+ * Always null terminates the destination string if at least one character position is available
+ * 
+ * @param dest32                    Destination UChar32 string
+ * @param source32                  Source UChar32 string
+ * @param destLengthInCharacters    Destination length in characters
+ */
+void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthInCharacters ) {
+    if ( destLengthInCharacters ) {
+        while ( *source32 && --destLengthInCharacters > 0 ) {
+            *dest32++ = *source32++;
+        }
+        *dest32 = 0;
     }
-    *pOut = 0;
-    return dest32;
 }
+/**
+ * Incremental history search -- take over the prompt and keyboard as the user types a search string,
+ * deletes characters from it, changes direction, and either accepts the found line (for execution or
+ * editing) or cancels.
+ * @param pi        PromptBase struct holding information about the (old, static) prompt and our screen position
+ * @param startChar the character that began the search, used to set the initial direction
+ */
 
 UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
     UChar32* pOut = dest32;
@@ -69,14 +82,28 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
     return 0;
 }
 
-
-int write32( int fileHandle, const UChar32* string32, unsigned int len ) {
+/**
+ * Internally convert an array of UChar32 characters of specified length to UTF-8 and write it to fileHandle
+ *
+ * @param fileHandle                File handle to write to
+ * @param string32                  Source UChar32 characters, may not be null terminated
+ * @param sourceLengthInCharacters  Number of source characters to convert and write
+ */
+int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters ) {
+#if 1
+    size_t tempBufferBytes = sizeof( UChar32 ) * sourceLengthInCharacters + 1;
+    boost::scoped_array< UChar8 > tempCharString( new UChar8[ tempBufferBytes ] );
+    //UChar8* tempCharString = new UChar8[ tempBufferBytes ];
+    size_t count = uChar32toUTF8byCount( tempCharString.get(), string32, sourceLengthInCharacters, tempBufferBytes );
+    return write( fileHandle, tempCharString.get(), count );
+#else
     size_t tempBufferBytes = sizeof( UChar32 ) * len + 1;
     UChar8* tempCharString = new UChar8[ tempBufferBytes ];
     size_t count = uChar32toUTF8byCount( tempCharString, string32, len, tempBufferBytes );
     int returnValue = write( fileHandle, tempCharString, count );
     delete [] tempCharString;
     return returnValue;
+#endif
 }
 
 size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes ) {
@@ -143,7 +170,7 @@ size_t uChar32toUTF8string( UChar8* dest8, const UChar32* string32, size_t outpu
     return outputUTF8ByteCount;
 }
 
-bool utf8toUChar32string(
+void utf8toUChar32string(
         UChar32* uchar32output,
         const UChar8* utf8input,
         size_t outputBufferSizeInCharacters,
@@ -238,11 +265,10 @@ bool utf8toUChar32string(
             conversionErrorCode = BadUTF8_invalid_byte;
             break;
         }
-        if ( uchar32 != 0xFEFF ) {  // do not store Byte Order Mark
+        if ( uchar32 != 0xFEFF ) {      // do not store Byte Order Mark
             *pOut++ = uchar32;
         }
     }
     *pOut = 0;
     outputUnicodeCharacterCount = pOut - uchar32output;
-    return ( conversionErrorCode == BadUTF8_no_error );
 }

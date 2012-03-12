@@ -18,7 +18,6 @@
 #include "pch.h"
 #include <stdio.h>
 #include <string.h>
-//#include <fcntl.h>
 
 #include "../third_party/linenoise/linenoise.h"
 #include "../scripting/engine.h"
