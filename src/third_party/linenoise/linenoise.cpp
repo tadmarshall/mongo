@@ -317,7 +317,7 @@ public:
             uChar32toUTF8string( textCopy.get(), unicodeCopy.get(), tempBufferSize );
             textCopyString = reinterpret_cast< const char* >( textCopy.get() );
         }
-        if ( lastAction == actionKill ) {
+        if ( lastAction == actionKill && size > 0 ) {
             int slot = indexToSlot[0];
             theRing[slot] = forward ?
                 theRing[slot] + textCopyString :
