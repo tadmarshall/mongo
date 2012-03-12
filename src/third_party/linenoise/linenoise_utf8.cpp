@@ -28,21 +28,13 @@
 #define write _write  // Microsoft headers use underscores in some names
 #endif
 
-size_t strlen32( const UChar32* str32 ) {
-    size_t length = 0;
-    while ( *str32++ ) {
-        ++length;
-    }
-    return length;
-}
-
 /**
- * Copy a null terminated UChar32 string
+ * Copy a null terminated UChar32 string to a UChar32 destination buffer
  * Always null terminates the destination string if at least one character position is available
  * 
- * @param dest32                    Destination UChar32 string
+ * @param dest32                    Destination UChar32 buffer
  * @param source32                  Source UChar32 string
- * @param destLengthInCharacters    Destination length in characters
+ * @param destLengthInCharacters    Destination buffer length in characters
  */
 void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthInCharacters ) {
     if ( destLengthInCharacters ) {
@@ -53,15 +45,76 @@ void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthIn
     }
 }
 
-UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
-    UChar32* pOut = dest32;
-    while ( *source8 ) {
-        *pOut = *source8;
-        ++pOut;
-        ++source8;
+/**
+ * Convert a specified number of UChar32 characters from a possibly null terminated UChar32 string to UTF-8
+ * and store it in a UChar8 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * 
+ * @param dest8                     Destination UChar8 buffer
+ * @param source32                  Source UChar32 string
+ * @param outputBufferSizeInBytes   Destination buffer size in bytes
+ * @param charCount                 Maximum number of UChar32 characters to process
+ * @return                          Count of bytes written to output buffer, not including null terminator
+ */
+size_t copyString32to8counted( UChar8* dest8, const UChar32* source32, size_t outputBufferSizeInBytes, size_t charCount ) {
+    size_t outputUTF8ByteCount = 0;
+    if ( outputBufferSizeInBytes ) {
+        size_t reducedBufferSize = outputBufferSizeInBytes - 4;
+        while ( *source32 && charCount-- && outputUTF8ByteCount < reducedBufferSize ) {
+            UChar32 c = *source32++;
+            if ( c <= 0x7F ) {
+                *dest8++ = c;
+                outputUTF8ByteCount += 1;
+            }
+            else if ( c <= 0x7FF ) {
+                *dest8++ = 0xC0 | ( c >> 6 );
+                *dest8++ = 0x80 | ( 0x3F & c );
+                outputUTF8ByteCount += 2;
+            }
+            else if ( c <= 0xFFFF ) {
+                *dest8++ = 0xE0 | ( c >> 12 );
+                *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
+                *dest8++ = 0x80 | ( 0x3F & c );
+                outputUTF8ByteCount += 3;
+            }
+            else if ( c <= 0x1FFFFF ) {
+                *dest8++ = 0xF0 | ( c >> 18 );
+                *dest8++ = 0x80 | ( 0x3F & ( c >> 12) );
+                *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
+                *dest8++ = 0x80 | ( 0x3F & c );
+                outputUTF8ByteCount += 4;
+            }
+        }
+        *dest8 = 0;
     }
-    *pOut = 0;
-    return dest32;
+    return outputUTF8ByteCount;
+}
+
+/**
+ * Convert a null terminated UChar32 string to UTF-8 and store it in a UChar8 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * 
+ * @param dest8                     Destination UChar8 buffer
+ * @param source32                  Source UChar32 string
+ * @param outputBufferSizeInBytes   Destination buffer size in bytes
+ * @return                          Count of bytes written to output buffer, not including null terminator
+ */
+size_t copyString32to8( UChar8* dest8, const UChar32* source32, size_t outputBufferSizeInBytes ) {
+    return copyString32to8counted( dest8, source32, outputBufferSizeInBytes, 0x7FFFFFFF );
+}
+
+/**
+ * Count characters (i.e. Unicode code points, array elements) in a null terminated UChar32 string
+ * 
+ * @param str32     Source UChar32 string
+ * @return          String length in characters
+ */
+size_t strlen32( const UChar32* str32 ) {
+    size_t length = 0;
+    while ( *str32++ ) {
+        ++length;
+    }
+    return length;
 }
 
 /**
@@ -81,84 +134,6 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
         ++second32;
     }
     return 0;
-}
-
-/**
- * Internally convert an array of UChar32 characters of specified length to UTF-8 and write it to fileHandle
- *
- * @param fileHandle                File handle to write to
- * @param string32                  Source UChar32 characters, may not be null terminated
- * @param sourceLengthInCharacters  Number of source characters to convert and write
- */
-int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters ) {
-    size_t tempBufferBytes = sizeof( UChar32 ) * sourceLengthInCharacters + 1;
-    boost::scoped_array< UChar8 > tempCharString( new UChar8[ tempBufferBytes ] );
-    size_t count = uChar32toUTF8byCount( tempCharString.get(), string32, sourceLengthInCharacters, tempBufferBytes );
-    return write( fileHandle, tempCharString.get(), count );
-}
-
-size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes ) {
-    size_t outputUTF8ByteCount = 0;
-    size_t reducedBufferSize = outputBufferSizeInBytes - 4;
-    while ( *string32 && charCount-- && outputUTF8ByteCount < reducedBufferSize ) {
-        UChar32 c = *string32++;
-        if ( c <= 0x7F ) {
-            *dest8++ = c;
-            outputUTF8ByteCount += 1;
-        }
-        else if ( c <= 0x7FF ) {
-            *dest8++ = 0xC0 | ( c >> 6 );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 2;
-        }
-        else if ( c <= 0xFFFF ) {
-            *dest8++ = 0xE0 | ( c >> 12 );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 3;
-        }
-        else if ( c <= 0x1FFFFF ) {
-            *dest8++ = 0xF0 | ( c >> 18 );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 12) );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 4;
-        }
-    }
-    *dest8 = 0;
-    return outputUTF8ByteCount;
-}
-
-size_t uChar32toUTF8string( UChar8* dest8, const UChar32* string32, size_t outputBufferSizeInBytes ) {
-    size_t outputUTF8ByteCount = 0;
-    size_t reducedBufferSize = outputBufferSizeInBytes - 4;
-    while ( *string32 && outputUTF8ByteCount < reducedBufferSize ) {
-        UChar32 c = *string32++;
-        if ( c <= 0x7F ) {
-            *dest8++ = c;
-            outputUTF8ByteCount += 1;
-        }
-        else if ( c <= 0x7FF ) {
-            *dest8++ = 0xC0 | ( c >> 6 );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 2;
-        }
-        else if ( c <= 0xFFFF ) {
-            *dest8++ = 0xE0 | ( c >> 12 );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 3;
-        }
-        else if ( c <= 0x1FFFFF ) {
-            *dest8++ = 0xF0 | ( c >> 18 );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 12) );
-            *dest8++ = 0x80 | ( 0x3F & ( c >> 6) );
-            *dest8++ = 0x80 | ( 0x3F & c );
-            outputUTF8ByteCount += 4;
-        }
-    }
-    *dest8 = 0;
-    return outputUTF8ByteCount;
 }
 
 void utf8toUChar32string(
@@ -262,4 +237,18 @@ void utf8toUChar32string(
     }
     *pOut = 0;
     outputUnicodeCharacterCount = pOut - uchar32output;
+}
+
+/**
+ * Internally convert an array of UChar32 characters of specified length to UTF-8 and write it to fileHandle
+ *
+ * @param fileHandle                File handle to write to
+ * @param string32                  Source UChar32 characters, may not be null terminated
+ * @param sourceLengthInCharacters  Number of source characters to convert and write
+ */
+int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters ) {
+    size_t tempBufferBytes = sizeof( UChar32 ) * sourceLengthInCharacters + 1;
+    boost::scoped_array< UChar8 > tempCharString( new UChar8[ tempBufferBytes ] );
+    size_t count = copyString32to8counted( tempCharString.get(), string32, tempBufferBytes, sourceLengthInCharacters );
+    return write( fileHandle, tempCharString.get(), count );
 }

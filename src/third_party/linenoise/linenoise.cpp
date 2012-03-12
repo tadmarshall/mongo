@@ -182,7 +182,7 @@ struct PromptInfo : public PromptBase {
         size_t bufferSize = strlen( reinterpret_cast< const char * >( textPtr ) ) + 1;
         boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
-       utf8toUChar32string( tempUnicode.get(), textPtr, bufferSize, ucharCount, promptErrorCode );
+        utf8toUChar32string( tempUnicode.get(), textPtr, bufferSize, ucharCount, promptErrorCode );
 
         // strip control characters from the prompt -- we do allow newline
         UChar32* pIn = tempUnicode.get();
@@ -252,25 +252,49 @@ struct DynamicPrompt : public PromptBase {
         searchTextLen = 0;
         searchText = new UChar32[1];                                    // start with empty search string
         searchText[0] = 0;
-        promptChars = endSearchBasePromptLen +
-            ( ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen );
+        size_t promptStartLength = ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen;
+        promptChars = promptStartLength + endSearchBasePromptLen;
         promptLastLinePosition = promptChars;   // TODO fix this, we are asssuming that the history prompt won't wrap (!)
         promptPreviousInputLen = 0;
         promptPreviousLen = promptChars;
-        promptText = new UChar32[promptChars + 1];
-        strcpy8to32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
-        strcpy8to32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
+        promptText = new UChar32[ promptChars + 1 ];
+        size_t ucharCount;
+        int errorCode;
+        utf8toUChar32string(
+                promptText,
+                reinterpret_cast< const UChar8 * >( ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt ),
+                promptChars + 1,
+                ucharCount,
+                errorCode );
+        utf8toUChar32string(
+                &promptText[ ucharCount ],
+                reinterpret_cast< const UChar8 * >( endSearchBasePrompt ),
+                promptChars - ucharCount + 1,
+                ucharCount,
+                errorCode );
         calculateScreenPosition( 0, 0, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
     }
 
     void updateSearchPrompt( void ) {
         delete [] promptText;
         size_t promptStartLength = ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen;
-        promptChars = endSearchBasePromptLen + searchTextLen + promptStartLength;
+        promptChars = promptStartLength + searchTextLen + endSearchBasePromptLen;
         promptText = new UChar32[ promptChars + 1 ];
-        strcpy8to32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
-        copyString32( &promptText[ promptStartLength ], searchText, promptChars - promptStartLength + 1 );
-        strcpy8to32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
+        size_t ucharCount;
+        int errorCode;
+        utf8toUChar32string(
+                promptText,
+                reinterpret_cast< const UChar8 * >( ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt ),
+                promptChars + 1,
+                ucharCount,
+                errorCode );
+        copyString32( &promptText[ ucharCount ], searchText, promptChars - ucharCount + 1 );
+        utf8toUChar32string(
+                &promptText[ ucharCount + searchTextLen ],
+                reinterpret_cast< const UChar8 * >( endSearchBasePrompt ),
+                promptChars - ucharCount - searchTextLen + 1,
+                ucharCount,
+                errorCode );
     }
 
     void updateSearchText( const UChar32* textPtr ) {
@@ -314,7 +338,7 @@ public:
             unicodeCopy[ textLen ] = 0;
             size_t tempBufferSize = sizeof( UChar32 ) * textLen + 1;
             boost::scoped_array< UChar8 > textCopy( new UChar8[ tempBufferSize ] );
-            uChar32toUTF8string( textCopy.get(), unicodeCopy.get(), tempBufferSize );
+            copyString32to8( textCopy.get(), unicodeCopy.get(), tempBufferSize );
             textCopyString = reinterpret_cast< const char* >( textCopy.get() );
         }
         if ( lastAction == actionKill && size > 0 ) {
@@ -1254,10 +1278,10 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         unicodeCopy[ itemLength ] = 0;
         size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
         boost::scoped_array< UChar8 > parseItem( new UChar8[ tempBufferSize ] );
-        uChar32toUTF8string( &parseItem[0], &unicodeCopy[0], tempBufferSize );
+        copyString32to8( parseItem.get(), unicodeCopy.get(), tempBufferSize );
 
         // get a list of completions
-        completionCallback( reinterpret_cast< char * >( &parseItem[0] ), &lc );
+        completionCallback( reinterpret_cast< char * >( parseItem.get() ), &lc );
     }
 
     // if no completions, we are done
@@ -1509,8 +1533,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         free( history[historyLen - 1] );
         bufferSize = sizeof( UChar32 ) * len + 1;
         boost::scoped_array< UChar8 > tempBuffer( new UChar8[ bufferSize ] );
-        uChar32toUTF8string( &tempBuffer[0], buf32, bufferSize );
-        history[ historyLen - 1 ] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( &tempBuffer[0] ) ) );
+        copyString32to8( tempBuffer.get(), buf32, bufferSize );
+        history[ historyLen - 1 ] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer.get() ) ) );
     }
     int historyLineLength = len;
     int historyLinePosition = pos;
@@ -1741,8 +1765,8 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
     if ( len > 0 ) {
         size_t bufferSize = sizeof( UChar32 ) * len + 1;
         boost::scoped_array< char > tempBuffer( new char[ bufferSize ] );
-        uChar32toUTF8string( reinterpret_cast< UChar8 * >( &tempBuffer[0] ), buf32, bufferSize );
-        linenoiseHistoryAdd( &tempBuffer[0] );
+        copyString32to8( reinterpret_cast< UChar8 * >( tempBuffer.get() ), buf32, bufferSize );
+        linenoiseHistoryAdd( tempBuffer.get() );
     }
     else {
         linenoiseHistoryAdd( "" );
@@ -2038,8 +2062,8 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 free( history[historyLen - 1] );
                 size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
                 boost::scoped_array< UChar8 > tempBuffer( new UChar8[ tempBufferSize ] );
-                uChar32toUTF8string( &tempBuffer[0], buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8* >( strdup( reinterpret_cast< const char* >( &tempBuffer[0] ) ) );
+                copyString32to8( tempBuffer.get(), buf32, tempBufferSize );
+                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer.get() ) ) );
             }
             if ( historyLen > 1 ) {
                 if ( c == UP_ARROW_KEY ) {
@@ -2220,7 +2244,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 free( history[historyLen - 1] );
                 size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
                 boost::scoped_array< UChar8 > tempBuffer( new UChar8[ tempBufferSize ] );
-                uChar32toUTF8string( tempBuffer.get(), buf32, tempBufferSize );
+                copyString32to8( tempBuffer.get(), buf32, tempBufferSize );
                 history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer.get() ) ) );
             }
             if ( historyLen > 1 ) {
@@ -2402,8 +2426,8 @@ char* linenoise( const char* prompt ) {
                 return NULL;
             }
             UChar8 buf8[ LINENOISE_MAX_LINE ];
-            uChar32toUTF8string( buf8, buf32, LINENOISE_MAX_LINE );
-            return strdup( reinterpret_cast< char* >( buf8 ) );               // caller must free buffer
+            copyString32to8( buf8, buf32, LINENOISE_MAX_LINE );
+            return strdup( reinterpret_cast< char * >( buf8 ) );    // caller must free buffer
         }
     }
     else {  // input not from a terminal, we should work with piped input, i.e. redirected stdin
