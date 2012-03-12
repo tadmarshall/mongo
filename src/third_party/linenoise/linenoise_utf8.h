@@ -20,27 +20,55 @@
 typedef unsigned char   UChar8;     // UTF-8 octet
 typedef unsigned int    UChar32;    // Unicode code point
 
-// Error codes returned from utf8toUChar32string
+// Error bits (or-ed together) returned from utf8toUChar32string
 //
 enum BadUTF8 {
-    BadUTF8_no_error = 0,
-    BadUTF8_invalid_byte,
-    BadUTF8_surrogate
+    BadUTF8_no_error        = 0x00,
+    BadUTF8_invalid_byte    = 0x01,
+    BadUTF8_surrogate       = 0x02
 };
 
-size_t strlen32( const UChar32* str32 );
-
 /**
- * Copy a null terminated UChar32 string
+ * Copy a null terminated UChar32 string to a UChar32 destination buffer
  * Always null terminates the destination string if at least one character position is available
  * 
- * @param dest32                    Destination UChar32 string
+ * @param dest32                    Destination UChar32 buffer
  * @param source32                  Source UChar32 string
- * @param destLengthInCharacters    Destination length in characters
+ * @param destLengthInCharacters    Destination buffer length in characters
  */
 void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthInCharacters );
 
-UChar32* strcpy8to32( UChar32* dest32, const char* source8 );
+/**
+ * Convert a specified number of UChar32 characters from a possibly null terminated UChar32 string to UTF-8
+ * and store it in a UChar8 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * 
+ * @param dest8                     Destination UChar8 buffer
+ * @param source32                  Source UChar32 string
+ * @param outputBufferSizeInBytes   Destination buffer size in bytes
+ * @param charCount                 Maximum number of UChar32 characters to process
+ * @return                          Count of bytes written to output buffer, not including null terminator
+ */
+size_t copyString32to8counted( UChar8* dest8, const UChar32* source32, size_t outputBufferSizeInBytes, size_t charCount );
+
+/**
+ * Convert a null terminated UChar32 string to UTF-8 and store it in a UChar8 destination buffer
+ * Always null terminates the destination string if at least one character position is available
+ * 
+ * @param dest8                     Destination UChar8 buffer
+ * @param source32                  Source UChar32 string
+ * @param outputBufferSizeInBytes   Destination buffer size in bytes
+ * @return                          Count of bytes written to output buffer, not including null terminator
+ */
+size_t copyString32to8( UChar8* dest8, const UChar32* source32, size_t outputBufferSizeInBytes );
+
+/**
+ * Count characters (i.e. Unicode code points, array elements) in a null terminated UChar32 string
+ * 
+ * @param str32     Source UChar32 string
+ * @return          String length in characters
+ */
+size_t strlen32( const UChar32* str32 );
 
 /**
  * Compare two UChar32 null-terminated strings with length parameter
@@ -52,6 +80,13 @@ UChar32* strcpy8to32( UChar32* dest32, const char* source8 );
  */
 int strncmp32( UChar32* first32, UChar32* second32, size_t length );
 
+void utf8toUChar32string(
+        UChar32* uchar32output,
+        const UChar8* utf8input,
+        size_t outputBufferSizeInCharacters,
+        size_t & outputUnicodeCharacterCount,
+        int & conversionErrorCode );
+
 /**
  * Internally convert an array of UChar32 characters of specified length to UTF-8 and write it to fileHandle
  *
@@ -60,14 +95,3 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length );
  * @param sourceLengthInCharacters  Number of source characters to convert and write
  */
 int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters );
-
-size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes );
-
-size_t uChar32toUTF8string( UChar8* dest8, const UChar32* string32, size_t outputBufferSizeInBytes );
-
-void utf8toUChar32string(
-        UChar32* uchar32output,
-        const UChar8* utf8input,
-        size_t outputBufferSizeInCharacters,
-        size_t & outputUnicodeCharacterCount,
-        int & conversionErrorCode );
