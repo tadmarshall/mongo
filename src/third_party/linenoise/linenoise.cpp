@@ -182,51 +182,43 @@ struct PromptInfo : public PromptBase {
         size_t bufferSize = strlen( reinterpret_cast< const char * >( textPtr ) ) + 1;
         boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
-        bool success = utf8toUChar32string( &tempUnicode[0], textPtr, bufferSize, ucharCount, promptErrorCode );
-        if ( success ) {
-            // strip control characters from the prompt -- we do allow newline
-            UChar32* pIn = &tempUnicode[0];
-            UChar32* pOut = pIn;
-            while ( *pIn ) {
-                UChar32 c = *pIn;
-                if ( '\n' == c || ( 0x7F != c && c >= ' ' ) ) {
-                    *pOut = c;
-                    ++pOut;
-                }
-                ++pIn;
-            }
-            *pOut = 0;
-            promptChars = pOut - &tempUnicode[0];
-            promptText = new UChar32[promptChars + 1];
-            strcpy32( promptText, &tempUnicode[0] );
+       utf8toUChar32string( tempUnicode.get(), textPtr, bufferSize, ucharCount, promptErrorCode );
 
-            int x = 0;
-            for ( int i = 0; i < promptChars; ++i ) {
-                UChar32 c = promptText[i];
-                if ( '\n' == c ) {
+        // strip control characters from the prompt -- we do allow newline
+        UChar32* pIn = tempUnicode.get();
+        UChar32* pOut = pIn;
+        while ( *pIn ) {
+            UChar32 c = *pIn;
+            if ( '\n' == c || ( 0x7F != c && c >= ' ' ) ) {
+                *pOut = c;
+                ++pOut;
+            }
+            ++pIn;
+        }
+        *pOut = 0;
+        promptChars = pOut - tempUnicode.get();
+        promptText = new UChar32[ promptChars + 1 ];
+        copyString32( promptText, tempUnicode.get(), promptChars + 1 );
+
+        int x = 0;
+        for ( int i = 0; i < promptChars; ++i ) {
+            UChar32 c = promptText[i];
+            if ( '\n' == c ) {
+                x = 0;
+                ++promptExtraLines;
+                promptLastLinePosition = i + 1;
+            }
+            else {
+                ++x;
+                if ( x >= promptScreenColumns ) {
                     x = 0;
                     ++promptExtraLines;
                     promptLastLinePosition = i + 1;
                 }
-                else {
-                    ++x;
-                    if ( x >= promptScreenColumns ) {
-                        x = 0;
-                        ++promptExtraLines;
-                        promptLastLinePosition = i + 1;
-                    }
-                }
             }
-            promptIndentation = promptChars - promptLastLinePosition;
-            promptCursorRowOffset = promptExtraLines;
         }
-        else {
-            promptText = new UChar32[ 1 ];
-            promptText[0] = 0;
-            promptChars = 0;
-            promptIndentation = 0;
-            promptCursorRowOffset = 0;
-        }
+        promptIndentation = promptChars - promptLastLinePosition;
+        promptCursorRowOffset = promptExtraLines;
     }
 
     ~PromptInfo() {
@@ -275,17 +267,17 @@ struct DynamicPrompt : public PromptBase {
         delete [] promptText;
         size_t promptStartLength = ( direction > 0 ) ? forwardSearchBasePromptLen : reverseSearchBasePromptLen;
         promptChars = endSearchBasePromptLen + searchTextLen + promptStartLength;
-        promptText = new UChar32[promptChars + 1];
+        promptText = new UChar32[ promptChars + 1 ];
         strcpy8to32( promptText, ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt );
-        strcpy32( &promptText[ promptStartLength ], searchText );
+        copyString32( &promptText[ promptStartLength ], searchText, promptChars - promptStartLength + 1 );
         strcpy8to32( &promptText[promptChars - endSearchBasePromptLen], endSearchBasePrompt );
     }
 
     void updateSearchText( const UChar32* textPtr ) {
         delete [] searchText;
         searchTextLen = strlen32( textPtr );
-        searchText = new UChar32[searchTextLen + 1];
-        strcpy32( searchText, textPtr );
+        searchText = new UChar32[ searchTextLen + 1 ];
+        copyString32( searchText, textPtr, searchTextLen + 1 );
         updateSearchPrompt();
     }
 
@@ -318,12 +310,12 @@ public:
         string textCopyString;
         {
             boost::scoped_array< UChar32 > unicodeCopy( new UChar32[ textLen + 1 ] );
-            memcpy( &unicodeCopy[0], text, sizeof( UChar32 ) * textLen );
+            memcpy( unicodeCopy.get(), text, sizeof( UChar32 ) * textLen );
             unicodeCopy[ textLen ] = 0;
             size_t tempBufferSize = sizeof( UChar32 ) * textLen + 1;
             boost::scoped_array< UChar8 > textCopy( new UChar8[ tempBufferSize ] );
-            uChar32toUTF8string( &textCopy[0], &unicodeCopy[0], tempBufferSize );
-            textCopyString = reinterpret_cast< const char* >( &textCopy[0] );
+            uChar32toUTF8string( textCopy.get(), unicodeCopy.get(), tempBufferSize );
+            textCopyString = reinterpret_cast< const char* >( textCopy.get() );
         }
         if ( lastAction == actionKill ) {
             int slot = indexToSlot[0];
@@ -387,13 +379,10 @@ public:
         boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
         size_t ucharCount;
         int errorCode;
-        bool success = utf8toUChar32string( &tempUnicode[0], preloadText, bufferSize, ucharCount, errorCode );
-        if ( success ) {
-            strcpy32( buf32, &tempUnicode[0] );
-            buf32[buflen] = 0;  // deal with edge case, note that buflen == bufferLen - 1
-            len = ucharCount;
-            pos = ucharCount;
-        }
+        utf8toUChar32string( tempUnicode.get(), preloadText, bufferSize, ucharCount, errorCode );
+        copyString32( buf32, tempUnicode.get(), buflen + 1 );
+        len = ucharCount;
+        pos = ucharCount;
     }
     int getInputLine( PromptBase& pi );
 };
@@ -1306,6 +1295,11 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // if we can extend the item, extend it and return to main loop
     if ( longest > itemLength ) {
         displayLength = len + longest - itemLength;
+        if ( displayLength > buflen ) {
+            longest -= displayLength - buflen;  // don't overflow buffer
+            displayLength = buflen;             // truncate the insertion
+            beep();                             // and make a noise
+        }
         boost::scoped_array< UChar32 > displayText( new UChar32[ displayLength + 1 ] );
         int j = 0;
         for ( ; j < startIndex; ++j ) {
@@ -1314,8 +1308,8 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         for ( int k = 0; k < longest; ++j, ++k ) {
             displayText[j] = lc.completionStrings[0][k];
         }
-        strcpy32( &displayText[j], &buf32[pos] );
-        strcpy32( buf32, &displayText[0] );
+        copyString32( &displayText[j], &buf32[pos], displayLength - j + 1 );
+        copyString32( buf32, displayText.get(), buflen + 1 );
         pos = startIndex + longest;
         len = displayLength;
         refreshLine( pi );
@@ -1617,8 +1611,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
             {
                 bufferSize = historyLineLength + 1;
                 boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
-                utf8toUChar32string( &tempUnicode[0], history[ historyIndex ], bufferSize, ucharCount, errorCode );
-                dynamicRefresh( dp, &tempUnicode[0], historyLineLength, historyLinePosition );
+                utf8toUChar32string( tempUnicode.get(), history[ historyIndex ], bufferSize, ucharCount, errorCode );
+                dynamicRefresh( dp, tempUnicode.get(), historyLineLength, historyLinePosition );
             }
             continue;
             break;
@@ -1630,8 +1624,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                 boost::scoped_array< UChar32 > tempUnicode( new UChar32[ dp.searchTextLen ] );
                 --dp.searchTextLen;
                 dp.searchText[ dp.searchTextLen ] = 0;
-                strcpy32( &tempUnicode[0], dp.searchText );
-                dp.updateSearchText( &tempUnicode[0] );
+                copyString32( tempUnicode.get(), dp.searchText, dp.searchTextLen + 1 );
+                dp.updateSearchText( tempUnicode.get() );
             }
             else {
                 beep();
@@ -1644,10 +1638,10 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         default:
             if ( c >= ' ' && c <= 0x0010FFFF ) {    // not an action character
                 boost::scoped_array< UChar32 > tempUnicode( new UChar32[ dp.searchTextLen + 2 ] );
-                strcpy32( &tempUnicode[0], dp.searchText );
+                copyString32( tempUnicode.get(), dp.searchText, dp.searchTextLen + 2 );
                 tempUnicode[ dp.searchTextLen ] = c;
                 tempUnicode[ dp.searchTextLen + 1 ] = 0;
-                dp.updateSearchText( &tempUnicode[0] );
+                dp.updateSearchText( tempUnicode.get() );
             }
             else {
                 beep();
@@ -1720,7 +1714,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     pb.promptPreviousLen = dp.promptChars;
     if ( useSearchedLine ) {
         historyRecallMostRecent = true;
-        strcpy32( buf32, activeHistoryLine );
+        copyString32( buf32, activeHistoryLine, buflen + 1 );
         len = historyLineLength;
         pos = historyLinePosition;
     }
@@ -1736,7 +1730,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     }
     if ( dp.searchText ) {     // save search text for possible reuse on ctrl-R ctrl-R
         previousSearchText = new UChar32[ dp.searchTextLen + 1 ];
-        strcpy32( previousSearchText, dp.searchText );
+        copyString32( previousSearchText, dp.searchText, dp.searchTextLen + 1 );
     }
     return c;                               // pass a character or -1 back to main loop
 }
@@ -2069,16 +2063,8 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 historyRecallMostRecent = true;
                 size_t ucharCount;
                 int errorCode;
-                bool success = utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
-                if ( success ) {
-                    len = pos = ucharCount;
-                }
-                else {
-                    beep();
-                    // TODO -- report error in history file
-                    len = pos = 0;
-                    buf32[0] = 0;
-                }
+                utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
+                len = pos = ucharCount;
                 refreshLine( pi );
             }
             break;
@@ -2160,19 +2146,14 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( &tempUnicode[0], reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
-                    if ( success ) {
-                        memmove( buf32 + pos + ucharCount, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
-                        memmove( buf32 + pos, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
-                        pos += ucharCount;
-                        len += ucharCount;
-                        refreshLine( pi );
-                        killRing.lastAction = KillRing::actionYank;
-                        killRing.lastYankSize = ucharCount;
-                    }
-                    else {
-                        beep();
-                    }
+                    utf8toUChar32string( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    memmove( buf32 + pos + ucharCount, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
+                    memmove( buf32 + pos, tempUnicode.get(), sizeof( UChar32 ) * ucharCount );
+                    pos += ucharCount;
+                    len += ucharCount;
+                    refreshLine( pi );
+                    killRing.lastAction = KillRing::actionYank;
+                    killRing.lastYankSize = ucharCount;
                 }
                 else {
                     beep();
@@ -2190,24 +2171,19 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     boost::scoped_array< UChar32 > tempUnicode( new UChar32[ bufferSize ] );
                     size_t ucharCount;
                     int errorCode;
-                    bool success = utf8toUChar32string( &tempUnicode[0], reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
-                    if ( success ) {
-                        if ( ucharCount > killRing.lastYankSize ) {
-                            memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
-                            memmove( buf32 + pos - killRing.lastYankSize, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
-                        }
-                        else {
-                            memmove( buf32 + pos - killRing.lastYankSize, &tempUnicode[0], sizeof( UChar32 ) * ucharCount );
-                            memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
-                        }
-                        pos += ucharCount - killRing.lastYankSize;
-                        len += ucharCount - killRing.lastYankSize;
-                        killRing.lastYankSize = ucharCount;
-                        refreshLine( pi );
+                    utf8toUChar32string( tempUnicode.get(), reinterpret_cast< const UChar8* >( restoredText->c_str() ), bufferSize, ucharCount, errorCode );
+                    if ( ucharCount > killRing.lastYankSize ) {
+                        memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
+                        memmove( buf32 + pos - killRing.lastYankSize, tempUnicode.get(), sizeof( UChar32 ) * ucharCount );
                     }
                     else {
-                        beep();
+                        memmove( buf32 + pos - killRing.lastYankSize, tempUnicode.get(), sizeof( UChar32 ) * ucharCount );
+                        memmove( buf32 + pos + ucharCount - killRing.lastYankSize, buf32 + pos, sizeof( UChar32 ) * ( len - pos + 1 ) );
                     }
+                    pos += ucharCount - killRing.lastYankSize;
+                    len += ucharCount - killRing.lastYankSize;
+                    killRing.lastYankSize = ucharCount;
+                    refreshLine( pi );
                     break;
                 }
             }
@@ -2243,9 +2219,9 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             if ( historyIndex == historyLen - 1 ) {
                 free( history[historyLen - 1] );
                 size_t tempBufferSize = sizeof( UChar32 ) * len + 1;
-                boost::scoped_array< UChar8 > tempBuffer( new UChar8[tempBufferSize] );
-                uChar32toUTF8string( &tempBuffer[0], buf32, tempBufferSize );
-                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( &tempBuffer[0] ) ) );
+                boost::scoped_array< UChar8 > tempBuffer( new UChar8[ tempBufferSize ] );
+                uChar32toUTF8string( tempBuffer.get(), buf32, tempBufferSize );
+                history[historyLen - 1] = reinterpret_cast< UChar8 * >( strdup( reinterpret_cast< const char * >( tempBuffer.get() ) ) );
             }
             if ( historyLen > 1 ) {
                 historyIndex = ( c == META + '<' ) ? 0 : historyLen - 1;
@@ -2253,16 +2229,8 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                 historyRecallMostRecent = true;
                 size_t ucharCount;
                 int errorCode;
-                bool success = utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
-                if ( success ) {
-                    len = pos = ucharCount;
-                }
-                else {
-                    beep();
-                    // TODO -- report error in history
-                    len = pos = 0;
-                    buf32[0] = 0;
-                }
+                utf8toUChar32string( buf32, history[historyIndex], buflen, ucharCount, errorCode );
+                len = pos = ucharCount;
                 refreshLine( pi );
             }
             break;
@@ -2304,6 +2272,9 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
                     buf32[len] = '\0';
                     refreshLine( pi );
                 }
+            }
+            else {
+                beep();     // buffer is full, beep on new characters
             }
             break;
         }
