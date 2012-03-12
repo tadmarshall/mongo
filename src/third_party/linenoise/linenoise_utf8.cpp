@@ -52,13 +52,6 @@ void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthIn
         *dest32 = 0;
     }
 }
-/**
- * Incremental history search -- take over the prompt and keyboard as the user types a search string,
- * deletes characters from it, changes direction, and either accepts the found line (for execution or
- * editing) or cancels.
- * @param pi        PromptBase struct holding information about the (old, static) prompt and our screen position
- * @param startChar the character that began the search, used to set the initial direction
- */
 
 UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
     UChar32* pOut = dest32;
@@ -71,6 +64,14 @@ UChar32* strcpy8to32( UChar32* dest32, const char* source8 ) {
     return dest32;
 }
 
+/**
+ * Compare two UChar32 null-terminated strings with length parameter
+ *
+ * @param first32   First string to compare
+ * @param second32  Second string to compare
+ * @param length    Maximum number of characters to compare
+ * @return          Negative if first < second, positive if first > second, zero if equal
+ */
 int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
     while ( length-- ) {
         if ( *first32 == 0 || *first32 != *second32 ) {
@@ -90,20 +91,10 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
  * @param sourceLengthInCharacters  Number of source characters to convert and write
  */
 int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters ) {
-#if 1
     size_t tempBufferBytes = sizeof( UChar32 ) * sourceLengthInCharacters + 1;
     boost::scoped_array< UChar8 > tempCharString( new UChar8[ tempBufferBytes ] );
-    //UChar8* tempCharString = new UChar8[ tempBufferBytes ];
     size_t count = uChar32toUTF8byCount( tempCharString.get(), string32, sourceLengthInCharacters, tempBufferBytes );
     return write( fileHandle, tempCharString.get(), count );
-#else
-    size_t tempBufferBytes = sizeof( UChar32 ) * len + 1;
-    UChar8* tempCharString = new UChar8[ tempBufferBytes ];
-    size_t count = uChar32toUTF8byCount( tempCharString, string32, len, tempBufferBytes );
-    int returnValue = write( fileHandle, tempCharString, count );
-    delete [] tempCharString;
-    return returnValue;
-#endif
 }
 
 size_t uChar32toUTF8byCount( UChar8* dest8, const UChar32* string32, size_t charCount, size_t outputBufferSizeInBytes ) {
