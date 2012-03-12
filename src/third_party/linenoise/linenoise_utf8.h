@@ -42,6 +42,14 @@ void copyString32( UChar32* dest32, const UChar32* source32, size_t destLengthIn
 
 UChar32* strcpy8to32( UChar32* dest32, const char* source8 );
 
+/**
+ * Compare two UChar32 null-terminated strings with length parameter
+ *
+ * @param first32   First string to compare
+ * @param second32  Second string to compare
+ * @param length    Maximum number of characters to compare
+ * @return          Negative if first < second, positive if first > second, zero if equal
+ */
 int strncmp32( UChar32* first32, UChar32* second32, size_t length );
 
 /**
