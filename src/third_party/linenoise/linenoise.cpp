@@ -841,11 +841,11 @@ static UChar32 readUnicodeCharacter( void ) {
 #if 1
     UChar8 c;
     static UChar8 utf8String[5];
-    static int utf8Count = 0;
+    static size_t utf8Count = 0;
     UChar32 unicodeChar[2];
     size_t ucharCount;
-    int errorCode = -1;
-    while ( errorCode ) {
+    int errorCode;
+    while ( true ) {
         if ( read( 0, &c, 1 ) <= 0 ) return 0;
         if ( c <= 0x7F ) {      // short circuit ASCII
             utf8Count = 0;
