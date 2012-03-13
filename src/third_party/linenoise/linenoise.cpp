@@ -120,6 +120,15 @@
 using std::string;
 using std::vector;
 
+using linenoise_utf8::UChar8;
+using linenoise_utf8::UChar32;
+using linenoise_utf8::copyString8to32;
+using linenoise_utf8::copyString32;
+using linenoise_utf8::copyString32to8;
+using linenoise_utf8::strlen32;
+using linenoise_utf8::strncmp32;
+using linenoise_utf8::write32;
+
 struct linenoiseCompletions {
   int       completionCount;
   UChar32** completionStrings;

@@ -17,6 +17,8 @@
 
 #include <boost/smart_ptr/scoped_array.hpp>
 
+namespace linenoise_utf8 {
+
 typedef unsigned char   UChar8;     // UTF-8 octet
 typedef unsigned int    UChar32;    // Unicode code point
 
@@ -108,3 +110,5 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length );
  * @param sourceLengthInCharacters  Number of source characters to convert and write
  */
 int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters );
+
+} // namespace linenoise_utf8
