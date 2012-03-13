@@ -827,6 +827,21 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     pi.promptCursorRowOffset = pi.promptExtraLines + yCursorPos;  // remember row for next pass
 }
 
+/**
+ * Read a UTF-8 sequence from the non-Windows keyboard and return the Unicode (UChar32) character it encodes
+ *
+ * @return  UChar32 Unicode character
+ */
+
+static UChar32 readUnicodeCharacter( void ) {
+    UChar8 c;
+#ifdef _WIN32
+#define read _read
+#endif
+    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+    return c;
+}
+
 #ifndef _WIN32
 
 namespace EscapeSequenceProcessing { // move these out of global namespace
@@ -854,7 +869,7 @@ namespace EscapeSequenceProcessing { // move these out of global namespace
 // as input, does any required processing including reading more characters and calling other
 // dispatch routines, then eventually returns the final (possibly extended or special) character.
 //
-typedef unsigned int ( *CharacterDispatchRoutine )( unsigned int );
+typedef UChar32 ( *CharacterDispatchRoutine )( UChar32 );
 
 // This structure is used by doDispatch() to hold a list of characters to test for and
 // a list of routines to call if the character matches.  The dispatch routine list is one
@@ -871,7 +886,7 @@ struct CharacterDispatch {
 // read more input characters to decide what should eventually be returned.  Eventually,
 // a called routine returns either a character or -1 to indicate parsing failure.
 //
-static unsigned int doDispatch( unsigned int c, CharacterDispatch& dispatchTable ) {
+static UChar32 doDispatch( UChar32 c, CharacterDispatch& dispatchTable ) {
     for ( unsigned int i = 0; i < dispatchTable.len ; ++i ) {
         if ( static_cast<unsigned char>( dispatchTable.chars[i] ) == c ) {
             return dispatchTable.dispatch[i]( c );
@@ -880,24 +895,24 @@ static unsigned int doDispatch( unsigned int c, CharacterDispatch& dispatchTable
     return dispatchTable.dispatch[dispatchTable.len]( c );
 }
 
-static unsigned int thisKeyMetaCtrl = 0;     // holds pre-set Meta and/or Ctrl modifiers
+static UChar32 thisKeyMetaCtrl = 0;     // holds pre-set Meta and/or Ctrl modifiers
 
 // Final dispatch routines -- return something
 //
-static unsigned int normalKeyRoutine( unsigned int c )            { return thisKeyMetaCtrl | c; }
-static unsigned int upArrowKeyRoutine( unsigned int c )           { return thisKeyMetaCtrl | UP_ARROW_KEY; }
-static unsigned int downArrowKeyRoutine( unsigned int c )         { return thisKeyMetaCtrl | DOWN_ARROW_KEY; }
-static unsigned int rightArrowKeyRoutine( unsigned int c )        { return thisKeyMetaCtrl | RIGHT_ARROW_KEY; }
-static unsigned int leftArrowKeyRoutine( unsigned int c )         { return thisKeyMetaCtrl | LEFT_ARROW_KEY; }
-static unsigned int homeKeyRoutine( unsigned int c )              { return thisKeyMetaCtrl | HOME_KEY; }
-static unsigned int endKeyRoutine( unsigned int c )               { return thisKeyMetaCtrl | END_KEY; }
-static unsigned int deleteCharRoutine( unsigned int c )           { return thisKeyMetaCtrl | ctrlChar( 'H' ); } // key labeled Backspace
-static unsigned int deleteKeyRoutine( unsigned int c )            { return thisKeyMetaCtrl | DELETE_KEY; }      // key labeled Delete
-static unsigned int ctrlUpArrowKeyRoutine( unsigned int c )       { return thisKeyMetaCtrl | CTRL | UP_ARROW_KEY; }
-static unsigned int ctrlDownArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | DOWN_ARROW_KEY; }
-static unsigned int ctrlRightArrowKeyRoutine( unsigned int c )    { return thisKeyMetaCtrl | CTRL | RIGHT_ARROW_KEY; }
-static unsigned int ctrlLeftArrowKeyRoutine( unsigned int c )     { return thisKeyMetaCtrl | CTRL | LEFT_ARROW_KEY; }
-static unsigned int escFailureRoutine( unsigned int c )           { beep(); return -1; }
+static UChar32 normalKeyRoutine( UChar32 c )            { return thisKeyMetaCtrl | c; }
+static UChar32 upArrowKeyRoutine( UChar32 c )           { return thisKeyMetaCtrl | UP_ARROW_KEY; }
+static UChar32 downArrowKeyRoutine( UChar32 c )         { return thisKeyMetaCtrl | DOWN_ARROW_KEY; }
+static UChar32 rightArrowKeyRoutine( UChar32 c )        { return thisKeyMetaCtrl | RIGHT_ARROW_KEY; }
+static UChar32 leftArrowKeyRoutine( UChar32 c )         { return thisKeyMetaCtrl | LEFT_ARROW_KEY; }
+static UChar32 homeKeyRoutine( UChar32 c )              { return thisKeyMetaCtrl | HOME_KEY; }
+static UChar32 endKeyRoutine( UChar32 c )               { return thisKeyMetaCtrl | END_KEY; }
+static UChar32 deleteCharRoutine( UChar32 c )           { return thisKeyMetaCtrl | ctrlChar( 'H' ); } // key labeled Backspace
+static UChar32 deleteKeyRoutine( UChar32 c )            { return thisKeyMetaCtrl | DELETE_KEY; }      // key labeled Delete
+static UChar32 ctrlUpArrowKeyRoutine( UChar32 c )       { return thisKeyMetaCtrl | CTRL | UP_ARROW_KEY; }
+static UChar32 ctrlDownArrowKeyRoutine( UChar32 c )     { return thisKeyMetaCtrl | CTRL | DOWN_ARROW_KEY; }
+static UChar32 ctrlRightArrowKeyRoutine( UChar32 c )    { return thisKeyMetaCtrl | CTRL | RIGHT_ARROW_KEY; }
+static UChar32 ctrlLeftArrowKeyRoutine( UChar32 c )     { return thisKeyMetaCtrl | CTRL | LEFT_ARROW_KEY; }
+static UChar32 escFailureRoutine( UChar32 c )           { beep(); return -1; }
 
 // Handle ESC [ 1 ; 3 (or 5) <more stuff> escape sequences
 //
@@ -906,13 +921,15 @@ static CharacterDispatch escLeftBracket1Semicolon3or5Dispatch = { 4, "ABCD", esc
 
 // Handle ESC [ 1 ; <more stuff> escape sequences
 //
-static unsigned int escLeftBracket1Semicolon3Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket1Semicolon3Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     thisKeyMetaCtrl |= META;
     return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
-static unsigned int escLeftBracket1Semicolon5Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket1Semicolon5Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     thisKeyMetaCtrl |= CTRL;
     return doDispatch( c, escLeftBracket1Semicolon3or5Dispatch );
 }
@@ -921,8 +938,9 @@ static CharacterDispatch escLeftBracket1SemicolonDispatch = { 2, "35", escLeftBr
 
 // Handle ESC [ 1 <more stuff> escape sequences
 //
-static unsigned int escLeftBracket1SemicolonRoutine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket1SemicolonRoutine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket1SemicolonDispatch );
 }
 static CharacterDispatchRoutine escLeftBracket1Routines[] = { homeKeyRoutine, escLeftBracket1SemicolonRoutine, escFailureRoutine };
@@ -950,39 +968,44 @@ static CharacterDispatch escLeftBracket8Dispatch = { 1, "~", escLeftBracket8Rout
 
 // Handle ESC [ <digit> escape sequences
 //
-static unsigned int escLeftBracket0Routine( unsigned int c ) {
+static UChar32 escLeftBracket0Routine( UChar32 c ) {
     return escFailureRoutine( c );
 }
-static unsigned int escLeftBracket1Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket1Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket1Dispatch );
 }
-static unsigned int escLeftBracket2Routine( unsigned int c ) {
+static UChar32 escLeftBracket2Routine( UChar32 c ) {
     return escFailureRoutine( c );
 }
-static unsigned int escLeftBracket3Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket3Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket3Dispatch );
 }
-static unsigned int escLeftBracket4Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket4Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket4Dispatch );
 }
-static unsigned int escLeftBracket5Routine( unsigned int c ) {
+static UChar32 escLeftBracket5Routine( UChar32 c ) {
     return escFailureRoutine( c );
 }
-static unsigned int escLeftBracket6Routine( unsigned int c ) {
+static UChar32 escLeftBracket6Routine( UChar32 c ) {
     return escFailureRoutine( c );
 }
-static unsigned int escLeftBracket7Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket7Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket7Dispatch );
 }
-static unsigned int escLeftBracket8Routine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracket8Routine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracket8Dispatch );
 }
-static unsigned int escLeftBracket9Routine( unsigned int c ) {
+static UChar32 escLeftBracket9Routine( UChar32 c ) {
     return escFailureRoutine( c );
 }
 
@@ -1028,22 +1051,25 @@ static CharacterDispatch escODispatch = { 10, "ABCDHFabcd", escORoutines };
 
 // Initial ESC dispatch -- could be a Meta prefix or the start of an escape sequence
 //
-static unsigned int escLeftBracketRoutine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escLeftBracketRoutine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escLeftBracketDispatch );
 }
-static unsigned int escORoutine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escORoutine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escODispatch );
 }
-static unsigned int setMetaRoutine( unsigned int c ); // need forward reference
+static UChar32 setMetaRoutine( UChar32 c ); // need forward reference
 static CharacterDispatchRoutine escRoutines[] = { escLeftBracketRoutine, escORoutine, setMetaRoutine };
 static CharacterDispatch escDispatch = { 2, "[O", escRoutines };
 
 // Initial dispatch -- we are not in the middle of anything yet
 //
-static unsigned int escRoutine( unsigned int c ) {
-    if ( read( 0, &c, 1 ) <= 0 ) return 0;
+static UChar32 escRoutine( UChar32 c ) {
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
     return doDispatch( c, escDispatch );
 }
 static CharacterDispatchRoutine initialRoutines[] = { escRoutine, deleteCharRoutine, normalKeyRoutine };
@@ -1051,10 +1077,11 @@ static CharacterDispatch initialDispatch = { 2, "\x1B\x7F", initialRoutines };
 
 // Special handling for the ESC key because it does double duty
 //
-static unsigned int setMetaRoutine( unsigned int c ) {
+static UChar32 setMetaRoutine( UChar32 c ) {
     thisKeyMetaCtrl = META;
     if ( c == 0x1B ) {  // another ESC, stay in ESC processing mode
-        if ( read( 0, &c, 1 ) <= 0 ) return 0;
+        c = readUnicodeCharacter();
+        if ( c == 0 ) return 0;
         return doDispatch( c, escDispatch );
     }
     return doDispatch( c, initialDispatch );
@@ -1070,7 +1097,7 @@ static unsigned int setMetaRoutine( unsigned int c ) {
 //
 // A return value of zero means "no input available", and a return value of -1 means "invalid key".
 //
-static int linenoiseReadChar( void ){
+static UChar32 linenoiseReadChar( void ){
 #ifdef _WIN32
 
     INPUT_RECORD rec;
@@ -1150,13 +1177,9 @@ static int linenoiseReadChar( void ){
     }
 
 #else
-    unsigned int c;
-    unsigned char oneChar;
-    int nread = read( 0, &oneChar, 1 );
-    if ( nread <= 0 ) {
-        return 0;
-    }
-    c = static_cast<unsigned int>( oneChar );
+    UChar32 c;
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
 
     // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
     // where we print out decimal and decoded values for whatever the "terminal" program
@@ -1174,11 +1197,11 @@ static int linenoiseReadChar( void ){
                 printf( "\nret: %d\n", ret );
             }
             for ( int i = 0; i < ret; ++i ) {
-                unsigned int key = static_cast<unsigned int>( keys[i] );
+                UChar32 key = static_cast<UChar32>( keys[i] );
                 char* friendlyTextPtr;
                 char friendlyTextBuf[10];
                 const char* prefixText = (key < 0x80) ? "" : "highbit-";
-                unsigned int keyCopy = (key < 0x80) ? key : key - 0x80;
+                UChar32 keyCopy = (key < 0x80) ? key : key - 0x80;
                 if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
                     friendlyTextBuf[0] = '\'';
                     friendlyTextBuf[1] = keyCopy;
