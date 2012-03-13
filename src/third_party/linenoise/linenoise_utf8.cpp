@@ -28,6 +28,8 @@
 #define write _write  // Microsoft headers use underscores in some names
 #endif
 
+namespace linenoise_utf8 {
+
 /**
  * Convert a null terminated UTF-8 string from UTF-8 and store it in a UChar32 destination buffer
  * Always null terminates the destination string if at least one character position is available
@@ -53,7 +55,7 @@ void copyString8to32(
         return;
     }
     static const UChar32 errorCharacter = 0xFFFD;
-    unsigned char* pIn = const_cast< UChar8* >( utf8input );
+    const UChar8* pIn = utf8input;
     UChar32* pOut = uchar32output;
     UChar32 uchar32;
     int reducedBufferSize = outputBufferSizeInCharacters - 1;
@@ -328,3 +330,5 @@ int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthI
     size_t count = copyString32to8counted( tempCharString.get(), string32, tempBufferBytes, sourceLengthInCharacters );
     return write( fileHandle, tempCharString.get(), count );
 }
+
+} // namespace linenoise_utf8
