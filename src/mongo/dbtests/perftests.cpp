@@ -38,7 +38,7 @@
 #include "../util/version.h"
 #include "../db/key.h"
 #include "../util/compress.h"
-
+#include "../util/concurrency/qlock.h"
 #include <boost/filesystem/operations.hpp>
 
 using namespace bson;
@@ -83,6 +83,7 @@ namespace PerfTests {
     DBClientType ClientBase::_client;
 
     // todo: use a couple threads. not a very good test yet.
+#if 0
     class TaskQueueTest {
         static int tot;
         struct V {
@@ -109,6 +110,7 @@ namespace PerfTests {
         }
     };
     int TaskQueueTest::tot;
+#endif
 
     /* if you want recording of the timings, place the password for the perf database
         in ./../settings.py:
@@ -572,6 +574,19 @@ namespace PerfTests {
         void timed() {
             lk.lock();
             lk.unlock();
+        }
+    };
+
+    QLock _qlock;
+
+    class qlock : public B {
+    public:
+        string name() { return "qlock"; }
+        //virtual int howLongMillis() { return 500; }
+        virtual bool showDurStats() { return false; }
+        void timed() {
+            _qlock.lock_r();
+            _qlock.unlock_r();
         }
     };
 
@@ -1068,6 +1083,7 @@ namespace PerfTests {
 #endif
                 add< rlock >();
                 add< wlock >();
+                add< qlock >();
                 //add< ulock >();
                 add< mutexspeed >();
                 add< simplemutexspeed >();
@@ -1082,7 +1098,7 @@ namespace PerfTests {
                 add< BSONIter >();
                 add< BSONGetFields1 >();
                 add< BSONGetFields2 >();
-                add< TaskQueueTest >();
+                //add< TaskQueueTest >();
                 add< InsertDup >();
                 add< Insert1 >();
                 add< InsertRandom >();

@@ -182,7 +182,6 @@ namespace mongo {
         assert( db == 0 || db->isOk() );
         _client->_context = this;
         checkNsAccess( doauth );
-        _client->checkLocks();
     }
 
     Client::Context::Context(const string& ns, string path , bool doauth, bool doVersion ) :
@@ -195,7 +194,6 @@ namespace mongo {
         _db(0) 
     {
         _finishInit( doauth );
-        _client->checkLocks();
     }
        
     /** "read lock, and set my context, all in one operation" 
@@ -203,7 +201,7 @@ namespace mongo {
      */
     Client::ReadContext::ReadContext(const string& ns, string path, bool doauth ) {
         {
-            lk.reset( new _LockCollectionForReading(ns) );
+            lk.reset( new Lock::DBRead(ns) );
             Database *db = dbHolder().get(ns, path);
             if( db ) {
                 c.reset( new Context(path, ns, db, doauth) );
@@ -213,24 +211,22 @@ namespace mongo {
 
         // we usually don't get here, so doesn't matter how fast this part is
         {
-            int x = d.dbMutex.getState();
-            if( x > 0 ) { 
+            if( Lock::isW() ) { 
                 // write locked already
                 DEV RARELY log() << "write locked on ReadContext construction " << ns << endl;
                 c.reset( new Context(ns, path, doauth) );
             }
-            else if( x == -1 ) { 
+            else if( !Lock::nested() ) { 
                 lk.reset(0);
                 {
                     writelock w;
                     Context c(ns, path, doauth);
                 }
                 // db could be closed at this interim point -- that is ok, we will throw, and don't mind throwing.
-                lk.reset( new _LockCollectionForReading(ns) );
+                lk.reset( new Lock::DBRead(ns) );
                 c.reset( new Context(ns, path, doauth) );
             }
             else { 
-                assert( x < -1 );
                 uasserted(15928, str::stream() << "can't open a database from a nested read lock " << ns);
             }
         }
@@ -273,14 +269,13 @@ namespace mongo {
         checkNotStale();
         _client->_context = this;
         _client->_curOp->enter( this );
-        checkNsAccess( doauth, d.dbMutex.getState() );
-        _client->checkLocks();
+        checkNsAccess( doauth );
     }
        
     void Client::Context::_finishInit( bool doauth ) {
-        int lockState = d.dbMutex.getState();
-        assert( lockState );        
-        if ( lockState > 0 && FileAllocator::get()->hasFailed() ) {
+        dassert( Lock::isLocked() );
+        int writeLocked = Lock::somethingWriteLocked();
+        if ( writeLocked && FileAllocator::get()->hasFailed() ) {
             uassert(14031, "Can't take a write lock while out of disk space", false);
         }
         
@@ -289,7 +284,7 @@ namespace mongo {
         if( _doVersion ) checkNotStale();
         _client->_context = this;
         _client->_curOp->enter( this );
-        checkNsAccess( doauth, lockState );
+        checkNsAccess( doauth, writeLocked ? 1 : 0 );
     }
 
     void Client::Context::_auth( int lockState ) {
@@ -335,6 +330,9 @@ namespace mongo {
             _auth( lockState );
         }
     }
+    void Client::Context::checkNsAccess( bool doauth ) {
+        checkNsAccess( doauth, Lock::somethingWriteLocked() ? 1 : 0 );
+    }
 
     void Client::appendLastOp( BSONObjBuilder& b ) const {
         // _lastOp is never set if replication is off
@@ -363,7 +361,7 @@ namespace mongo {
         return c->toString();
     }
 
-    Client* curopWaitingForLock( int type ) {
+    Client* curopWaitingForLock( char type ) {
         Client * c = currentClient.get();
         assert( c );
         CurOp * co = c->curop();
@@ -372,6 +370,7 @@ namespace mongo {
         }
         return c;
     }
+
     void curopGotLock(Client *c) {
         assert(c);
         CurOp * co = c->curop();
@@ -491,11 +490,8 @@ namespace mongo {
                     tablecell( ss , co.opNum() );
                     tablecell( ss , co.active() );
                     {
-                        int lt = co.getLockType();
-                        if( lt == -1 ) tablecell(ss, "R");
-                        else if( lt == 1 ) tablecell(ss, "W");
-                        else
-                            tablecell( ss ,  lt);
+                        char lt = co.lockType();
+                        tablecell(ss, lt ? lt : ' ');
                     }
                     tablecell( ss , co.isWaitingForLock() );
                     if ( co.active() )
@@ -534,7 +530,8 @@ namespace mongo {
                 Client* c = *i;
                 if ( c->curop()->isWaitingForLock() ) {
                     num++;
-                    if ( c->curop()->getLockType() > 0 )
+                    char lt = c->curop()->lockType();
+                    if( lt == 'w' || lt == 'W' )
                         w++;
                     else
                         r++;
@@ -571,12 +568,11 @@ namespace mongo {
             if ( ! c->curop()->active() )
                 continue;
 
-            int l = c->curop()->getLockType();
-            if ( l > 0 )
+            char lt = c->curop()->lockType();
+            if ( lt == 'w' || lt == 'W' )
                 writers++;
-            else if ( l < 0 )
+            else if ( lt == 'r' || lt == 'R' )
                 readers++;
-
         }
 
         return writers + readers;

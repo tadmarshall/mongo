@@ -17,6 +17,7 @@
 */
 
 #include "pch.h"
+#include "../util/time_support.h"
 #include "db.h"
 #include "../bson/util/atomic_int.h"
 #include "introspect.h"
@@ -44,10 +45,9 @@
 #include "ops/query.h"
 #include "ops/update.h"
 #include "pagefault.h"
-
 #include <fstream>
-
 #include <boost/filesystem/operations.hpp>
+#include "dur_commitjob.h"
 
 namespace mongo {
     
@@ -76,23 +76,42 @@ namespace mongo {
 #endif
 
     // see FSyncCommand:
-    extern bool lockedForWriting;
+    extern bool lockedForWriting();
 
-    OpTime OpTime::now() {
-        DEV d.dbMutex.assertWriteLocked();
-        return now_inlock();
-    }
-    OpTime OpTime::last_inlock(){
-        DEV d.dbMutex.assertAtLeastReadLocked();
+    /*static*/ OpTime OpTime::_now() {
+        OpTime result;
+        unsigned t = (unsigned) time(0);
+        if ( last.secs == t ) {
+            last.i++;
+            result = last;
+        }
+        else if ( t < last.secs ) {
+            result = skewed(); // separate function to keep out of the hot code path
+        }
+        else { 
+            last = OpTime(t, 1);
+            result = last;
+        }
+        notifier.notify_all();
         return last;
     }
+    OpTime OpTime::now(const mongo::mutex::scoped_lock&) {
+        return _now();
+    }
+    OpTime OpTime::getLast(const mongo::mutex::scoped_lock&) {
+        return last;
+    }
+    boost::condition OpTime::notifier;
+    mongo::mutex OpTime::m("optime");
 
-    // OpTime::now() uses dbMutex, thus it is in this file not in the cpp files used by drivers and such
+    // OpTime::now() uses mutex, thus it is in this file not in the cpp files used by drivers and such
     void BSONElementManipulator::initTimestamp() {
         massert( 10332 ,  "Expected CurrentTime type", _element.type() == Timestamp );
         unsigned long long &timestamp = *( reinterpret_cast< unsigned long long* >( value() ) );
-        if ( timestamp == 0 )
-            timestamp = OpTime::now().asDate();
+        if ( timestamp == 0 ) {
+            mutex::scoped_lock lk(OpTime::m);
+            timestamp = OpTime::now(lk).asDate();
+        }
     }
     void BSONElementManipulator::SetNumber(double d) {
         if ( _element.type() == NumberDouble )
@@ -153,9 +172,8 @@ namespace mongo {
                 }
             }
             b.append("inprog", vals);
-            unsigned x = lockedForWriting;
-            if( x ) {
-                b.append("fsyncLock", x);
+            if( lockedForWriting() ) {
+                b.append("fsyncLock", true);
                 b.append("info", "use db.fsyncUnlock() to terminate the fsync write/snapshot lock");
             }
         }
@@ -187,7 +205,7 @@ namespace mongo {
         replyToQuery(0, m, dbresponse, obj);
     }
 
-    void unlockFsyncAndWait();
+    bool _unlockFsync();
     void unlockFsync(const char *ns, Message& m, DbResponse &dbresponse) {
         BSONObj obj;
         if ( ! cc().isAdmin() ) { // checks auth
@@ -197,10 +215,9 @@ namespace mongo {
             obj = fromjson("{\"err\":\"unauthorized - this command must be run against the admin DB\"}");
         }
         else {
-            if( lockedForWriting ) {
-                log() << "command: unlock requested" << endl;
+            log() << "command: unlock requested" << endl;
+            if( _unlockFsync() ) {
                 obj = fromjson("{ok:1,\"info\":\"unlock completed\"}");
-                unlockFsyncAndWait();
             }
             else {
                 obj = fromjson("{ok:0,\"errmsg\":\"not locked\"}");
@@ -302,6 +319,7 @@ namespace mongo {
         int op = m.operation();
         bool isCommand = false;
         const char *ns = m.singleData()->_data + 4;
+
         if ( op == dbQuery ) {
             if( strstr(ns, ".$cmd") ) {
                 isCommand = true;
@@ -439,7 +457,7 @@ namespace mongo {
 
         if ( currentOp.shouldDBProfile( debug.executionTime ) ) {
             // performance profiling is on
-            if ( d.dbMutex.getState() < 0 ) {
+            if ( Lock::isReadLocked() ) {
                 mongo::log(1) << "note: not profiling because recursive read lock" << endl;
             }
             else {
@@ -528,12 +546,11 @@ namespace mongo {
         
         op.debug().query = query;
         op.setQuery(query);
-
         
         PageFaultRetryableSection s;
         while ( 1 ) {
             try {
-                writelock lk;
+                Lock::DBWrite lk(ns);
                 
                 // void ReplSetImpl::relinquish() uses big write lock so 
                 // this is thus synchronized given our lock above.
@@ -586,23 +603,13 @@ namespace mongo {
     QueryResult* emptyMoreResult(long long);
 
     void OpTime::waitForDifferent(unsigned millis){
-        DEV d.dbMutex.assertAtLeastReadLocked();
+        dassert( !Lock::isLocked() );
 
         if (*this != last) return; // check early
 
-        boost::xtime timeout;
-        boost::xtime_get(&timeout, boost::TIME_UTC);
-
-        timeout.nsec += millis * 1000*1000;
-        if (timeout.nsec >= 1000*1000*1000){
-            timeout.nsec -= 1000*1000*1000;
-            timeout.sec += 1;
-        }
-
         do {
-            dbtemprelease tmp;
-            boost::mutex::scoped_lock lk(notifyMutex());
-            if (!notifier().timed_wait(lk, timeout))
+            mutex::scoped_lock lk(m);
+            if (!notifier.timed_wait(lk.boost(), boost::posix_time::milliseconds(millis)))
                 return; // timed out
         } while (*this != last);
     }
@@ -628,13 +635,17 @@ namespace mongo {
         OpTime last;
         while( 1 ) {
             try {
-                Client::ReadContext ctx(ns);
                 if (str::startsWith(ns, "local.oplog.")){
-                    if (pass == 0)
-                        last = OpTime::last_inlock();
-                    else
+                    if (pass == 0) {
+                        mutex::scoped_lock lk(OpTime::m);
+                        last = OpTime::getLast(lk);
+                    }
+                    else {
                         last.waitForDifferent(1000/*ms*/);
+                    }
                 }
+
+                Client::ReadContext ctx(ns);
 
                 // call this readlocked so state can't change
                 replVerifyReadsOk();
@@ -757,7 +768,6 @@ namespace mongo {
         }
 
         writelock lk(ns);
-        //LockCollectionExclusively lk(ns);
 
         // CONCURRENCY TODO: is being read locked in big log sufficient here?
         // writelock is used to synchronize stepdowns w/ writes
@@ -861,7 +871,7 @@ namespace mongo {
     HostAndPort DBDirectClient::_clientHost = HostAndPort( "0.0.0.0" , 0 );
 
     unsigned long long DBDirectClient::count(const string &ns, const BSONObj& query, int options, int limit, int skip ) {
-        LockCollectionForReading lk( ns );
+        Lock::DBRead lk( ns );
         string errmsg;
         long long res = runCount( ns.c_str() , _countCmd( ns , query , options , limit , skip ) , errmsg );
         if ( res == -1 )
@@ -923,7 +933,7 @@ namespace mongo {
                 while( 1 ) {
                     // we may already be in a read lock from earlier in the call stack, so do read lock here 
                     // to be consistent with that.
-                    readlocktry w("", 20000);
+                    readlocktry w(20000);
                     if( w.got() ) { 
                         log() << "shutdown: final commit..." << endl;
                         getDur().commitNow();
@@ -970,15 +980,10 @@ namespace mongo {
     void exitCleanly( ExitCode code ) {
         killCurrentOp.killAll();
         {
-            dblock lk;
+            Lock::GlobalWrite lk;
             log() << "now exiting" << endl;
             dbexit( code );
         }
-    }
-
-
-    namespace dur { 
-        extern mutex groupCommitMutex;
     }
 
     /* not using log() herein in case we are already locked */
@@ -986,7 +991,7 @@ namespace mongo {
 
         auto_ptr<writelocktry> wlt;
         if ( tryToGetLock ) {
-            wlt.reset( new writelocktry( "" , 2 * 60 * 1000 ) );
+            wlt.reset( new writelocktry( 2 * 60 * 1000 ) );
             uassert( 13455 , "dbexit timed out getting lock" , wlt->got() );
         }
 
@@ -1028,7 +1033,7 @@ namespace mongo {
 
         // block the dur thread from doing any work for the rest of the run
         log(2) << "shutdown: groupCommitMutex" << endl;
-        scoped_lock lk(dur::groupCommitMutex);
+        SimpleMutex::scoped_lock lk(dur::commitJob.groupCommitMutex);
 
 #ifdef _WIN32
         // Windows Service Controller wants to be told when we are down,

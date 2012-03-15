@@ -77,7 +77,7 @@ namespace mongo {
 
     // ns is either a full namespace or "dbname." when invalidating for a whole db
     void ClientCursor::invalidate(const char *ns) {
-        d.dbMutex.assertWriteLocked();
+        Lock::assertWriteLocked(ns);
         int len = strlen(ns);
         const char* dot = strchr(ns, '.');
         assert( len > 0 && dot);
@@ -304,7 +304,7 @@ namespace mongo {
         _idleAgeMillis(0), _pinValue(0),
         _doingDeletes(false), _yieldSometimesTracker(128,10) {
 
-        d.dbMutex.assertAtLeastReadLocked();
+        Lock::assertAtLeastReadLocked(ns);
 
         assert( _db );
         assert( str::startsWith(_ns, _db->name) );
@@ -445,7 +445,7 @@ namespace mongo {
 
         int micros = Client::recommendedYieldMicros( &writers , &readers );
 
-        if ( micros > 0 && writers == 0 && d.dbMutex.getState() <= 0 ) {
+        if ( micros > 0 && writers == 0 && Lock::isR() ) {
             // we have a read lock, and only reads are coming on, so why bother unlocking
             return 0;
         }

@@ -14,6 +14,8 @@ namespace mongo {
 
     namespace dur {
 
+        void releasedWriteLock();
+
         // a smaller limit is likely better on 32 bit
 #if defined(__i386__) || defined(_M_IX86)
         const unsigned UncommittedBytesLimit = 50 * 1024 * 1024;
@@ -132,14 +134,6 @@ namespace mongo {
                 return (T*) writingPtr(x, sizeof(T));
             }
 
-            /** write something that doesn't have to be journaled, as this write is "unimportant".
-                a good example is paddingFactor.
-                can be thought of as memcpy(dst,src,len)
-                the dur implementation acquires a mutex in this method, so do not assume it is faster
-                without measuring!
-            */
-            virtual void setNoJournal(void *dst, void *src, unsigned len) = 0;
-
             /** Commits pending changes, flushes all changes to main data
                 files, then removes the journal.
                 
@@ -181,7 +175,6 @@ namespace mongo {
             bool commitNow() { return false; }
             bool commitIfNeeded() { return false; }
             bool aCommitIsNeeded() const { return false; }
-            void setNoJournal(void *dst, void *src, unsigned len);
             void syncDataAndTruncateJournal() {}
         };
 
@@ -195,7 +188,6 @@ namespace mongo {
             bool commitNow();
             bool aCommitIsNeeded() const;
             bool commitIfNeeded();
-            void setNoJournal(void *dst, void *src, unsigned len);
             void syncDataAndTruncateJournal();
         };
 

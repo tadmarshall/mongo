@@ -17,13 +17,13 @@
 */
 
 #include "pch.h"
-
 #include "db.h"
 #include "btree.h"
 #include "pdfile.h"
 #include "queryoptimizer.h"
 #include "cmdline.h"
 #include "clientcursor.h"
+#include "../server.h"
 
 //#define DEBUGQO(x) cout << x << endl;
 #define DEBUGQO(x)
@@ -268,15 +268,17 @@ doneCheckOrder:
     }
     
     void QueryPlan::checkTableScanAllowed() const {
+        if ( likely( !cmdLine.noTableScan ) )
+            return;
+
         // TODO - is this desirable?  See SERVER-2222.
         if ( _frs.numNonUniversalRanges() == 0 )
             return;
 
-        if ( ! cmdLine.noTableScan )
+        if ( strstr( ns() , ".system." ) ) 
             return;
 
-        if ( strstr( ns() , ".system." ) ||
-            strstr( ns() , "local." ) )
+        if( str::startsWith(ns(), "local.") )
             return;
 
         if ( ! nsdetails( ns() ) )

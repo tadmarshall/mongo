@@ -139,6 +139,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\db\memconcept.cpp" />
     <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v2\src\v2_operations.cpp" />
     <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v2\src\v2_path.cpp" />
     <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v2\src\v2_portability.cpp" />

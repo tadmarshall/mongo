@@ -70,6 +70,8 @@ namespace mongo {
     };
 #pragma pack()
 
+    BOOST_STATIC_ASSERT( Namespace::MaxNsLen == MaxDatabaseNameLen );
+
 } // namespace mongo
 
 #include "index.h"
@@ -297,7 +299,6 @@ namespace mongo {
                 double x = paddingFactor - 0.001;
                 if ( x >= 1.0 ) {
                     *getDur().writing(&paddingFactor) = x;
-                    //getDur().setNoJournal(&paddingFactor, &x, sizeof(x));
                 }
             }
         }
@@ -314,7 +315,6 @@ namespace mongo {
                 double x = paddingFactor + (0.001 * N);
                 if ( x <= 2.0 ) {
                     *getDur().writing(&paddingFactor) = x;
-                    //getDur().setNoJournal(&paddingFactor, &x, sizeof(x));
                 }
             }
         }
@@ -433,8 +433,8 @@ namespace mongo {
         NamespaceDetailsTransient(Database*,const char *ns);
     public:
         ~NamespaceDetailsTransient();
-        void addedIndex() { assertInWriteLock(); reset(); }
-        void deletedIndex() { assertInWriteLock(); reset(); }
+        void addedIndex() { reset(); }
+        void deletedIndex() { reset(); }
         /* Drop cached information on all namespaces beginning with the specified prefix.
            Can be useful as index namespaces share the same start as the regular collection.
            SLOW - sequential scan of all NamespaceDetailsTransient objects */
@@ -506,7 +506,7 @@ namespace mongo {
            field is indexed (Note it might be a secondary component of a compound index.)
         */
         set<string>& indexKeys() {
-            DEV assertInWriteLock();
+            DEV Lock::assertWriteLocked(_ns);
             if ( !_keysComputed )
                 computeIndexKeys();
             return _indexKeys;
@@ -546,6 +546,7 @@ namespace mongo {
         static NamespaceDetailsTransient& get_inlock(const char *ns);
 
         static NamespaceDetailsTransient& get(const char *ns) {
+            // todo : _qcMutex will create bottlenecks in our parallelism
             SimpleMutex::scoped_lock lk(_qcMutex);
             return get_inlock(ns);
         }

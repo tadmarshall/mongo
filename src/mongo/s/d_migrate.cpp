@@ -499,6 +499,16 @@ namespace mongo {
                         break;
 
                     DiskLoc dl = *i;
+                    
+                    Record* r = dl.rec();
+                    if ( ! r->likelyInPhysicalMemory() ) {
+                        auto_ptr<LockMongoFilesShared> lk( new LockMongoFilesShared() );
+                        dbtemprelease t;
+                        r->touch();
+                        lk.reset(0); // we have to release mmmutex before we can re-acquire dbmutex
+                        break;
+                    }
+
                     BSONObj o = dl.obj();
 
                     // use the builder size instead of accumulating 'o's size so that we take into consideration
@@ -522,7 +532,8 @@ namespace mongo {
         }
 
         void aboutToDelete( const Database* db , const DiskLoc& dl ) {
-            d.dbMutex.assertWriteLocked();
+            assert(db);
+            Lock::assertWriteLocked(db->name);
 
             if ( ! _getActive() )
                 return;
@@ -610,7 +621,7 @@ namespace mongo {
         int loops = 0;
         Timer t;
         while ( t.seconds() < 900 ) { // 15 minutes
-            assert( d.dbMutex.getState() == 0 );
+            assert( !Lock::isLocked() );
             sleepmillis( 20 );
 
             set<CursorId> now;
@@ -918,7 +929,7 @@ namespace mongo {
 
             // 4.
             for ( int i=0; i<86400; i++ ) { // don't want a single chunk move to take more than a day
-                assert( d.dbMutex.getState() == 0 );
+                assert( !Lock::isLocked() );
                 sleepsecs( 1 );
                 ScopedDbConnection conn( toShard.getConnString() );
                 BSONObj res;

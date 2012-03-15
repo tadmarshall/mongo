@@ -56,7 +56,7 @@ namespace mongo {
         todo : make _logOpRS() call this so we don't repeat ourself?
         */
     void _logOpObjRS(const BSONObj& op) {
-        DEV assertInWriteLock();
+        Lock::DBWrite lk("local");
 
         const OpTime ts = op["ts"]._opTime();
         long long h = op["h"].numberLong();
@@ -125,7 +125,7 @@ namespace mongo {
     // on every logop call.
     static BufBuilder logopbufbuilder(8*1024);
     static void _logOpRS(const char *opstr, const char *ns, const char *logNS, const BSONObj& obj, BSONObj *o2, bool *bb, bool fromMigrate ) {
-        DEV assertInWriteLock();
+        Lock::DBWrite lk1("local");
 
         if ( strncmp(ns, "local.", 6) == 0 ) {
             if ( strncmp(ns, "local.slaves", 12) == 0 )
@@ -133,7 +133,9 @@ namespace mongo {
             return;
         }
 
-        const OpTime ts = OpTime::now();
+        mutex::scoped_lock lk2(OpTime::m);
+
+        const OpTime ts = OpTime::now(lk2);
         long long hashNew;
         if( theReplSet ) {
             massert(13312, "replSet error : logOp() but not primary?", theReplSet->box.getState().primary());
@@ -221,8 +223,8 @@ namespace mongo {
        note this is used for single collection logging even when --replSet is enabled.
     */
     static void _logOpOld(const char *opstr, const char *ns, const char *logNS, const BSONObj& obj, BSONObj *o2, bool *bb, bool fromMigrate ) {
-        DEV assertInWriteLock();
-        static BufBuilder bufbuilder(8*1024);
+        Lock::DBWrite lk("local");
+        static BufBuilder bufbuilder(8*1024); // todo there is likely a mutex on this constructor
 
         if ( strncmp(ns, "local.", 6) == 0 ) {
             if ( strncmp(ns, "local.slaves", 12) == 0 ) {
@@ -231,7 +233,9 @@ namespace mongo {
             return;
         }
 
-        const OpTime ts = OpTime::now();
+        mutex::scoped_lock lk2(OpTime::m);
+
+        const OpTime ts = OpTime::now(lk2);
         Client::Context context("",0,false);
 
         /* we jump through a bunch of hoops here to avoid copying the obj buffer twice --
@@ -282,7 +286,6 @@ namespace mongo {
             BSONObj temp(r);
             log( 6 ) << "logging op:" << temp << endl;
         }
-
     }
 
     static void (*_logOp)(const char *opstr, const char *ns, const char *logNS, const BSONObj& obj, BSONObj *o2, bool *bb, bool fromMigrate ) = _logOpOld;
@@ -322,7 +325,7 @@ namespace mongo {
     }
 
     void createOplog() {
-        dblock lk;
+        Lock::GlobalWrite lk;
 
         const char * ns = "local.oplog.$main";
 
@@ -566,7 +569,7 @@ namespace mongo {
         void run() {
             OpTime t;
             for ( int i = 0; i < 10; i++ ) {
-                OpTime s = OpTime::now_inlock();
+                OpTime s = OpTime::_now();
                 assert( s != t );
                 t = s;
             }
@@ -708,7 +711,6 @@ namespace mongo {
         @return true if was and update should have happened and the document DNE.  see replset initial sync code.
      */
     bool applyOperation_inlock(const BSONObj& op , bool fromRepl ) {
-        assertInWriteLock();
         LOG(6) << "applying op: " << op << endl;
         bool failedUpdate = false;
 
@@ -723,6 +725,9 @@ namespace mongo {
             o = fields[0].embeddedObject();
             
         const char *ns = fields[1].valuestrsafe();
+
+        Lock::assertWriteLocked(ns);
+
         NamespaceDetails *nsd = nsdetails(ns);
 
         // operation type -- see logOp() comments for types
@@ -839,6 +844,7 @@ namespace mongo {
     public:
         virtual bool slaveOk() const { return false; }
         virtual LockType locktype() const { return WRITE; }
+        virtual bool lockGlobally() const { return true; } // SERVER-4328 todo : is global ok or does this take a long time? i believe multiple ns used so locking individually requires more analysis
         ApplyOpsCmd() : Command( "applyOps" ) {}
         virtual void help( stringstream &help ) const {
             help << "internal (sharding)\n{ applyOps : [ ] , preCondition : [ { ns : ... , q : ... , res : ... } ] }";

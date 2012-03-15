@@ -149,7 +149,7 @@ namespace mongo {
     NOINLINE_DECL void NamespaceIndex::_init() {
         assert( !ht );
 
-        d.dbMutex.assertWriteLocked();
+        Lock::assertWriteLocked(database_);
 
         /* if someone manually deleted the datafiles for a database,
            we need to be sure to clear any cached info for the database in
@@ -457,7 +457,7 @@ namespace mongo {
     }
 
     void NamespaceIndex::kill_ns(const char *ns) {
-        d.dbMutex.assertWriteLocked();
+        Lock::assertWriteLocked(ns);
         if ( !ht )
             return;
         Namespace n(ns);
@@ -479,7 +479,7 @@ namespace mongo {
         add_ns( ns, details );
     }
     void NamespaceIndex::add_ns( const char *ns, const NamespaceDetails &details ) {
-        d.dbMutex.assertWriteLocked();
+        Lock::assertWriteLocked(ns);
         init();
         Namespace n(ns);
         uassert( 10081 , "too many namespaces/collections", ht->put(n, details));
@@ -487,7 +487,7 @@ namespace mongo {
 
     /* extra space for indexes when more than 10 */
     NamespaceDetails::Extra* NamespaceIndex::newExtra(const char *ns, int i, NamespaceDetails *d) {
-        mongo::d.dbMutex.assertWriteLocked();
+        Lock::assertWriteLocked(ns);
         assert( i >= 0 && i <= 1 );
         Namespace n(ns);
         Namespace extra(n.extraName(i).c_str()); // throws userexception if ns name too long
@@ -611,7 +611,7 @@ namespace mongo {
     typedef map< string, shared_ptr< NamespaceDetailsTransient > >::iterator ouriter;
 
     void NamespaceDetailsTransient::reset() {
-        DEV assertInWriteLock();
+        Lock::assertWriteLocked(_ns); 
         clearQueryCache();
         _keysComputed = false;
         _indexSpecs.clear();
@@ -644,22 +644,28 @@ namespace mongo {
     }
     
     void NamespaceDetailsTransient::clearForPrefix(const char *prefix) {
-        assertInWriteLock();
+        SimpleMutex::scoped_lock lk(_qcMutex);
         vector< string > found;
-        for( ouriter i = _nsdMap.begin(); i != _nsdMap.end(); ++i )
-            if ( strncmp( i->first.c_str(), prefix, strlen( prefix ) ) == 0 )
+        for( ouriter i = _nsdMap.begin(); i != _nsdMap.end(); ++i ) {
+            if ( strncmp( i->first.c_str(), prefix, strlen( prefix ) ) == 0 ) {
                 found.push_back( i->first );
+                Lock::assertWriteLocked(i->first);
+            }
+        }
         for( vector< string >::iterator i = found.begin(); i != found.end(); ++i ) {
             _nsdMap[ *i ].reset();
         }
     }
 
     void NamespaceDetailsTransient::eraseForPrefix(const char *prefix) {
-        assertInWriteLock();
+        SimpleMutex::scoped_lock lk(_qcMutex);
         vector< string > found;
-        for( ouriter i = _nsdMap.begin(); i != _nsdMap.end(); ++i )
-            if ( strncmp( i->first.c_str(), prefix, strlen( prefix ) ) == 0 )
+        for( ouriter i = _nsdMap.begin(); i != _nsdMap.end(); ++i ) {
+            if ( strncmp( i->first.c_str(), prefix, strlen( prefix ) ) == 0 ) {
                 found.push_back( i->first );
+                Lock::assertWriteLocked(i->first);
+            }
+        }
         for( vector< string >::iterator i = found.begin(); i != found.end(); ++i ) {
             _nsdMap.erase(*i);
         }

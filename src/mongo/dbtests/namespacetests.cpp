@@ -32,7 +32,7 @@ namespace NamespaceTests {
 
     namespace IndexDetailsTests {
         class Base {
-            dblock lk;
+            Lock::GlobalWrite lk;
             Client::Context _context;
         public:
             Base() : _context(ns()) {
@@ -107,7 +107,7 @@ namespace NamespaceTests {
                 return b.obj();
             }
         private:
-            dblock lk_;
+            Lock::GlobalWrite lk_;
             IndexDetails id_;
         };
 
@@ -955,7 +955,7 @@ namespace NamespaceTests {
 
         class Base {
             const char *ns_;
-            dblock lk;
+            Lock::GlobalWrite lk;
             Client::Context _context;
         public:
             Base( const char *ns = "unittests.NamespaceDetailsTests" ) : ns_( ns ) , _context( ns ) {}
@@ -969,7 +969,7 @@ namespace NamespaceTests {
             }
         protected:
             void create() {
-                dblock lk;
+                Lock::GlobalWrite lk;
                 string err;
                 ASSERT( userCreateNS( ns(), fromjson( spec() ), err, false ) );
             }

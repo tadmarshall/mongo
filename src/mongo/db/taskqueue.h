@@ -20,6 +20,9 @@
 
 #include "mongomutex.h"
 
+// if you turn this back on be sure to enable TaskQueueTest again
+#if 0
+
 namespace mongo {
 
     /** defer work items by queueing them for invocation by another thread.  presumption is that
@@ -72,7 +75,7 @@ namespace mongo {
             int toDrain = 0;
             {
                 // flip queueing to the other queue (we are double buffered)
-                readlocktry lk("", 5);
+                readlocktry lk(5);
                 if( !lk.got() )
                     return;
                 toDrain = _which;
@@ -104,3 +107,5 @@ namespace mongo {
     };
 
 }
+
+#endif

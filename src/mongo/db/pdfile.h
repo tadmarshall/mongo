@@ -381,7 +381,9 @@ namespace mongo {
                 }
 
                 { 
-                    if( !d.dbMutex.isWriteLocked() ) { 
+                    // "something" is too vague, but we checked for the right db to be locked higher up the call stack
+                    if( !Lock::somethingWriteLocked() ) { 
+                        LockState::Dump();
                         log() << "*** TEMP NOT INITIALIZING FILE " << filename << ", not in a write lock." << endl;
                         log() << "temp bypass until more elaborate change - case that is manifesting is benign anyway" << endl;
                         return;
@@ -421,7 +423,7 @@ namespace mongo {
     inline Extent* MongoDataFile::getExtent(DiskLoc loc) const {
         Extent *e = _getExtent(loc);
         e->assertOk();
-        memconcept::is(e, memconcept::extent);
+        memconcept::is(e, memconcept::concept::extent);
         return e;
     }
 
@@ -479,7 +481,7 @@ namespace mongo {
     inline DeletedRecord* DiskLoc::drec() const {
         assert( _a != -1 );
         DeletedRecord* dr = (DeletedRecord*) rec();
-        memconcept::is(dr, memconcept::deletedrecord);
+        memconcept::is(dr, memconcept::concept::deletedrecord);
         return dr;
     }
     inline Extent* DiskLoc::ext() const {
@@ -490,7 +492,9 @@ namespace mongo {
     inline 
     const BtreeBucket<V> * DiskLoc::btree() const {
         assert( _a != -1 );
-        return (const BtreeBucket<V> *) rec()->data;
+        Record *r = rec();
+        memconcept::is(r, memconcept::concept::btreebucket, "", 8192);
+        return (const BtreeBucket<V> *) r->data;
     }
 
 } // namespace mongo
@@ -505,7 +509,7 @@ namespace mongo {
     inline NamespaceIndex* nsindex(const char *ns) {
         Database *database = cc().database();
         assert( database );
-        memconcept::is(database, memconcept::database, ns, sizeof(Database));
+        memconcept::is(database, memconcept::concept::database, ns, sizeof(Database));
         DEV {
             char buf[256];
             nsToDatabase(ns, buf);
@@ -523,7 +527,7 @@ namespace mongo {
         // if this faults, did you set the current db first?  (Client::Context + dblock)
         NamespaceDetails *d = nsindex(ns)->details(ns);
         if( d ) {
-            memconcept::is(d, memconcept::nsdetails, ns, sizeof(NamespaceDetails));
+            memconcept::is(d, memconcept::concept::nsdetails, ns, sizeof(NamespaceDetails));
         }
         return d;
     }

@@ -528,6 +528,7 @@ namespace mongo {
     } cmdclonecollection;
 
 
+    // SERVER-4328 todo review for concurrency
     thread_specific_ptr< DBClientConnection > authConn_;
     /* Usage:
      admindb.$cmd.findOne( { copydbgetnonce: 1, fromhost: <hostname> } );
@@ -582,7 +583,7 @@ namespace mongo {
         virtual bool slaveOk() const {
             return false;
         }
-        virtual LockType locktype() const { return WRITE; }
+        virtual LockType locktype() const { return NONE; }
         virtual void help( stringstream &help ) const {
             help << "copy a database from another host to this host\n";
             help << "usage: {copydb: 1, fromhost: <hostname>, fromdb: <db>, todb: <db>[, slaveOk: <bool>, username: <username>, nonce: <nonce>, key: <key>]}";
@@ -590,7 +591,8 @@ namespace mongo {
         virtual bool run(const string& dbname, BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
             bool slaveOk = cmdObj["slaveOk"].trueValue();
             string fromhost = cmdObj.getStringField("fromhost");
-            if ( fromhost.empty() ) {
+            bool fromSelf = fromhost.empty();
+            if ( fromSelf ) {
                 /* copy from self */
                 stringstream ss;
                 ss << "localhost:" << cmdLine.port;
@@ -602,6 +604,10 @@ namespace mongo {
                 errmsg = "parms missing - {copydb: 1, fromhost: <hostname>, fromdb: <db>, todb: <db>}";
                 return false;
             }
+
+            // SERVER-4328 todo lock just the two db's not everything for the fromself case
+            writelock lk( fromSelf ? "" : dbname );
+
             Cloner c;
             string username = cmdObj.getStringField( "username" );
             string nonce = cmdObj.getStringField( "nonce" );
@@ -635,6 +641,7 @@ namespace mongo {
             return false;
         }
         virtual LockType locktype() const { return WRITE; }
+        virtual bool lockGlobally() const { return true; }
         virtual bool logTheOp() {
             return true; // can't log steps when doing fast rename within a db, so always log the op rather than individual steps comprising it.
         }

@@ -101,7 +101,7 @@ namespace QueryOptimizerTests {
                 return p.frv()->endKey();
             }
         private:
-            dblock lk_;
+            Lock::GlobalWrite lk_;
             Client::Context _ctx;
             int indexNum_;
             static DBDirectClient client_;
@@ -549,7 +549,7 @@ namespace QueryOptimizerTests {
             static NamespaceDetails *nsd() { return nsdetails( ns() ); }
             DBDirectClient &client() { return _client; }
         private:
-            dblock _lk;
+            Lock::GlobalWrite lk_;
             Client::Context _context;
             DBDirectClient _client;
         };
@@ -1005,7 +1005,7 @@ namespace QueryOptimizerTests {
         }
         DBDirectClient &client() { return _client; }
     private:
-        dblock lk_;
+        Lock::GlobalWrite lk_;
         Client::Context _ctx;
         DBDirectClient _client;
     };

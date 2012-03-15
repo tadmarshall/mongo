@@ -330,6 +330,11 @@ namespace mongo {
         virtual bool slaveOk() const {
             return false;
         }
+
+        // this is suboptimal but syncDataAndTruncateJournal is called from dropDatabase, and that 
+        // may need a global lock.
+        virtual bool lockGlobally() const { return true; }
+
         virtual LockType locktype() const { return WRITE; }
         CmdDropDatabase() : Command("dropDatabase") {}
         bool run(const string& dbname, BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
@@ -357,6 +362,8 @@ namespace mongo {
             help << "repair database.  also compacts. note: slow.";
         }
         virtual LockType locktype() const { return WRITE; }
+        // SERVER-4328 todo don't lock globally. currently syncDataAndTruncateJournal is being called within, and that requires a global lock i believe.
+        virtual bool lockGlobally() const { return true; }
         CmdRepairDatabase() : Command("repairDatabase") {}
         bool run(const string& dbname , BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
             BSONElement e = cmdObj.firstElement();
@@ -639,8 +646,8 @@ namespace mongo {
         virtual LockType locktype() const { return NONE; }
         CmdGetOpTime() : Command("getoptime") { }
         bool run(const string& dbname, BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
-            writelock l( "" );
-            result.appendDate("optime", OpTime::now().asDate());
+            mutex::scoped_lock lk(OpTime::m);
+            result.appendDate("optime", OpTime::now(lk).asDate());
             return true;
         }
     } cmdgetoptime;
@@ -1051,6 +1058,7 @@ namespace mongo {
         virtual bool adminOnly() const { return true; }
         virtual bool slaveOk() const { return false; }
         virtual LockType locktype() const { return WRITE; }
+        virtual bool lockGlobally() const { return true; }
 
         CmdCloseAllDatabases() : Command( "closeAllDatabases" ) {}
         bool run(const string& dbname , BSONObj& jsobj, int, string& errmsg, BSONObjBuilder& result, bool /*fromRepl*/) {
@@ -1271,7 +1279,7 @@ namespace mongo {
 
     namespace {
         long long getIndexSizeForCollection(string db, string ns, BSONObjBuilder* details=NULL, int scale = 1 ) {
-            d.dbMutex.assertAtLeastReadLocked();
+            Lock::assertAtLeastReadLocked(ns);
 
             NamespaceDetails * nsd = nsdetails( ns.c_str() );
             if ( ! nsd )
@@ -1510,6 +1518,8 @@ namespace mongo {
         CmdConvertToCapped() : Command( "convertToCapped" ) {}
         virtual bool slaveOk() const { return false; }
         virtual LockType locktype() const { return WRITE; }
+        // calls renamecollection which does a global lock, so we must too:
+        virtual bool lockGlobally() const { return true; }
         virtual void help( stringstream &help ) const {
             help << "{ convertToCapped:<fromCollectionName>, size:<sizeInBytes> }";
         }
@@ -1601,7 +1611,7 @@ namespace mongo {
             string ns = dbname + "." + coll;
             BSONObj obj = cmdObj[ "obj" ].embeddedObjectUserCheck();
             {
-                dblock lk;
+                Lock::DBWrite lk(ns);
                 Client::Context ctx( ns );
                 theDataFileMgr.insertWithObjMod( ns.c_str(), obj, true );
             }
@@ -1864,6 +1874,8 @@ namespace mongo {
 
         bool retval = false;
         if ( c->locktype() == Command::NONE ) {
+            assert( !c->lockGlobally() );
+
             // we also trust that this won't crash
             retval = true;
 
@@ -1884,13 +1896,26 @@ namespace mongo {
             // read lock
             assert( ! c->logTheOp() );
             string ns = c->parseNs(dbname, cmdObj);
+            scoped_ptr<Lock::GlobalRead> lk;
+            if( c->lockGlobally() )
+                lk.reset( new Lock::GlobalRead() );
             Client::ReadContext ctx( ns , dbpath, c->requiresAuth() ); // read locks
             client.curop()->ensureStarted();
             retval = _execCommand(c, dbname , cmdObj , queryOptions, result , fromRepl );
         }
         else {
             dassert( c->locktype() == Command::WRITE );
-            writelock lk;
+            bool global = c->lockGlobally();
+            DEV {
+                if( !global && Lock::isW() ) { 
+                    log() << "\ndebug have W lock but w would suffice for command " << c->name << endl;
+                }
+                if( global && Lock::isLocked() == 'w' ) { 
+                    // can't go w->W
+                    log() << "need glboal W lock but already have w on command : " << cmdObj.toString() << endl;
+                }
+            }
+            writelock lk( global ? "" : dbname );
             client.curop()->ensureStarted();
             Client::Context ctx( dbname , dbpath , c->requiresAuth() );
             retval = _execCommand(c, dbname , cmdObj , queryOptions, result , fromRepl );

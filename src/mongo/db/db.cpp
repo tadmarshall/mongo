@@ -279,7 +279,7 @@ namespace mongo {
         //assert(checkNsFilesOnLoad);
         checkNsFilesOnLoad = false; // we are mainly just checking the header - don't scan the whole .ns file for every db here.
 
-        dblock lk;
+        Lock::GlobalWrite lk;
         vector< string > dbNames;
         getDatabaseNames( dbNames );
         for ( vector< string >::iterator i = dbNames.begin(); i != dbNames.end(); ++i ) {
@@ -1172,7 +1172,7 @@ namespace mongo {
     // this will be called in certain c++ error cases, for example if there are two active
     // exceptions
     void myterminate() {
-        rawOut( "terminate() called, printing stack:" );
+        rawOut( "terminate() called, printing stack (if implemented for platform):" );
         printStackTrace();
         ::abort();
     }

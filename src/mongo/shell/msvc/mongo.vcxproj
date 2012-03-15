@@ -806,6 +806,9 @@
     <ClCompile Include="..\..\util\base64.cpp" />
     <ClCompile Include="..\..\util\debug_util.cpp" />
     <ClCompile Include="..\..\client\dbclient.cpp" />
+    <ClCompile Include="..\..\db\memconcept.cpp" >
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\client\dbclientcursor.cpp" />
     <ClCompile Include="..\..\db\jsobj.cpp" />
     <ClCompile Include="..\..\db\json.cpp" />

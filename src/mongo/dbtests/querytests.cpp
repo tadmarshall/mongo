@@ -41,7 +41,7 @@ namespace mongo {
 namespace QueryTests {
 
     class Base {
-        dblock lk;
+        Lock::GlobalWrite lk;
         Client::Context _context;
     public:
         Base() : _context( ns() ) {
@@ -131,7 +131,7 @@ namespace QueryTests {
         void run() {
             // We don't normally allow empty objects in the database, but test that we can find
             // an empty object (one might be allowed inside a reserved namespace at some point).
-            dblock lk;
+            Lock::GlobalWrite lk;
             Client::Context ctx( "unittests.querytests" );
             // Set up security so godinsert command can run.
             cc().getAuthenticationInfo()->isLocalHost = true;
@@ -205,7 +205,7 @@ namespace QueryTests {
 
             {
                 // Check internal server handoff to getmore.
-                dblock lk;
+                Lock::DBWrite lk(ns);
                 Client::Context ctx( ns );
                 ClientCursor::Pointer clientCursor( cursorId );
                 ASSERT( clientCursor.c()->pq );
@@ -434,7 +434,7 @@ namespace QueryTests {
         }
         void run() {
             const char *ns = "unittests.querytests.OplogReplaySlaveReadTill";
-            dblock lk;
+            Lock::DBWrite lk(ns);
             Client::Context ctx( ns );
             
             BSONObj info;
@@ -442,9 +442,9 @@ namespace QueryTests {
                                 BSON( "create" << "querytests.OplogReplaySlaveReadTill" <<
                                      "capped" << true << "size" << 8192 ),
                                 info );
-            Date_t one = OpTime::now().asDate();
-            Date_t two = OpTime::now().asDate();
-            Date_t three = OpTime::now().asDate();
+            Date_t one = OpTime::_now().asDate();
+            Date_t two = OpTime::_now().asDate();
+            Date_t three = OpTime::_now().asDate();
             insert( ns, BSON( "ts" << one ) );
             insert( ns, BSON( "ts" << two ) );
             insert( ns, BSON( "ts" << three ) );
@@ -871,7 +871,7 @@ namespace QueryTests {
     class DirectLocking : public ClientBase {
     public:
         void run() {
-            dblock lk;
+            Lock::GlobalWrite lk;
             Client::Context ctx( "unittests.DirectLocking" );
             client().remove( "a.b", BSONObj() );
             ASSERT_EQUALS( "unittests", cc().database()->name );
@@ -1243,11 +1243,12 @@ namespace QueryTests {
     class CollectionInternalBase : public CollectionBase {
     public:
         CollectionInternalBase( const char *nsLeaf ) :
-        CollectionBase( nsLeaf ),
-        _ctx( ns() ) {
+          CollectionBase( nsLeaf ),
+          _lk( ns() ),
+          _ctx( ns() ) {
         }
     private:
-        dblock _lk;
+        Lock::DBWrite _lk;
         Client::Context _ctx;
     };
     
@@ -1323,7 +1324,7 @@ namespace QueryTests {
             long long cursorId = cursor->getCursorId();
             
             {
-                dblock lk;
+                writelock lk(ns());
                 Client::Context ctx( ns() );
                 ClientCursor::Pointer pinCursor( cursorId );
   

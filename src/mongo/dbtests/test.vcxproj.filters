@@ -59,6 +59,9 @@
     <Filter Include="misc and third party\snappy">
       <UniqueIdentifier>{fbc4416f-ca67-4e63-a1ea-49027de7e080}</UniqueIdentifier>
     </Filter>
+    <Filter Include="db\x">
+      <UniqueIdentifier>{10afb743-a404-4e79-9044-157f0de4698f}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Boost">
       <UniqueIdentifier>{d74d5137-4461-45f3-9851-fd5c813b0ff3}</UniqueIdentifier>
     </Filter>
@@ -81,9 +84,6 @@
     </ClInclude>
     <ClInclude Include="..\client\model.h">
       <Filter>client</Filter>
-    </ClInclude>
-    <ClInclude Include="..\db\clientcursor.h">
-      <Filter>db\h</Filter>
     </ClInclude>
     <ClInclude Include="..\db\cmdline.h">
       <Filter>db\h</Filter>
@@ -323,6 +323,13 @@
     </ClInclude>
     <ClInclude Include="..\client\dbclientmockcursor.h" />
     <ClInclude Include="..\db\pagefault.h" />
+    <ClInclude Include="..\db\d_concurrency.h" />
+    <ClInclude Include="..\util\concurrency\qlock.h" />
+    <ClInclude Include="..\db\mongomutex.h" />
+    <ClInclude Include="..\db\jsobjmanipulator.h">
+      <Filter>db\h</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\collection.h" />
     <ClInclude Include="..\db\ops\delete.h">
       <Filter>db\h</Filter>
     </ClInclude>
@@ -344,6 +351,7 @@
     <ClInclude Include="..\db\explain.h">
       <Filter>db\h</Filter>
     </ClInclude>
+    <ClInclude Include="..\db\clientcursor.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="..\..\..\..\js\js32d.lib">
@@ -873,9 +881,6 @@
     <ClCompile Include="..\db\commands\cloud.cpp">
       <Filter>db\cpp</Filter>
     </ClCompile>
-    <ClCompile Include="..\db\d_concurrency.cpp">
-      <Filter>db\cpp</Filter>
-    </ClCompile>
     <ClCompile Include="d_chunk_manager_tests.cpp">
       <Filter>shard</Filter>
     </ClCompile>
@@ -903,6 +908,17 @@
     <ClCompile Include="..\util\md5.cpp">
       <Filter>db\cpp</Filter>
     </ClCompile>
+    <ClCompile Include="..\db\d_concurrency.cpp" />
+    <ClCompile Include="..\db\d_globals.cpp">
+      <Filter>db\x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\querypattern.cpp">
+      <Filter>db\x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\oid.cpp">
+      <Filter>db\x</Filter>
+    </ClCompile>
+    <ClCompile Include="..\pch.cpp" />
     <ClCompile Include="..\db\queryoptimizercursorimpl.cpp">
       <Filter>db\cpp</Filter>
     </ClCompile>
@@ -1014,6 +1030,18 @@
     </ClCompile>
     <ClCompile Include="..\..\third_party\boost\libs\program_options\src\winmain.cpp">
       <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="counttests.cpp">
+      <Filter>dbtests</Filter>
+    </ClCompile>
+    <ClCompile Include="queryutiltests.cpp">
+      <Filter>dbtests</Filter>
+    </ClCompile>
+    <ClCompile Include="removetests.cpp">
+      <Filter>dbtests</Filter>
+    </ClCompile>
+    <ClCompile Include="replsettests.cpp">
+      <Filter>dbtests</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

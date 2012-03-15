@@ -78,6 +78,7 @@ namespace mongo {
         return *x > 0;
     }
 
+    // TODO SERVER-4328
     bool inDBRepair = false;
     struct doingRepair {
         doingRepair() {
@@ -89,16 +90,17 @@ namespace mongo {
         }
     };
 
+    SimpleMutex BackgroundOperation::m("bg");
     map<string, unsigned> BackgroundOperation::dbsInProg;
     set<string> BackgroundOperation::nsInProg;
 
     bool BackgroundOperation::inProgForDb(const char *db) {
-        assertInWriteLock();
+        SimpleMutex::scoped_lock lk(m);
         return dbsInProg[db] != 0;
     }
 
     bool BackgroundOperation::inProgForNs(const char *ns) {
-        assertInWriteLock();
+        SimpleMutex::scoped_lock lk(m);
         return nsInProg.count(ns) != 0;
     }
 
@@ -113,19 +115,20 @@ namespace mongo {
     }
 
     BackgroundOperation::BackgroundOperation(const char *ns) : _ns(ns) {
-        assertInWriteLock();
+        SimpleMutex::scoped_lock lk(m);
         dbsInProg[_ns.db]++;
         assert( nsInProg.count(_ns.ns()) == 0 );
         nsInProg.insert(_ns.ns());
     }
 
     BackgroundOperation::~BackgroundOperation() {
-        wassert( d.dbMutex.isWriteLocked() );
+        SimpleMutex::scoped_lock lk(m);
         dbsInProg[_ns.db]--;
         nsInProg.erase(_ns.ns());
     }
 
     void BackgroundOperation::dump(stringstream& ss) {
+        SimpleMutex::scoped_lock lk(m);
         if( nsInProg.size() ) {
             ss << "\n<b>Background Jobs in Progress</b>\n";
             for( set<string>::iterator i = nsInProg.begin(); i != nsInProg.end(); i++ )
@@ -1217,13 +1220,14 @@ namespace mongo {
         extern unsigned notesThisLock;
     }
 
+    // this is called during insert (specifically indexRecordUsingTwoSteps) to provide an opportunity 
+    // to upgrade lock state.  we do not yet do anything. there is some discussion of whether upgradable
+    // would be useful or not.
     void upgradeToWritable(bool shouldBeUnlocked) {
-        // todo upgrade!
         DEV {
             // verify we haven't written yet (usually)
-
-            // test binary does special things so this would assert there so don't check there
-            if( shouldBeUnlocked && !cmdLine.binaryName.empty() && cmdLine.binaryName != "test" ) {
+            // the dbtests test binary does special things so this would assert there so don't check there
+            /*if( shouldBeUnlocked && !cmdLine.binaryName.empty() && cmdLine.binaryName != "test" ) {
                 static unsigned long long zeroes;
                 static unsigned long long tot;
                 tot++;
@@ -1232,14 +1236,14 @@ namespace mongo {
                 if( tot > 1000 ) {
                     static int n;
                     DEV if( n++ == 0 ) 
-                        log() << "warning upgradeToWritable: already in writable too often" << endl;
+                        log() << "warning upgradeToWritable: already in writable lock before upgrade call too often" << endl;
                 }
-            }
+            }*/
         }
     }
 
     /** add index keys for a newly inserted record 
-        done in two steps/phases to defer write lock portion
+        done in two steps/phases to allow potential deferal of write lock portion in the future
     */
     static void indexRecordUsingTwoSteps(NamespaceDetails *d, BSONObj obj, DiskLoc loc, bool shouldBeUnlocked) {
         vector<int> multi;
@@ -1263,8 +1267,7 @@ namespace mongo {
             }
         }
 
-        // update lock to writable here.  TODO
-        
+        // update lock to writable here - if we want that behavior.
         upgradeToWritable(shouldBeUnlocked);
 
         IndexInterface::phasedFinish(); // step 2
@@ -1572,13 +1575,13 @@ namespace mongo {
         set<NamespaceDetails*> bgJobsInProgress;
 
         void prep(const char *ns, NamespaceDetails *d) {
-            assertInWriteLock();
-            uassert( 13130 , "can't start bg index b/c in recursive lock (db.eval?)" , mongo::d.dbMutex.getState() == 1 );
+            Lock::assertWriteLocked(ns);
+            uassert( 13130 , "can't start bg index b/c in recursive lock (db.eval?)" , !Lock::nested() );
             bgJobsInProgress.insert(d);
         }
         void done(const char *ns, NamespaceDetails *d) {
             NamespaceDetailsTransient::get(ns).addedIndex(); // clear query optimizer cache
-            assertInWriteLock();
+            Lock::assertWriteLocked(ns);
         }
 
     public:
@@ -1640,7 +1643,7 @@ namespace mongo {
 
         assert( !BackgroundOperation::inProgForNs(ns.c_str()) ); // should have been checked earlier, better not be...
         assert( d->indexBuildInProgress == 0 );
-        assertInWriteLock();
+        assert( Lock::isWriteLocked(ns) );
         RecoverableIndexState recoverable( d );
 
         // Build index spec here in case the collection is empty and the index details are invalid
@@ -2158,13 +2161,12 @@ namespace mongo {
 
     void dropDatabase(string db) {
         log(1) << "dropDatabase " << db << endl;
+        Lock::assertWriteLocked(db);
         Database *d = cc().database();
         assert( d );
         assert( d->name == db );
 
         BackgroundOperation::assertNoBgOpInProgForDb(d->name.c_str());
-
-        mongo::d.dbMutex.assertWriteLocked();
 
         // Not sure we need this here, so removed.  If we do, we need to move it down 
         // within other calls both (1) as they could be called from elsewhere and 

@@ -465,7 +465,7 @@ namespace BasicTests {
     class DatabaseOwnsNS {
     public:
         void run() {
-            dblock lk;
+            Lock::GlobalWrite lk;
             bool isNew = false;
             // this leaks as ~Database is private
             // if that changes, should put this on the stack

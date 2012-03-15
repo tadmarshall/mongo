@@ -135,12 +135,13 @@
             ASSERT( present( key, -1 ) );
         }
     private:
-        dblock lk_;
+        Lock::GlobalWrite lk_;
         Client::Context _context;
     };
 
     class Create : public Base {
     public:
+        Create() { }
         void run() {
             checkValid( 0 );
         }
