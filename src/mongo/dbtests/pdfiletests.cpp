@@ -384,21 +384,21 @@ namespace PdfileTests {
         All() : Suite( "pdfile" ) {}
 
         void setupTests() {
-            add< ScanCapped::Empty >();
-            add< ScanCapped::EmptyLooped >();
-            add< ScanCapped::EmptyMultiExtentLooped >();
-            add< ScanCapped::Single >();
-            add< ScanCapped::NewCapFirst >();
-            add< ScanCapped::NewCapLast >();
-            add< ScanCapped::NewCapMiddle >();
-            add< ScanCapped::FirstExtent >();
-            add< ScanCapped::LastExtent >();
-            add< ScanCapped::MidExtent >();
-            add< ScanCapped::AloneInExtent >();
-            add< ScanCapped::FirstInExtent >();
-            add< ScanCapped::LastInExtent >();
-            add< Insert::UpdateDate >();
-            add< ExtentSizing >();
+            //add< ScanCapped::Empty >();
+            //add< ScanCapped::EmptyLooped >();
+            //add< ScanCapped::EmptyMultiExtentLooped >();
+            //add< ScanCapped::Single >();
+            //add< ScanCapped::NewCapFirst >();
+            //add< ScanCapped::NewCapLast >();
+            //add< ScanCapped::NewCapMiddle >();
+            //add< ScanCapped::FirstExtent >();
+            //add< ScanCapped::LastExtent >();
+            //add< ScanCapped::MidExtent >();
+            //add< ScanCapped::AloneInExtent >();
+            //add< ScanCapped::FirstInExtent >();
+            //add< ScanCapped::LastInExtent >();
+            //add< Insert::UpdateDate >();
+            //add< ExtentSizing >();
             add< ExtentAllocOrder >();
         }
     } myall;
