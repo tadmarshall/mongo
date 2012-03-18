@@ -366,6 +366,7 @@
     <ClInclude Include="..\..\..\third_party\pcre-8.30\config.h" />
     <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre.h" />
     <ClInclude Include="..\..\..\third_party\pcre-8.30\pcrecpp.h" />
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre_internal.h" />
     <ClInclude Include="..\..\..\third_party\snappy\snappy-sinksource.h" />
     <ClInclude Include="..\..\..\third_party\snappy\snappy.h" />
     <ClInclude Include="..\..\bson\bsonelement.h" />
