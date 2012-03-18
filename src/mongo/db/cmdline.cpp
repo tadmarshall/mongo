@@ -383,7 +383,7 @@ namespace mongo {
             if ( logpath.size() == 0 )
                 logpath = params["logpath"].as<string>();
             uassert( 10033 ,  "logpath has to be non-zero" , logpath.size() );
-            initLogging( logpath , params.count( "logappend" ) );
+            initLogging( logpath , params.count( "logappend" ) != 0 );
         }
 
         if ( params.count("pidfilepath")) {

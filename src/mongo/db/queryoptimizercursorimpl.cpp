@@ -729,7 +729,7 @@ namespace mongo {
         }
         if ( _planPolicy.permitOptimalIdPlan() && isSimpleIdQuery( _query ) ) {
             Database *database = cc().database();
-            verify( 15985, database );
+            verify( 15985, database != 0 );
             NamespaceDetails *d = database->namespaceIndex.details( _ns );
             if ( d ) {
                 int idxNo = d->findIdIndex();

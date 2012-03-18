@@ -61,6 +61,12 @@
     <Filter Include="db\ops">
       <UniqueIdentifier>{b1815ea5-b42d-4185-9a01-02f22a1d865b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="db\commands">
+      <UniqueIdentifier>{ceef685d-b678-49c8-b910-5f742fbcedf6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="third_party\snappy">
+      <UniqueIdentifier>{e7013967-8da4-42ab-b1d8-232ed1115ae6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\bsondump.cpp">
@@ -278,6 +284,315 @@
     </ClCompile>
     <ClCompile Include="..\..\s\d_migrate.cpp">
       <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\record.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\listen.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\rs_sync.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbwebserver.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\mmap.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbhelpers.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl_block.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\queryoptimizercursorimpl.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\index.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\ops\update.cpp">
+      <Filter>db\ops</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\oplog.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\btreecursor.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\matcher_covered.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\queryutil.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\btree.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\key.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\ops\delete.cpp">
+      <Filter>db\ops</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\miniwebserver.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\cmdline.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\processinfo.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\security_commands.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbcommands.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbcommands_generic.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\health.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\d_writeback.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\ops\count.cpp">
+      <Filter>db\ops</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\queryoptimizer.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\cursor.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\durop.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\synchronization.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dur_writetodatafiles.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\alignedbuilder.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\logfile.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dur_recover.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dur_preplogbuffer.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\compress.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\mmap_win.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\indexkey.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\stringutils.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\common.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbcommands_admin.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\d_logic.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbmessage.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\ops\query.cpp">
+      <Filter>db\ops</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\pagefault.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\base64.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\md5main.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\introspect.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\security.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\projection.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\d_chunk_manager.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\explain.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\scanandorder.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\extsort.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\cloner.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\btreebuilder.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\commands\isself.cpp">
+      <Filter>db\commands</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\thread_pool.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\consensus.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\querypattern.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\manager.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\task.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\replset_commands.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\rs_initiate.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\rs_config.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\heartbeat.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\rs_initialsync.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\shardkey.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\password.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\message.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\shard.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\distlock.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\chunk.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\s\grid.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl\rs_rollback.cpp">
+      <Filter>db\repl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\snappy\snappy.cc">
+      <Filter>third_party\snappy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\snappy\snappy-sinksource.cc">
+      <Filter>third_party\snappy</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcrecpp.cc">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_chartables.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_compile.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_config.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_dfa_exec.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_exec.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_fullinfo.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_get.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_globals.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_maketables.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_newline.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ord2utf8.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_refcount.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_scanner.cc">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_stringpiece.cc">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_study.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_tables.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ucd.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_valid_utf8.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_version.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_xclass.c">
+      <Filter>third_party\pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scripting\utils.cpp">
+      <Filter>scripting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scripting\bench.cpp">
+      <Filter>scripting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\shell\mongo.cpp">
+      <Filter>scripting</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -682,6 +997,87 @@
     </ClInclude>
     <ClInclude Include="..\..\db\dur_stats.h">
       <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\repl_block.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\queryoptimizercursorimpl.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\index.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\oplog.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\net\miniwebserver.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\repl\health.h">
+      <Filter>db\repl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\s\d_writeback.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\queryoptimizer.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\logfile.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\dur_recover.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\compress.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\indexkey.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\explain.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\scanandorder.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\cloner.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\concurrency\thread_pool.h">
+      <Filter>util\concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\querypattern.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\concurrency\task.h">
+      <Filter>util\concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\repl\rs_config.h">
+      <Filter>db\repl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\s\shardkey.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\distlock.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\s\chunk.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\s\grid.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\snappy\snappy.h">
+      <Filter>third_party\snappy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\snappy\snappy-sinksource.h">
+      <Filter>third_party\snappy</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre.h">
+      <Filter>third_party\pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\config.h">
+      <Filter>third_party\pcre</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

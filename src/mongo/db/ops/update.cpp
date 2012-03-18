@@ -445,7 +445,7 @@ namespace mongo {
                             BSONElement arrJ = j.next();
                             if ( arrJ.eoo() )
                                 break;
-                            mss->amIInPlacePossible( arrI.woCompare( arrJ, false ) );
+                            mss->amIInPlacePossible( arrI.woCompare( arrJ, false ) != 0 );
                         }
                     }
                 }

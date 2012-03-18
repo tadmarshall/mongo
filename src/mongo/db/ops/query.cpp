@@ -195,7 +195,7 @@ namespace mongo {
                 }
                 cc->mayUpgradeStorage();
                 cc->storeOpForSlave( last );
-                exhaust = cc->queryOptions() & QueryOption_Exhaust;
+                exhaust = ( cc->queryOptions() & QueryOption_Exhaust ) != 0;
             }
         }
 
@@ -401,7 +401,7 @@ namespace mongo {
             verify( 16080, _queryOptimizerCursor );
             fieldRangeSet = _queryOptimizerCursor->initialFieldRangeSet();
         }
-        verify( 16084, fieldRangeSet );
+        verify( 16084, fieldRangeSet != 0 );
         return new ScanAndOrder( _parsedQuery.getSkip(),
                                 _parsedQuery.getNumToReturn(),
                                 _parsedQuery.getOrder(),

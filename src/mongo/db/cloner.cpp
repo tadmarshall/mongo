@@ -663,7 +663,7 @@ namespace mongo {
                 Client::Context ctx( source ); // auths against source
                 NamespaceDetails *nsd = nsdetails( source.c_str() );
                 uassert( 10026 ,  "source namespace does not exist", nsd );
-                capped = nsd->capped;
+                capped = nsd->capped != 0;
                 if ( capped )
                     for( DiskLoc i = nsd->firstExtent; !i.isNull(); i = i.ext()->xnext )
                         size += i.ext()->length;

@@ -80,7 +80,7 @@ namespace mongo {
                 }
                 else {
                     uassert( 10053 , "You cannot currently mix including and excluding fields. Contact us if this is an issue." ,
-                             (bool)true_false == e.trueValue() );
+                             ( true_false != 0 ) == e.trueValue() );
                 }
             }
         }

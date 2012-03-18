@@ -83,7 +83,7 @@ namespace mongo {
             }
             if ( u > 10 )
                 OCCASIONALLY log() << "btree unused skipped:" << u << '\n';
-            return u;
+            return u != 0;
         }
 
         /* Since the last noteLocation(), our key may have moved around, and that old cached
