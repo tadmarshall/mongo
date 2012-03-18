@@ -69,7 +69,7 @@ namespace mongo {
             dassert(protectSize>0&&protectSize<=MemoryMappedFile::ChunkSize);
 
             DWORD old;
-            bool ok = VirtualProtect((void*)protectStart, protectSize, PAGE_WRITECOPY, &old);
+            bool ok = VirtualProtect((void*)protectStart, protectSize, PAGE_WRITECOPY, &old) != 0;
             if( !ok ) {
                 DWORD e = GetLastError();
                 log() << "VirtualProtect failed (mcw) " << mmf->filename() << ' ' << chunkno << hex << protectStart << ' ' << protectSize << ' ' << errnoWithDescription(e) << endl;
@@ -109,7 +109,7 @@ namespace mongo {
 #if 1
         // https://jira.mongodb.org/browse/SERVER-2942
         DWORD old;
-        bool ok = VirtualProtect(oldPrivateAddr, (SIZE_T) len, PAGE_READONLY, &old);
+        bool ok = VirtualProtect(oldPrivateAddr, (SIZE_T) len, PAGE_READONLY, &old) != 0;
         if( !ok ) {
             DWORD e = GetLastError();
             log() << "VirtualProtect failed in remapPrivateView " << filename() << hex << oldPrivateAddr << ' ' << len << ' ' << errnoWithDescription(e) << endl;

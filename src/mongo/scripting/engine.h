@@ -201,14 +201,14 @@ namespace mongo {
         virtual void interruptAll() {}
 
         static void setGetInterruptSpecCallback( unsigned ( *func )() ) { _getInterruptSpecCallback = func; }
-        static bool haveGetInterruptSpecCallback() { return _getInterruptSpecCallback; }
+        static bool haveGetInterruptSpecCallback() { return _getInterruptSpecCallback != 0; }
         static unsigned getInterruptSpec() {
             massert( 13474, "no _getInterruptSpecCallback", _getInterruptSpecCallback );
             return _getInterruptSpecCallback();
         }
 
         static void setCheckInterruptCallback( const char * ( *func )() ) { _checkInterruptCallback = func; }
-        static bool haveCheckInterruptCallback() { return _checkInterruptCallback; }
+        static bool haveCheckInterruptCallback() { return _checkInterruptCallback != 0; }
         static const char * checkInterrupt() {
             return _checkInterruptCallback ? _checkInterruptCallback() : "";
         }

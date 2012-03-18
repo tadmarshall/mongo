@@ -544,8 +544,8 @@ namespace mongo {
         assert( toupdate.objsize() < m.header()->dataLen() );
         assert( query.objsize() + toupdate.objsize() < m.header()->dataLen() );
         bool upsert = flags & UpdateOption_Upsert;
-        bool multi = flags & UpdateOption_Multi;
-        bool broadcast = flags & UpdateOption_Broadcast;
+        bool multi = ( flags & UpdateOption_Multi ) != 0;
+        bool broadcast = ( flags & UpdateOption_Broadcast ) != 0;
         
         op.debug().query = query;
         op.setQuery(query);
@@ -580,8 +580,8 @@ namespace mongo {
         const char *ns = d.getns();
         op.debug().ns = ns;
         int flags = d.pullInt();
-        bool justOne = flags & RemoveOption_JustOne;
-        bool broadcast = flags & RemoveOption_Broadcast;
+        bool justOne = ( flags & RemoveOption_JustOne ) != 0;
+        bool broadcast = ( flags & RemoveOption_Broadcast ) != 0;
         assert( d.moreJSObjs() );
         BSONObj pattern = d.nextJsObj();
         

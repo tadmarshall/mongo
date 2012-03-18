@@ -542,7 +542,7 @@ namespace mongo {
                 }
 
                 string maybePrimary;
-                if ( _checkConnection( c.get() , maybePrimary , retry , i ) ) {
+                if ( _checkConnection( c.get() , maybePrimary , retry != 0 , i ) ) {
                     _master = i;
                     newMaster = i;
                     if ( ! checkAllSecondaries )
@@ -841,7 +841,7 @@ namespace mongo {
             // TODO: might be possible to do this faster by changing api
             DbMessage dm( toSend );
             QueryMessage qm( dm );
-            if ( ( slaveOk = ( qm.queryOptions & QueryOption_SlaveOk ) ) ) {
+            if ( ( slaveOk = ( qm.queryOptions & QueryOption_SlaveOk ) != 0 ) ) {
 
                 for ( int i = _lazyState._retries; i < 3; i++ ) {
                     try {

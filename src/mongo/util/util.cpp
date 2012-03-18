@@ -31,7 +31,7 @@ namespace mongo {
     struct AtStartup {
         AtStartup() {
             LARGE_INTEGER x;
-            bool ok = QueryPerformanceFrequency(&x);
+            bool ok = QueryPerformanceFrequency(&x) != 0;
             assert(ok);
             Timer::countsPerSecond = x.QuadPart;
         }

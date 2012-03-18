@@ -72,7 +72,7 @@ namespace mongo {
             return def;
         }
         bool hasParam( string name ) {
-            return _params.count( name );
+            return _params.count( name ) != 0;
         }
 
         string getNS() {

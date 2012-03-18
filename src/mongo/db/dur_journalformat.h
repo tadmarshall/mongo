@@ -118,7 +118,7 @@ namespace mongo {
             bool isNsSuffix() const { return getFileNo() == DotNsSuffix; }
 
             void setLocalDbContextBit() { _fileNo |= LocalDbBit; }
-            bool isLocalDbContext() const { return _fileNo & LocalDbBit; }
+            bool isLocalDbContext() const { return ( _fileNo & LocalDbBit ) != 0; }
             void clearLocalDbContextBit() { _fileNo = getFileNo(); }
 
             static string suffix(int fileno) {

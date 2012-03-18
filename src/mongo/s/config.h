@@ -75,7 +75,7 @@ namespace mongo {
             CollectionInfo( const BSONObj& in );
 
             bool isSharded() const {
-                return _cm.get();
+                return _cm.get() != 0;
             }
 
             ChunkManagerPtr getCM() const {

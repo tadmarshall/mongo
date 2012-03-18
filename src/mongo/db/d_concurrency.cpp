@@ -270,7 +270,7 @@ namespace mongo {
         char db[MaxDatabaseNameLen];
         nsToDatabase(ns.data(), db);
         if( str::equals(db,"local") ) {
-            return ls.local;
+            return ls.local != 0;
         }
         return db == ls.otherName && ls.other;
     }
@@ -307,10 +307,10 @@ namespace mongo {
     }
 
     Lock::TempRelease::TempRelease() : 
-        cant( recursive() ), type(threadState())
+        cant( recursive() != 0 ), type(threadState())
     {
         LockState& ls = lockState();
-        cant = ls.recursive;
+        cant = ls.recursive != 0;
         type = ls.threadState;
         local = ls.local;
 

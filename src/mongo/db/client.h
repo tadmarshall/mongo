@@ -29,7 +29,7 @@
 #include "namespace-inl.h"
 #include "lasterror.h"
 #include "stats/top.h"
-#include "../db/client_common.h"
+#include "client_common.h"
 #include "../util/concurrency/threadlocal.h"
 #include "../util/net/message_port.h"
 #include "../util/concurrency/rwlock.h"
@@ -108,7 +108,7 @@ namespace mongo {
         bool isGod() const { return _god; } /* this is for map/reduce writes */
         string toString() const;
         void gotHandshake( const BSONObj& o );
-        bool hasRemote() const { return _mp; }
+        bool hasRemote() const { return _mp != 0; }
         HostAndPort getRemote() const { assert( _mp ); return _mp->remote(); }
         BSONObj getRemoteID() const { return _remoteId; }
         BSONObj getHandshake() const { return _handshake; }

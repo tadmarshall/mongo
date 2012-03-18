@@ -138,7 +138,7 @@ namespace mongo {
             ~CleanupPointer() {
                 DESTRUCTOR_GUARD ( reset(); );
             }
-            operator bool() { return _c; }
+            operator bool() { return _c != 0; }
             ClientCursor * operator-> () { return _c; }
             /** Release ownership of the ClientCursor. */
             void release() {
