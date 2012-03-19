@@ -32,9 +32,12 @@ namespace mongo {
             int local;
         };
         class GlobalWrite : boost::noncopyable { // recursive is ok
-            const bool stopGreed;
-            const char old;
+            const bool stoppedGreed;
         public:
+            /** @param stopGreed after acquisition stop greediness of other threads for write locks. this should generally not 
+                                 be used it is for exceptional circumstances. journaling uses it. perhaps this should go away, 
+                                 it makes the software more complicated.
+            */
             GlobalWrite(bool stopGreed = false); 
             ~GlobalWrite();
             void downgrade(); // W -> R
@@ -46,6 +49,7 @@ namespace mongo {
         };
         // lock this database. do not shared_lock globally first, that is handledin herein. 
         class DBWrite : boost::noncopyable {
+            bool prep(LockState&);
             void lockTop(LockState&);
             void lockLocal();
             void lock(const string& db);
@@ -58,6 +62,7 @@ namespace mongo {
         };
         // lock this database for reading. do not shared_lock globally first, that is handledin herein. 
         class DBRead : boost::noncopyable {
+            bool prep(LockState&);
             void lockTop(LockState&);
             void lockLocal();
             void lock(const string& db);
@@ -75,6 +80,7 @@ namespace mongo {
             static void W_to_R();
             static void unsetW(); // reverts to greedy
             static void unsetR(); // reverts to greedy
+            static void handoffR(); // doesn't unlock, but changes my thread state back to ''
         };
     };
 
