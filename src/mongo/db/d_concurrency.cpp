@@ -98,6 +98,10 @@ namespace mongo {
         }
         return *p;
     }
+    LockState::LockState() : recursive(0), threadState(0), local(0), other(0), otherLock(0) { 
+        tempReleased = 0;
+        scopedLk = 0;
+    }
     void LockState::Dump() {
         lockState().dump();
     }
@@ -125,7 +129,11 @@ namespace mongo {
     inline char& threadState() { 
         return lockState().threadState;
     }
-    inline unsigned& recursive() { // the nested locking counter for the big outer QLock
+
+    // note this doesn't tell us much actually, it tells us if we are nesting locks but 
+    // they could be the a global lock twice or a global and a specific or two specifics 
+    // (such as including local) 
+    inline unsigned& recursive() {
         return lockState().recursive;
     }
 
@@ -260,7 +268,7 @@ namespace mongo {
         return threadState() == 'R';
     }
     bool Lock::nested() { 
-        return recursive() != 0;
+        return recursive() > 1;
     }
     static bool weLocked(const LockState &ls, const StringData& ns) { 
         char db[MaxDatabaseNameLen];
@@ -302,16 +310,36 @@ namespace mongo {
         }
     }
 
-    Lock::TempRelease::TempRelease() : 
-        cant( recursive() ), type(threadState())
+    Lock::ScopedLock::ScopedLock() {
+        LockState& ls = lockState();
+        ls.recursive++;
+        if( ls.recursive == 1 ) { 
+            ls.scopedLk = this;
+        }
+    }
+    Lock::ScopedLock::~ScopedLock() { 
+        LockState& ls = lockState();
+        ls.recursive--;
+        dassert( ls.recursive < 10000 );
+        if( ls.recursive == 0 ) { 
+            wassert( ls.scopedLk == this );
+            ls.scopedLk = 0;
+        }
+        else { 
+            wassert( ls.scopedLk != this );
+        }
+    }
+
+    Lock::TempRelease::TempRelease()
     {
         LockState& ls = lockState();
-        cant = ls.recursive;
+        cant = ls.recursive > 1;
         type = ls.threadState;
         local = ls.local;
+        dassert( !ls.tempReleased ); // it may be fine to just do "cant" just want to see what we are doing first
 
         if( cant )
-            return;
+            return;        
 
         switch(type) {
         case 'W':
@@ -351,14 +379,16 @@ namespace mongo {
             assert(false);
         }
         ls.threadState = 0;
-        dassert( ls.recursive == 0 );
+        ls.tempReleased++;
     }
     Lock::TempRelease::~TempRelease() {
-        if( cant )
-            return;
-
         LockState& ls = lockState();
-        dassert( ls.recursive == 0 );
+        if( cant ) {
+            dassert( ls.tempReleased == 0 );
+            return;
+        }
+        ls.tempReleased--;
+        dassert( ls.tempReleased == 0 );
         DESTRUCTOR_GUARD( 
             fassert(0, ls.threadState == 0);
             ls.threadState = 0;
@@ -393,13 +423,15 @@ namespace mongo {
         stoppedGreed(sg)
     {
         char ts = threadState();
+        noop = false;
         if( ts == 'W' ) { 
-            recursive()++;
+            noop = true;
             DEV if( sg ) { 
                 log() << "info Lock::GlobalWrite does not stop greed on recursive invocation" << endl;
             }
             return;
         }
+        dassert( ts == 0 );
         if( sg ) {
             lock_W_stop_greed();
         } else {
@@ -407,8 +439,7 @@ namespace mongo {
         }
     }
     Lock::GlobalWrite::~GlobalWrite() {
-        if( recursive() ) { 
-            recursive()--;
+        if( noop ) { 
             return;
         }
         if( threadState() == 'R' ) { // we downgraded
@@ -420,17 +451,16 @@ namespace mongo {
         if( stoppedGreed ) {
             q.start_greed();
         }
-        fassert( 0, recursive() < 1000 );
     }
     void Lock::GlobalWrite::downgrade() { 
-        assert( !recursive() );
+        assert( !noop );
         assert( threadState() == 'W' );
         q.W_to_R();
         threadState() = 'R';
     }
     // you will deadlock if 2 threads doing this
     bool Lock::GlobalWrite::upgrade() { 
-        assert( !recursive() );
+        assert( !noop );
         assert( threadState() == 'R' );
         if( q.R_to_W() ) {
             threadState() = 'W';
@@ -442,33 +472,28 @@ namespace mongo {
     Lock::GlobalRead::GlobalRead() {
         LockState& ls = lockState();
         char ts = ls.threadState;
+        noop = false;
         if( ts == 'R' || ts == 'W' ) { 
-            ls.recursive++;
+            noop = true;
             return;
         }
         lock_R(); // we are unlocked in the qlock/top sense.  lock_R will assert if we are in an in compatible state
     }
     Lock::GlobalRead::~GlobalRead() {
-        if( recursive() ) { 
-            recursive()--;
-        }
-        else {
+        if( !noop ) {
             unlock_R();
         }
-        fassert( 0, recursive() < 1000 );
     }
 
-    bool Lock::DBWrite::prep(LockState& ls) { 
+    bool Lock::DBWrite::isW(LockState& ls) const { 
         switch( ls.threadState ) { 
         case 'R' : 
             assert(false);
         case 'r' : 
             assert(false);
         case 'w' :
-            ls.recursive++;
             return false;
         case 'W' :
-            ls.recursive++;
             return true; // lock nothing further
         default:
             assert(false);
@@ -535,7 +560,7 @@ namespace mongo {
     Lock::DBWrite::DBWrite(const StringData& ns) {
         locked_w=false; weLocked=0; ourCounter = 0;
         LockState& ls = lockState();
-        if( prep(ls) )
+        if( isW(ls) )
             return;
         char db[MaxDatabaseNameLen];
         nsToDatabase(ns.data(), db);
@@ -558,21 +583,15 @@ namespace mongo {
         if( locked_w ) {
             unlock_w();
         }
-        else { 
-            recursive()--;
-            dassert( recursive() >= 0 );
-        }
     }
 
-    bool Lock::DBRead::prep(LockState& ls) { 
+    bool Lock::DBRead::isRW(LockState& ls) const { 
         switch( ls.threadState ) { 
         case 'W' :
         case 'R' : 
-            ls.recursive++;
             return true;
         case 'r' :
         case 'w' :
-            ls.recursive++;
             return false;
         default:
             assert(false);
@@ -639,7 +658,7 @@ namespace mongo {
     Lock::DBRead::DBRead(const StringData& ns) {
         locked_r=false; weLocked=0; ourCounter = 0;
         LockState& ls = lockState();
-        if( prep(ls) )
+        if( isRW(ls) )
             return;
         char db[MaxDatabaseNameLen];
         nsToDatabase(ns.data(), db);
@@ -661,9 +680,6 @@ namespace mongo {
         }
         if( locked_r ) {
             unlock_r();
-        } else { 
-            recursive()--;
-            dassert( recursive() >= 0 );
         }
    }
 }

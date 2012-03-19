@@ -23,6 +23,7 @@ namespace mongo {
         static void assertAtLeastReadLocked(const StringData& ns);
         static void assertWriteLocked(const StringData& ns);
 
+        // avoid TempRelease when possible.
         struct TempRelease {
             TempRelease(); 
             ~TempRelease();
@@ -31,25 +32,40 @@ namespace mongo {
             char type;
             int local;
         };
-        class GlobalWrite : boost::noncopyable { // recursive is ok
+
+        class ScopedLock : boost::noncopyable {
+        protected: 
+            ScopedLock(); 
+            virtual ~ScopedLock();
+            virtual void tempRelease() { } // stub
+            virtual void relock() { } // stub
+        };
+
+        // note that for these classes recursive locking is ok if the recursive locking "makes sense"
+        // i.e. you could grab globalread after globalwrite.
+
+        class GlobalWrite : private ScopedLock {
             const bool stoppedGreed;
+            bool noop;
         public:
-            /** @param stopGreed after acquisition stop greediness of other threads for write locks. this should generally not 
-                                 be used it is for exceptional circumstances. journaling uses it. perhaps this should go away, 
-                                 it makes the software more complicated.
+            /** @param stopGreed after acquisition stop greediness of other threads for write locks. this 
+                should generally not be used it is for exceptional circumstances. journaling uses it. 
+                perhaps this should go away it makes the software more complicated.
             */
             GlobalWrite(bool stopGreed = false); 
-            ~GlobalWrite();
+            virtual ~GlobalWrite();
             void downgrade(); // W -> R
             bool upgrade();   // caution see notes
         };
         struct GlobalRead : boost::noncopyable { // recursive is ok
+            bool noop;
+        public:
             GlobalRead(); 
-            ~GlobalRead();
+            virtual ~GlobalRead();
         };
         // lock this database. do not shared_lock globally first, that is handledin herein. 
-        class DBWrite : boost::noncopyable {
-            bool prep(LockState&);
+        class DBWrite : private ScopedLock {
+            bool isW(LockState&) const;
             void lockTop(LockState&);
             void lockLocal();
             void lock(const string& db);
@@ -58,20 +74,21 @@ namespace mongo {
             int *ourCounter;
         public:
             DBWrite(const StringData& dbOrNs);
-            ~DBWrite();
+            virtual ~DBWrite();
         };
         // lock this database for reading. do not shared_lock globally first, that is handledin herein. 
-        class DBRead : boost::noncopyable {
-            bool prep(LockState&);
+        class DBRead : private ScopedLock {
+            bool isRW(LockState&) const;
             void lockTop(LockState&);
             void lockLocal();
             void lock(const string& db);
             bool locked_r;
             SimpleRWLock *weLocked;
             int *ourCounter;
+            string what;
         public:
             DBRead(const StringData& dbOrNs);
-            ~DBRead();
+            virtual ~DBRead();
         };
 
         // specialty things:
@@ -128,19 +145,24 @@ namespace mongo {
 
     // implementation stuff
     struct LockState {
-        LockState() : threadState(0), recursive(0), local(0), other(0), otherLock(0) { }
+        LockState();
         void dump();
         static void Dump();
 
+        unsigned recursive;           // nested locking is allowed
+        unsigned tempReleased;        // 0 = no, 1 = yes
+
         // global lock related
         char threadState;             // 0, 'r', 'w', 'R', 'W'
-        unsigned recursive;           // nested locking is allowed
 
         // db level locking related
         int local;                    // recursive lock count on local db and other db
         int other;                    //   >0 means write lock, <0 read lock
         string otherName;             // which database are we locking and working with (besides local)
         SimpleRWLock *otherLock;      // so we don't have to check the map too often (the map has a mutex)
+
+        // for temprelease
+        Lock::ScopedLock *scopedLk;   // for the nonrecursive case. otherwise there would be many
     };
 
 }
