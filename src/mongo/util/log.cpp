@@ -257,7 +257,9 @@ namespace mongo {
             }
             else {
                 int x = errno;
-                cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
+                if ( x != 0 ) {
+                    cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
+                }
             }
         }
         else {

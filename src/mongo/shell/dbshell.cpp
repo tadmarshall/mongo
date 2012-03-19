@@ -974,27 +974,41 @@ int _main( int argc, char* argv[] ) {
     return 0;
 }
 
+#ifdef _WIN32
+int wmain( int argc, wchar_t* argvW[] ) {
+    static mongo::StaticObserver staticObserver;
+    UINT initialConsoleInputCodePage = GetConsoleCP();
+    UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
+    SetConsoleCP( CP_UTF8 );
+    SetConsoleOutputCP( CP_UTF8 );
+    try {
+        // don't bother freeing this memory, we exit immediately on return
+        char** argv = reinterpret_cast< char** >( malloc( sizeof( char * ) * argc ) );
+        for ( int i = 0; i < argc; ++i ) {
+            string utf8arg = toUtf8String( argvW[ i ] );
+            argv[ i ] = _strdup( utf8arg.c_str() );
+        }
+        int returnValue = _main( argc, argv );
+        SetConsoleCP( initialConsoleInputCodePage );
+        SetConsoleOutputCP( initialConsoleOutputCodePage );
+        return returnValue;
+    }
+    catch ( mongo::DBException& e ) {
+        cerr << "exception: " << e.what() << endl;
+        SetConsoleCP( initialConsoleInputCodePage );
+        SetConsoleOutputCP( initialConsoleOutputCodePage );
+        return -1;
+    }
+}
+#else
 int main( int argc, char* argv[] ) {
     static mongo::StaticObserver staticObserver;
     try {
-#ifdef _WIN32
-        UINT initialConsoleInputCodePage = GetConsoleCP();
-        UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
-        SetConsoleCP( CP_UTF8 );
-        SetConsoleOutputCP( CP_UTF8 );
-
-        int returnValue = _main( argc , argv );
-
-        SetConsoleCP( initialConsoleInputCodePage );
-        SetConsoleOutputCP( initialConsoleOutputCodePage );
-
-        return returnValue;
-#else
         return _main( argc , argv );
-#endif
     }
     catch ( mongo::DBException& e ) {
         cerr << "exception: " << e.what() << endl;
         return -1;
     }
 }
+#endif
