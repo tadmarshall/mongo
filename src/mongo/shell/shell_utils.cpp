@@ -875,6 +875,19 @@ namespace mongo {
             )
         }
 
+#if 1
+        BSONObj JSSrand( const BSONObj &a, void* data ) {
+            uassert( 12518, "srand requires a single numeric argument",
+                     a.nFields() == 1 && a.firstElement().isNumber() );
+            srand( static_cast< unsigned int >( a.firstElement().numberLong() ) );
+            return undefined_;
+        }
+
+        BSONObj JSRand( const BSONObj &a, void* data ) {
+            uassert( 12519, "rand accepts no arguments", a.nFields() == 0 );
+            return BSON( "" << double( rand() ) / ( double( RAND_MAX ) + 1 ) );
+        }
+#else
         unsigned _randomSeed;
 
         BSONObj JSSrand( const BSONObj &a, void* data ) {
@@ -894,6 +907,7 @@ namespace mongo {
 #endif
             return BSON( "" << double( r ) / ( double( RAND_MAX ) + 1 ) );
         }
+#endif
 
         BSONObj isWindows(const BSONObj& a, void* data) {
             uassert( 13006, "isWindows accepts no arguments", a.nFields() == 0 );
