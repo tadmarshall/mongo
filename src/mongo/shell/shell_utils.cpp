@@ -894,7 +894,7 @@ namespace mongo {
             uassert( 12519, "rand accepts no arguments", a.nFields() == 0 );
             unsigned r;
 #if !defined(_WIN32)
-            r = rand_r( _randomSeed.getRef() );
+            r = rand_r( &_randomSeed.getRef() );
 #else
             r = rand();
 #endif
