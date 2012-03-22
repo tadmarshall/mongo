@@ -357,30 +357,50 @@ namespace mongo {
         pInputSource->manageDependencies(pTracker);
         
         /* chain together the sources we found */
-        intrusive_ptr<DocumentSource> pSource(pInputSource);
+        DocumentSource *pSource = pInputSource.get();
         for(SourceVector::iterator iter(sourceVector.begin()),
                 listEnd(sourceVector.end()); iter != listEnd; ++iter) {
             intrusive_ptr<DocumentSource> pTemp(*iter);
             pTemp->setSource(pSource);
-            pSource = pTemp;
+            pSource = pTemp.get();
         }
         /* pSource is left pointing at the last source in the chain */
 
         /*
           Iterate through the resulting documents, and add them to the result.
+
+          We wrap all the BSONObjBuilder calls with a try/catch in case the
+          objects get too large and cause an exception.
         */
-        BSONArrayBuilder resultArray; // where we'll stash the results
-        for(bool hasDocument = !pSource->eof(); hasDocument;
+        try {
+            BSONArrayBuilder resultArray; // where we'll stash the results
+            for(bool hasDocument = !pSource->eof(); hasDocument;
                 hasDocument = pSource->advance()) {
-            boost::intrusive_ptr<Document> pDocument(pSource->getCurrent());
+                boost::intrusive_ptr<Document> pDocument(pSource->getCurrent());
 
-            /* add the document to the result set */
-            BSONObjBuilder documentBuilder;
-            pDocument->toBson(&documentBuilder);
-            resultArray.append(documentBuilder.done());
-        }
+                /* add the document to the result set */
+                BSONObjBuilder documentBuilder;
+                pDocument->toBson(&documentBuilder);
+                resultArray.append(documentBuilder.done());
+            }
 
-        result.appendArray("result", resultArray.arr());
+            result.appendArray("result", resultArray.arr());
+
+         } catch(AssertionException &ae) {
+            /* 
+               If its not the "object too large" error, rethrow.
+               At time of writing, that error code comes from
+               mongo/src/mongo/bson/util/builder.h
+            */
+            if (ae.getCode() != 13548)
+                throw;
+
+            /* throw the nicer human-readable error */
+            uassert(16029, str::stream() <<
+                    "aggregation result exceeds maximum document size limit ("
+                    << (BSONObjMaxUserSize / (1024 * 1024)) << "MB)",
+                    false);
+         }
 
         return true;
     }

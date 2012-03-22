@@ -981,19 +981,17 @@ int wmain( int argc, wchar_t* argvW[] ) {
     UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
     SetConsoleCP( CP_UTF8 );
     SetConsoleOutputCP( CP_UTF8 );
+    int returnValue = -1;
     try {
         WindowsCommandLine wcl( argc, argvW );
-        int returnValue = _main( argc, wcl.argv() );
-        SetConsoleCP( initialConsoleInputCodePage );
-        SetConsoleOutputCP( initialConsoleOutputCodePage );
-        return returnValue;
+        returnValue = _main( argc, wcl.argv() );
     }
     catch ( mongo::DBException& e ) {
         cerr << "exception: " << e.what() << endl;
-        SetConsoleCP( initialConsoleInputCodePage );
-        SetConsoleOutputCP( initialConsoleOutputCodePage );
-        return -1;
     }
+    SetConsoleCP( initialConsoleInputCodePage );
+    SetConsoleOutputCP( initialConsoleOutputCodePage );
+    return returnValue;
 }
 #else // #ifdef _WIN32
 int main( int argc, char* argv[] ) {
