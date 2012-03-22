@@ -345,6 +345,9 @@
     <ClCompile Include="..\util\processinfo_win32.cpp">
       <Filter>util\Main</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\third_party\linenoise\mk_wcwidth.cpp">
+      <Filter>third_party\linenoise</Filter>
+    </ClCompile>
     <ClCompile Include="..\util\ramlog.cpp">
       <Filter>util\Main</Filter>
     </ClCompile>
@@ -856,6 +859,9 @@
     </ClInclude>
     <ClInclude Include="..\util\timer.h">
       <Filter>util\Header</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\linenoise\mk_wcwidth.h">
+      <Filter>third_party\linenoise</Filter>
     </ClInclude>
     <ClInclude Include="..\util\version.h">
       <Filter>util\Header</Filter>
