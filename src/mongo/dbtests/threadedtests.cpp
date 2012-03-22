@@ -168,21 +168,54 @@ namespace ThreadedTests {
                     if( i > N/2 ) { 
                         int q = i % 11;
                         if( q == 0 ) { 
+                            char what = Lock::dbLevelLockingEnabled() ? 'r' : 'R';
                             Lock::DBRead r("foo");
+                            ASSERT( Lock::isLocked() == what && Lock::atLeastReadLocked("foo") );
+                            ASSERT( !Lock::nested() );
                             Lock::DBRead r2("foo");
+                            ASSERT( Lock::nested() );
+                            ASSERT( Lock::isLocked() == what && Lock::atLeastReadLocked("foo") );
                             Lock::DBRead r3("local");
                             if( sometimes ) {
                                 Lock::TempRelease t;
                             }
+                            ASSERT( Lock::isLocked() == what && Lock::atLeastReadLocked("foo") );
+                            ASSERT( Lock::isLocked() == what && Lock::atLeastReadLocked("local") );
                         }
                         else if( q == 1 ) {
                             // test locking local only -- with no preceeding lock
-                            { Lock::DBRead  x("local"); }
-                            { Lock::DBWrite x("local"); }
+                            { 
+                                Lock::DBRead x("local"); 
+                                //Lock::DBRead y("q");
+                                if( sometimes ) {
+                                    Lock::TempRelease t; // we don't temprelease (cant=true) here thus this is just a check that nothing weird happens...
+                                }
+                            }
+                            { 
+                                Lock::DBWrite x("local"); 
+                                if( sometimes ) {
+                                    Lock::TempRelease t;
+                                }
+                            }
                         } else if( q == 1 ) {
-                            // TODO { Lock::DBRead  x("admin"); }
-                            //{ Lock::DBWrite x("admin"); }
-                        } else { 
+                            { Lock::DBRead  x("admin"); }
+                            { Lock::DBWrite x("admin"); }
+                        } else if( q == 2 ) { 
+                            Lock::DBWrite x("foo");
+                            Lock::DBWrite y("admin");
+                            { Lock::TempRelease t; }
+                        }
+                        else if( q == 3 ) {
+                            Lock::DBWrite x("foo");
+                            Lock::DBRead y("admin");
+                            { Lock::TempRelease t; }
+                        } 
+                        else if( q == 4 ) { 
+                            Lock::DBRead x("foo2");
+                            Lock::DBRead y("admin");
+                            { Lock::TempRelease t; }
+                        }
+                        else { 
                             Lock::DBWrite w("foo");
                             {
                                 Lock::TempRelease t;

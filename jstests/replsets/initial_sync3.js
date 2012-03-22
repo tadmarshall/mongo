@@ -66,7 +66,7 @@ try {
     master.getDB("admin").runCommand({replSetReconfig : config});
 }
 catch(e) {
-    print("trying to reconfigure: "+e);
+    assert(e.message == "error doing query: failed");
 }
 
 // wait for a heartbeat, too, just in case sync happens before hb
@@ -96,7 +96,7 @@ rs2.awaitReplication();
 master = rs2.getMaster();
 
 master.getDB("foo").bar.baz.insert({x:2});
-var x = master.getDB("foo").runCommand({getLastError : 1, w : 3, wtimeout : 6000});
+var x = master.getDB("foo").runCommand({getLastError : 1, w : 3, wtimeout : 60000});
 printjson(x);
 assert.eq(null, x.err);
 

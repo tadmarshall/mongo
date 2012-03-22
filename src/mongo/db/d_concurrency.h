@@ -11,6 +11,7 @@ namespace mongo {
 
     class Lock : boost::noncopyable { 
     public:
+        enum Nestable { notnestable=0, local, admin };
         static int isLocked();      // true if *anything* is locked (by us)
         static int isReadLocked();  // r or R
         static int somethingWriteLocked(); // w or W
@@ -23,8 +24,11 @@ namespace mongo {
         static void assertAtLeastReadLocked(const StringData& ns);
         static void assertWriteLocked(const StringData& ns);
 
+        static bool dbLevelLockingEnabled(); 
+
         class ScopedLock;
-        // avoid TempRelease when possible.
+
+        // note: avoid TempRelease when possible. not a good thing.
         struct TempRelease {
             TempRelease(); 
             ~TempRelease();
@@ -76,7 +80,7 @@ namespace mongo {
         class DBWrite : private ScopedLock {
             bool isW(LockState&) const;
             void lockTop(LockState&);
-            void lockLocal();
+            void lockNestable(Nestable db);
             void lock(const string& db);
             bool locked_w;
             SimpleRWLock *weLocked;
@@ -95,7 +99,7 @@ namespace mongo {
         class DBRead : private ScopedLock {
             bool isRW(LockState&) const;
             void lockTop(LockState&);
-            void lockLocal();
+            void lockNestable(Nestable db);
             void lock(const string& db);
             bool locked_r;
             SimpleRWLock *weLocked;
@@ -195,15 +199,16 @@ namespace mongo {
         void dump();
         static void Dump();
 
-        unsigned recursive;           // nested locking is allowed
+        unsigned recursive;           // we allow recursively asking for a lock; we track that here
 
         // global lock related
         char threadState;             // 0, 'r', 'w', 'R', 'W'
 
         // db level locking related
-        int local;                    // recursive lock count on local db and other db
-        int other;                    //   >0 means write lock, <0 read lock
-        string otherName;             // which database are we locking and working with (besides local)
+        Lock::Nestable whichNestable;
+        int nestableCount;            // recursive lock count on local or admin db
+        int otherCount;               //   >0 means write lock, <0 read lock
+        string otherName;             // which database are we locking and working with (besides local/admin)
         SimpleRWLock *otherLock;      // so we don't have to check the map too often (the map has a mutex)
 
         // for temprelease
