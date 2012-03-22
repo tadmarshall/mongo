@@ -32,13 +32,6 @@
 
 #pragma once
 
-#include <vector>
-#include <string>
-
-using std::vector;
-using std::string;
-using std::wstring;
-
 namespace mongo {
 
     class StringSplitter {
@@ -156,7 +149,7 @@ namespace mongo {
 #if defined(_WIN32)
 
     class WindowsCommandLine {
-        char**              _argv;
+        char**  _argv;
 
     public:
         WindowsCommandLine( int argc, wchar_t* argvW[] );
