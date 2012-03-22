@@ -250,8 +250,32 @@ namespace mongo {
 #ifndef _WIN32
             if ( isSyslog ) {
                 syslog( LOG_INFO , "%s" , s.data() );
-            } else
+            }
+            else
 #endif
+
+#if 1
+
+#if defined(_WIN32)
+            {
+                int fd = fileno( logfile );
+                int tty = _isatty( fd );
+                if ( tty ) {
+                    _write( fd, s.data(), s.size() );
+                }
+                else {
+                    if (fwrite(s.data(), s.size(), 1, logfile)) {
+                        fflush(logfile);
+                    }
+                    else {
+                        int x = errno;
+                        if ( x != 0 ) {
+                            cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
+                        }
+                    }
+                }
+            }
+#else // #if defined(_WIN32)
             if (fwrite(s.data(), s.size(), 1, logfile)) {
                 fflush(logfile);
             }
@@ -261,6 +285,20 @@ namespace mongo {
                     cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
                 }
             }
+#endif // #if defined(_WIN32)
+
+#else // #if 1
+            if (fwrite(s.data(), s.size(), 1, logfile)) {
+                fflush(logfile);
+            }
+            else {
+                int x = errno;
+                if ( x != 0 ) {
+                    cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
+                }
+            }
+#endif // #if 1
+
         }
         else {
             cout << s.data();

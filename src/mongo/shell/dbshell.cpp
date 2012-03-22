@@ -974,6 +974,44 @@ int _main( int argc, char* argv[] ) {
     return 0;
 }
 
+#if 1
+
+#ifdef _WIN32
+int wmain( int argc, wchar_t* argvW[] ) {
+    static mongo::StaticObserver staticObserver;
+    UINT initialConsoleInputCodePage = GetConsoleCP();
+    UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
+    SetConsoleCP( CP_UTF8 );
+    SetConsoleOutputCP( CP_UTF8 );
+    try {
+        WindowsCommandLine wcl( argc, argvW );
+        int returnValue = _main( argc, wcl.argv() );
+        SetConsoleCP( initialConsoleInputCodePage );
+        SetConsoleOutputCP( initialConsoleOutputCodePage );
+        return returnValue;
+    }
+    catch ( mongo::DBException& e ) {
+        cerr << "exception: " << e.what() << endl;
+        SetConsoleCP( initialConsoleInputCodePage );
+        SetConsoleOutputCP( initialConsoleOutputCodePage );
+        return -1;
+    }
+}
+#else
+int main( int argc, char* argv[] ) {
+    static mongo::StaticObserver staticObserver;
+    try {
+        return _main( argc , argv );
+    }
+    catch ( mongo::DBException& e ) {
+        cerr << "exception: " << e.what() << endl;
+        return -1;
+    }
+}
+#endif
+
+#else
+
 #ifdef _WIN32
 int wmain( int argc, wchar_t* argvW[] ) {
     static mongo::StaticObserver staticObserver;
@@ -1012,3 +1050,6 @@ int main( int argc, char* argv[] ) {
     }
 }
 #endif
+
+#endif
+

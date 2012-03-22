@@ -32,6 +32,13 @@
 
 #pragma once
 
+#include <vector>
+#include <string>
+
+using std::vector;
+using std::string;
+using std::wstring;
+
 namespace mongo {
 
     class StringSplitter {
@@ -105,16 +112,16 @@ namespace mongo {
 
 #if defined(_WIN32)
 
-    std::string toUtf8String(const std::wstring& wide);
+    string toUtf8String( const wstring& wide );
 
-    std::wstring toWideString(const char *s);
+    wstring toWideString( const char *s );
 
     /* like toWideString but UNICODE macro sensitive */
 # if !defined(_UNICODE)
 #error temp error 
-    inline std::string toNativeString(const char *s) { return s; }
+    inline string toNativeString( const char *s ) { return s; }
 # else
-    inline std::wstring toNativeString(const char *s) { return toWideString(s); }
+    inline wstring toNativeString( const char *s ) { return toWideString(s); }
 # endif
 
 #endif
@@ -145,4 +152,18 @@ namespace mongo {
 #endif // !defined(_WIN32)
         return ret;
     }
-}
+
+#if defined(_WIN32)
+
+    class WindowsCommandLine {
+        char**              _argv;
+
+    public:
+        WindowsCommandLine( int argc, wchar_t* argvW[] );
+        ~WindowsCommandLine();
+        char** argv( void ) const { return _argv; };
+    };
+
+#endif // #if defined(_WIN32)
+
+} // namespace mongo
