@@ -243,62 +243,39 @@ namespace mongo {
     }
 
     void Logstream::logLockless( const StringData& s ) {
+
         if ( s.size() == 0 )
             return;
 
         if ( doneSetup == 1717 ) {
-#ifndef _WIN32
-            if ( isSyslog ) {
-                syslog( LOG_INFO , "%s" , s.data() );
-            }
-            else
-#endif
-
-#if 1
 
 #if defined(_WIN32)
-            {
-                int fd = fileno( logfile );
-                int tty = _isatty( fd );
-                if ( tty ) {
-                    _write( fd, s.data(), s.size() );
-                }
-                else {
-                    if (fwrite(s.data(), s.size(), 1, logfile)) {
-                        fflush(logfile);
-                    }
-                    else {
-                        int x = errno;
-                        if ( x != 0 ) {
-                            cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
-                        }
-                    }
-                }
+            // fwrite() has a behavior problem in Windows when writing to the console
+            //  when the console is in the UTF-8 code page: fwrite() sends a single
+            //  byte and then the rest of the string.  If the first character is
+            //  non-ASCII, the console then displays two UTF-8 replacement characters
+            //  instead of the single UTF-8 character we want.  write() doesn't have
+            //  this problem.
+            int fd = fileno( logfile );
+            if ( _isatty( fd ) ) {
+                fflush( logfile );
+                _write( fd, s.data(), s.size() );
+                return;
             }
-#else // #if defined(_WIN32)
+#else
+            if ( isSyslog ) {
+                syslog( LOG_INFO , "%s" , s.data() );
+                return;
+            }
+#endif
+
             if (fwrite(s.data(), s.size(), 1, logfile)) {
                 fflush(logfile);
             }
             else {
                 int x = errno;
-                if ( x != 0 ) {
-                    cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
-                }
+                cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
             }
-#endif // #if defined(_WIN32)
-
-#else // #if 1
-            if (fwrite(s.data(), s.size(), 1, logfile)) {
-                fflush(logfile);
-            }
-            else {
-                int x = errno;
-                if ( x != 0 ) {
-                    cout << "Failed to write to logfile: " << errnoWithDescription(x) << endl;
-                }
-            }
-#endif // #if 1
-
         }
         else {
             cout << s.data();
