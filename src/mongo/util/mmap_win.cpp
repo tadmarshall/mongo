@@ -157,6 +157,7 @@ namespace mongo {
         return view;
     }
 
+    // Test theory that simply retrying FlushViewOfFile will always make it work
     class WindowsFlushable : public MemoryMappedFile::Flushable {
     public:
         WindowsFlushable( void * view , HANDLE fd , string filename , boost::shared_ptr<mutex> flushMutex )
@@ -169,13 +170,81 @@ namespace mongo {
 
             scoped_lock lk(*_flushMutex);
 
-            BOOL success = FlushViewOfFile(_view, 0); // 0 means whole mapping
-            if (!success) {
-                int err = GetLastError();
-                out() << "FlushViewOfFile failed " << err << " file: " << _filename << endl;
+            static LARGE_INTEGER performanceFrequency = { 0 };
+            bool timersWork = true;
+            if ( performanceFrequency.QuadPart == 0 ) {
+                timersWork = FALSE != QueryPerformanceFrequency( &performanceFrequency );
+                if ( !timersWork ) {
+                    int err = GetLastError();
+                    out() << "QueryPerformanceFrequency failed, error = " << err << endl;
+                }
+            }
+            LARGE_INTEGER startTime = { 0 };
+            if ( timersWork ) {
+                timersWork = FALSE != QueryPerformanceCounter( &startTime );
+                if ( !timersWork ) {
+                    int err = GetLastError();
+                    out() << "QueryPerformanceCounter failed, error = " << err << endl;
+                }
             }
 
-            success = FlushFileBuffers(_fd);
+            LARGE_INTEGER quitTime;
+            if ( timersWork ) {
+                quitTime.QuadPart = startTime.QuadPart + ( 60 * performanceFrequency.QuadPart );
+            }
+            LARGE_INTEGER thisTime;
+            thisTime.QuadPart = startTime.QuadPart;
+            unsigned int loopCount = 0;
+            static const unsigned int maxLoops = 1000 * 1000 * 1000;
+            bool success = false;
+            int dosError = ERROR_SUCCESS;
+            while ( !success && loopCount < maxLoops && ( !timersWork || ( thisTime.QuadPart < quitTime.QuadPart ) ) ) {
+                ++loopCount;
+                success = FALSE != FlushViewOfFile(_view, 0); // 0 means whole mapping
+                if ( !success ) {
+                    dosError = GetLastError();
+                    if ( dosError != ERROR_LOCK_VIOLATION /* == 33 */ ) {
+                        break;
+                    }
+                    if ( timersWork ) {
+                        QueryPerformanceCounter( &thisTime );
+                    }
+                }
+            }
+            if ( success && loopCount > 1 ) {
+                if ( timersWork ) {
+                    QueryPerformanceCounter( &thisTime );
+                    double millisecondsToComplete = static_cast< double >( thisTime.QuadPart -startTime.QuadPart ) / static_cast< double >( performanceFrequency.QuadPart );
+                    out() << "FlushViewOfFile for " << _filename
+                            << " succeeded after " << loopCount
+                            << " attempts taking " << millisecondsToComplete
+                            << " ms" << endl;
+                }
+                else {
+                    out() << "FlushViewOfFile for " << _filename
+                            << " succeeded after " << loopCount
+                            << " attempts" << endl;
+                }
+            }
+            else if ( !success ) {
+                if ( timersWork ) {
+                    QueryPerformanceCounter( &thisTime );
+                    double millisecondsToComplete = static_cast< double >( thisTime.QuadPart -startTime.QuadPart ) / static_cast< double >( performanceFrequency.QuadPart );
+                    out() << "FlushViewOfFile for " << _filename
+                            << " failed with error " << dosError
+                            << " after " << loopCount
+                            << " attempts taking " << millisecondsToComplete
+                            << " ms" << endl;
+                }
+                else {
+                    out() << "FlushViewOfFile for " << _filename
+                            << " failed with error " << dosError
+                            << " after " << loopCount
+                            << " attempts" << endl;
+                }
+            }
+
+            success = FALSE != FlushFileBuffers(_fd);
             if (!success) {
                 int err = GetLastError();
                 out() << "FlushFileBuffers failed " << err << " file: " << _filename << endl;
