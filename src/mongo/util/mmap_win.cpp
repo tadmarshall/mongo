@@ -21,6 +21,7 @@
 #include "../db/mongommf.h"
 #include "../db/concurrency.h"
 #include "../db/memconcept.h"
+#include "timer.h"
 
 namespace mongo {
 
@@ -157,6 +158,7 @@ namespace mongo {
         return view;
     }
 
+    // Test theory that simply retrying FlushViewOfFile will always make it work
     class WindowsFlushable : public MemoryMappedFile::Flushable {
     public:
         WindowsFlushable( void * view , HANDLE fd , string filename , boost::shared_ptr<mutex> flushMutex )
@@ -169,13 +171,35 @@ namespace mongo {
 
             scoped_lock lk(*_flushMutex);
 
-            BOOL success = FlushViewOfFile(_view, 0); // 0 means whole mapping
-            if (!success) {
-                int err = GetLastError();
-                out() << "FlushViewOfFile failed " << err << " file: " << _filename << endl;
+            int loopCount = 0;
+            bool success = false;
+            int dosError = ERROR_SUCCESS;
+            Timer t;
+            while ( !success && loopCount < 1000 * 1000 && t.seconds() < 60 ) {
+                ++loopCount;
+                success = FALSE != FlushViewOfFile( _view, 0 ); // 0 means whole mapping
+                if ( !success ) {
+                    dosError = GetLastError();
+                    if ( dosError != ERROR_LOCK_VIOLATION /* == 33 */ ) {
+                        break;
+                    }
+                }
+            }
+            if ( success && loopCount > 1 ) {
+                out() << "FlushViewOfFile for " << _filename
+                        << " succeeded after " << loopCount
+                        << " attempts taking " << t.micros() / 1000.0
+                        << " ms" << endl;
+            }
+            else if ( !success ) {
+                out() << "FlushViewOfFile for " << _filename
+                        << " failed with error " << dosError
+                        << " after " << loopCount
+                        << " attempts taking " << t.micros() / 1000.0
+                        << " ms" << endl;
             }
 
-            success = FlushFileBuffers(_fd);
+            success = FALSE != FlushFileBuffers(_fd);
             if (!success) {
                 int err = GetLastError();
                 out() << "FlushFileBuffers failed " << err << " file: " << _filename << endl;
