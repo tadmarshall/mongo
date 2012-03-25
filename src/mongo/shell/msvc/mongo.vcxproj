@@ -355,6 +355,12 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|Win32'">BOOST_THREAD_BUILD_LIB;BOOST_ALL_NO_LIB;XP_WIN;HAVE_CONFIG_H;OLDJS;MONGO_EXPOSE_MACROS;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|Win32'">BOOST_THREAD_BUILD_LIB;BOOST_ALL_NO_LIB;XP_WIN;HAVE_CONFIG_H;OLDJS;MONGO_EXPOSE_MACROS;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ClCompile Include="..\..\..\third_party\linenoise\mk_wcwidth.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|Win32'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|Win32'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="..\..\bson\oid.cpp" />
     <ClCompile Include="..\..\client\clientAndShell.cpp" />
     <ClCompile Include="..\..\client\clientOnly.cpp">
@@ -857,6 +863,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\third_party\linenoise\linenoise_utf8.h" />
+    <ClInclude Include="..\..\..\third_party\linenoise\mk_wcwidth.h" />
     <ClInclude Include="..\..\..\third_party\pcre-8.30\config.h" />
     <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre.h" />
     <ClInclude Include="..\..\..\third_party\pcre-8.30\pcrecpp.h" />

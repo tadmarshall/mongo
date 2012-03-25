@@ -372,6 +372,9 @@
     <ClCompile Include="..\..\db\memconcept.cpp">
       <Filter>db\x</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\third_party\linenoise\mk_wcwidth.cpp">
+      <Filter>third_party\linenoise</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\collection.js">
@@ -862,6 +865,9 @@
     </ClInclude>
     <ClInclude Include="..\..\util\progress_meter.h">
       <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\linenoise\mk_wcwidth.h">
+      <Filter>third_party\linenoise</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

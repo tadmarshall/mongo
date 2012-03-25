@@ -113,6 +113,7 @@
 #include <fcntl.h>
 #include "linenoise.h"
 #include "linenoise_utf8.h"
+#include "mk_wcwidth.h"
 #include <string>
 #include <vector>
 #include <boost/smart_ptr/scoped_array.hpp>
@@ -1191,6 +1192,9 @@ static UChar32 linenoiseReadChar( void ){
         }
         else {
             // we got a real character, return it
+#if 1
+            int charWidth = mk_wcwidth( rec.Event.KeyEvent.uChar.UnicodeChar );
+#endif
             return modifierKeys | rec.Event.KeyEvent.uChar.UnicodeChar;
         }
     }
