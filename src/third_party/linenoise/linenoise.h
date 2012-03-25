@@ -38,9 +38,9 @@
 
 struct linenoiseCompletions;
 
-typedef void( linenoiseCompletionCallback )( const char *, linenoiseCompletions* );
-void linenoiseSetCompletionCallback( linenoiseCompletionCallback* fn );
-void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str );
+typedef void( linenoiseCompletionCallback )( const char *, linenoiseCompletions * );
+void linenoiseSetCompletionCallback( linenoiseCompletionCallback * fn );
+void linenoiseAddCompletion( linenoiseCompletions * lc, const char * str );
 
 char *linenoise( const char* prompt );
 void linenoisePreloadBuffer( const char* preloadText );

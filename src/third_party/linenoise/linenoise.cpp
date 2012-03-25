@@ -1125,6 +1125,7 @@ static UChar32 linenoiseReadChar( void ){
     static UChar32 previousKeyDown = 0;
     while ( true ) {
         ReadConsoleInputW( console_in, &rec, 1, &count );
+#if 0 // helper for debugging keystrokes, display info in the debug "Output" window in the debugger
         {
             if ( rec.EventType == KEY_EVENT ) {
                 if ( rec.Event.KeyEvent.uChar.UnicodeChar ) {
@@ -1143,20 +1144,20 @@ static UChar32 linenoiseReadChar( void ){
                 }
             }
         }
-#if 1
-        if ( rec.EventType == KEY_EVENT ) {
-            if ( !rec.Event.KeyEvent.bKeyDown ) {
+#endif
+        if ( rec.EventType != KEY_EVENT ) {
+            continue;
+        }
+        // Windows provides for entry of characters that are not on your keyboard by sending the Unicode
+        // characters as a "key up" without a preceeding "key down".  We need to accept these characters.
+        if ( rec.Event.KeyEvent.bKeyDown ) {
+            previousKeyDown = rec.Event.KeyEvent.uChar.UnicodeChar;
+        }
+        else {
+            if ( previousKeyDown == rec.Event.KeyEvent.uChar.UnicodeChar ) {
                 continue;
             }
         }
-        else {
-            continue;
-        }
-#else
-        if ( rec.EventType != KEY_EVENT || !rec.Event.KeyEvent.bKeyDown ) {
-            continue;
-        }
-#endif
         modifierKeys = 0;
         // AltGr is encoded as ( LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED ), so don't treat this combination as either CTRL or META
         // we just turn off those two bits, so it is still possible to combine CTRL and/or META with an AltGr key by using right-Ctrl and/or left-Alt
