@@ -16,12 +16,15 @@
  */
 
 #include "pch.h"
-#include "dbclient.h"
-#include "../db/dbmessage.h"
-#include "../db/cmdline.h"
-#include "connpool.h"
-#include "../s/shard.h"
-#include "../s/util.h"
+
+#include "mongo/client/dbclientcursor.h"
+
+#include "mongo/client/connpool.h"
+#include "mongo/client/dbclient.h"
+#include "mongo/db/cmdline.h"
+#include "mongo/db/dbmessage.h"
+#include "mongo/s/shard.h"
+#include "mongo/s/util.h"
 
 namespace mongo {
 

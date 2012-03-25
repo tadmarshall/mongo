@@ -16,8 +16,12 @@
  */
 
 #include "pch.h"
-#include "dbclient.h"
-#include "distlock.h"
+
+#include "mongo/client/distlock.h"
+
+#include "mongo/client/dbclient.h"
+#include "mongo/client/dbclientcursor.h"
+
 
 namespace mongo {
 

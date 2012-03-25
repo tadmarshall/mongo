@@ -19,11 +19,10 @@
 
 #include "pch.h"
 #include "../util/timer.h"
-
 #include "../db/matcher.h"
 #include "../db/json.h"
-
 #include "dbtests.h"
+#include "../db/namespace_details.h"
 
 namespace MatcherTests {
 
@@ -163,7 +162,7 @@ namespace MatcherTests {
                 CoveredIndexMatcher matcher( BSON( "a.b" << 1 ), BSON( "$natural" << 1 ) );
                 MatchDetails details;
                 details.requestElemMatchKey();
-                shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), BSONObj() );
+                boost::shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), BSONObj() );
                 // Verify that the cursor is unindexed.
                 ASSERT_EQUALS( "BasicCursor", cursor->toString() );
                 ASSERT( matcher.matchesCurrent( cursor.get(), &details ) );
@@ -188,7 +187,7 @@ namespace MatcherTests {
                 CoveredIndexMatcher matcher( query, BSON( "a.b" << 1 ) );
                 MatchDetails details;
                 details.requestElemMatchKey();
-                shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), query );
+                boost::shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), query );
                 // Verify that the cursor is indexed.
                 ASSERT_EQUALS( "BtreeCursor a.b_1", cursor->toString() );
                 ASSERT( matcher.matchesCurrent( cursor.get(), &details ) );
@@ -214,7 +213,7 @@ namespace MatcherTests {
                 CoveredIndexMatcher matcher( query, BSON( "a.b" << 1 ) );
                 MatchDetails details;
                 details.requestElemMatchKey();
-                shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), query );
+                boost::shared_ptr<Cursor> cursor = NamespaceDetailsTransient::getCursor( ns(), query );
                 // Verify that the cursor is indexed.
                 ASSERT_EQUALS( "BtreeCursor a.b_1", cursor->toString() );
                 // Verify that the cursor is not multikey.
