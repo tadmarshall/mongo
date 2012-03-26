@@ -59,11 +59,6 @@
  * Latest version: http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
  */
 
-//#ifndef _WCHAR_T_DEFINED
-//typedef unsigned int wchar_t;
-//typedef int wchar_t;
-//#define _WCHAR_T_DEFINED
-//#endif
 #include <wchar.h>
 
 struct interval {

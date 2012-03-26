@@ -142,6 +142,18 @@ struct linenoiseCompletions {
 #define ctrlChar( upperCaseASCII ) ( upperCaseASCII - 0x40 )
 
 /**
+ * Recompute widths of all characters in a UChar32 buffer
+ * @param text          input buffer of Unicode characters
+ * @param widths        output buffer of character widths
+ * @param charCount     number of characters in buffer
+ */
+static void recomputeCharacterWidths( const UChar32* text, char* widths, int charCount ) {
+    for ( int i = 0; i < charCount; ++i ) {
+        widths[ i ] = mk_wcwidth( text[ i ] );
+    }
+}
+
+/**
  * Calculate a new screen position given a starting position, screen width and character count
  * @param x             initial x position (zero-based)
  * @param y             initial y position (zero-based)
@@ -150,12 +162,12 @@ struct linenoiseCompletions {
  * @param xOut          returned x position (zero-based)
  * @param yOut          returned y position (zero-based)
  */
-static void calculateScreenPosition(int x, int y, int screenColumns, int charCount, int& xOut, int& yOut) {
+static void calculateScreenPosition( int x, int y, int screenColumns, int charCount, int& xOut, int& yOut ) {
     xOut = x;
     yOut = y;
     int charsRemaining = charCount;
     while ( charsRemaining > 0 ) {
-        int charsThisRow = (x + charsRemaining < screenColumns) ? charsRemaining : screenColumns - x;
+        int charsThisRow = ( x + charsRemaining < screenColumns ) ? charsRemaining : screenColumns - x;
         xOut = x + charsThisRow;
         yOut = y;
         charsRemaining -= charsThisRow;
@@ -170,6 +182,7 @@ static void calculateScreenPosition(int x, int y, int screenColumns, int charCou
 
 struct PromptBase {                 // a convenience struct for grouping prompt info
     UChar32*    promptText;             // our copy of the prompt text, edited
+    char*       promptCharWidths;       // character widths from mk_wcwidth()
     int         promptChars;            // chars in promptText
     int         promptExtraLines;       // extra lines (beyond 1) occupied by prompt
     int         promptIndentation;      // column offset to end of prompt
@@ -247,6 +260,7 @@ static UChar32* previousSearchText = 0;     // remembered across invocations of 
 //
 struct DynamicPrompt : public PromptBase {
     UChar32*    searchText;                 // text we are searching for
+    char*       searchCharWidths;           // character widths from mk_wcwidth()
     int         searchTextLen;              // chars in searchText
     int         direction;                  // current search direction, 1=forward, -1=reverse
     int         forwardSearchBasePromptLen; // prompt component lengths
@@ -394,10 +408,11 @@ public:
 };
 
 class InputBuffer {
-    UChar32*    buf32;
-    int         buflen;
-    int         len;
-    int         pos;
+    UChar32*    buf32;          // input buffer
+    char*       charWidths;     // character widths from mk_wcwidth()
+    int         buflen;         // buffer size in characters
+    int         len;            // length of text in input buffer
+    int         pos;            // character position in buffer ( 0 <= pos <= len )
 
     void clearScreen( PromptBase& pi );
     int incrementalHistorySearch( PromptBase& pi, int startChar );
@@ -405,7 +420,7 @@ class InputBuffer {
     void refreshLine( PromptBase& pi );
 
 public:
-    InputBuffer( UChar32* buffer, int bufferLen ) : buf32( buffer ), buflen( bufferLen - 1 ), len( 0 ), pos( 0 ) {
+    InputBuffer( UChar32* buffer, char* widthArray, int bufferLen ) : buf32( buffer ), charWidths( widthArray ), buflen( bufferLen - 1 ), len( 0 ), pos( 0 ) {
         buf32[0] = 0;
     }
     void preloadBuffer( const UChar8* preloadText, int preloadTextLen ) {
@@ -415,6 +430,7 @@ public:
         int errorCode;
         copyString8to32( tempUnicode.get(), preloadText, bufferSize, ucharCount, errorCode );
         copyString32( buf32, tempUnicode.get(), buflen + 1 );
+        recomputeCharacterWidths( buf32, charWidths, ucharCount );
         len = ucharCount;
         pos = ucharCount;
     }
@@ -1192,9 +1208,6 @@ static UChar32 linenoiseReadChar( void ){
         }
         else {
             // we got a real character, return it
-#if 1
-            int charWidth = mk_wcwidth( rec.Event.KeyEvent.uChar.UnicodeChar );
-#endif
             return modifierKeys | rec.Event.KeyEvent.uChar.UnicodeChar;
         }
     }
@@ -1594,7 +1607,8 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
     int historyLineLength = len;
     int historyLinePosition = pos;
     UChar32 emptyBuffer[1];
-    InputBuffer empty( emptyBuffer, 1 );
+    char emptyWidths[1];
+    InputBuffer empty( emptyBuffer, emptyWidths, 1 );
     empty.refreshLine( pi );                        // erase the old input first
     DynamicPrompt dp( pi, ( startChar == ctrlChar( 'R' ) ) ? -1 : 1 );
 
@@ -2436,6 +2450,7 @@ void linenoisePreloadBuffer( const char* preloadText ) {
 char* linenoise( const char* prompt ) {
     if ( isatty( STDIN_FILENO ) ) {             // input is from a terminal
         UChar32 buf32[ LINENOISE_MAX_LINE ];
+        char charWidths[ LINENOISE_MAX_LINE ];
         if ( ! preloadErrorMessage.empty() ) {
             printf( "%s", preloadErrorMessage.c_str() );
             fflush( stdout );
@@ -2467,7 +2482,7 @@ char* linenoise( const char* prompt ) {
             if ( enableRawMode() == -1 ) {
                 return NULL;
             }
-            InputBuffer ib( buf32, LINENOISE_MAX_LINE );
+            InputBuffer ib( buf32, charWidths, LINENOISE_MAX_LINE );
             if ( ! preloadedBufferContents.empty() ) {
                 ib.preloadBuffer(
                         reinterpret_cast< const UChar8 * >( preloadedBufferContents.c_str() ),
