@@ -106,7 +106,7 @@ namespace mongo {
         scoped_lock lk(mapViewMutex);
 
         clearWritableBits(oldPrivateAddr);
-#if 1
+#if 0
         // https://jira.mongodb.org/browse/SERVER-2942
         DWORD old;
         bool ok = VirtualProtect(oldPrivateAddr, (SIZE_T) len, PAGE_READONLY, &old);
