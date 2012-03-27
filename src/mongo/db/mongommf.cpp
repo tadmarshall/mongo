@@ -30,6 +30,7 @@
 #include "d_globals.h"
 #include "memconcept.h"
 #include "d_concurrency.h"
+#include "mongo/util/timer.h"
 
 using namespace mongoutils;
 
@@ -117,6 +118,57 @@ namespace mongo {
             verify(false);
         }
 
+#if 1
+        int loopCount = 0;
+        bool success = false;
+        bool timeout = false;
+        int dosError = ERROR_SUCCESS;
+        const int maximumLoopCount = 1000 * 1000;
+        const int maximumTimeInSeconds = 60;
+        void* newPrivateView;
+        Timer t;
+        while ( !success && !timeout && loopCount < maximumLoopCount ) {
+            ++loopCount;
+            newPrivateView = MapViewOfFileEx(
+                    maphandle,          // file mapping handle
+                    FILE_MAP_READ,      // access
+                    0, 0,               // file offset, high and low
+                    0,                  // bytes to map, 0 == all
+                    oldPrivateAddr );   // memory address to map to
+            success = 0 != newPrivateView;
+            if ( !success ) {
+                dosError = GetLastError();
+                if ( dosError != ERROR_INVALID_ADDRESS ) {
+                    break;
+                }
+                Sleep( 20 );
+                timeout = t.seconds() > maximumTimeInSeconds;
+            }
+        }
+        if ( success && loopCount > 1 ) {
+            log() << endl;
+            log() << "*********************************************************************************" << endl;
+            log() << "MapViewOfFileEx for " << filename()
+                    << " succeeded after " << loopCount
+                    << " attempts taking " << t.millis()
+                    << " ms" << endl;
+            log() << "*********************************************************************************" << endl;
+            log() << endl;
+        }
+        else if ( !success ) {
+            log() << endl;
+            log() << "*********************************************************************************" << endl;
+            log() << "MapViewOfFileEx for " << filename()
+                    << " failed with error " << dosError
+                    << " after " << loopCount
+                    << " attempts taking " << t.millis()
+                    << " ms" << endl;
+            log() << "*********************************************************************************" << endl;
+            log() << endl;
+        }
+        verify( newPrivateView );
+        return newPrivateView;
+#else // #if 1
         // we want the new address to be the same as the old address in case things keep pointers around (as namespaceindex does).
         void *p = MapViewOfFileEx(maphandle, FILE_MAP_READ, 0, 0,
                                   /*dwNumberOfBytesToMap 0 means to eof*/0 /*len*/,
@@ -129,6 +181,7 @@ namespace mongo {
         }
         verify( p == oldPrivateAddr );
         return p;
+#endif // #if 1
     }
 #endif // #if defined(_WIN32)
 
