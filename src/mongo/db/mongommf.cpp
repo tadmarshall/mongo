@@ -72,7 +72,11 @@ namespace mongo {
             bool ok = VirtualProtect((void*)protectStart, protectSize, PAGE_WRITECOPY, &old);
             if( !ok ) {
                 DWORD e = GetLastError();
-                log() << "VirtualProtect failed (mcw) " << mmf->filename() << ' ' << chunkno << hex << protectStart << ' ' << protectSize << ' ' << errnoWithDescription(e) << endl;
+                log() << "VirtualProtect failed (mcw) " << mmf->filename()
+                        << ' ' << chunkno
+                        << hex << protectStart
+                        << ' ' << protectSize
+                        << ' ' << errnoWithDescription(e) << endl;
                 verify(false);
             }
         }
@@ -106,17 +110,7 @@ namespace mongo {
         scoped_lock lk(mapViewMutex);
 
         clearWritableBits(oldPrivateAddr);
-#if 0
-        // https://jira.mongodb.org/browse/SERVER-2942
-        DWORD old;
-        bool ok = VirtualProtect(oldPrivateAddr, (SIZE_T) len, PAGE_READONLY, &old);
-        if( !ok ) {
-            DWORD e = GetLastError();
-            log() << "VirtualProtect failed in remapPrivateView " << filename() << hex << oldPrivateAddr << ' ' << len << ' ' << errnoWithDescription(e) << endl;
-            verify(false);
-        }
-        return oldPrivateAddr;
-#else
+
         if( !UnmapViewOfFile(oldPrivateAddr) ) {
             DWORD e = GetLastError();
             log() << "UnMapViewOfFile failed " << filename() << ' ' << errnoWithDescription(e) << endl;
@@ -131,13 +125,12 @@ namespace mongo {
         if ( p == 0 ) {
             DWORD e = GetLastError();
             log() << "MapViewOfFileEx failed " << filename() << " " << errnoWithDescription(e) << endl;
-            verify(p);
+            verify( p );
         }
-        verify(p == oldPrivateAddr);
+        verify( p == oldPrivateAddr );
         return p;
-#endif
     }
-#endif
+#endif // #if defined(_WIN32)
 
     void MongoMMF::remapThePrivateView() {
         verify( cmdLine.dur );
