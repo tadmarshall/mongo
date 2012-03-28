@@ -1176,6 +1176,7 @@
     <ClCompile Include="..\util\concurrency\task.cpp" />
     <ClCompile Include="..\util\concurrency\thread_pool.cpp" />
     <ClCompile Include="..\util\concurrency\vars.cpp" />
+    <ClCompile Include="..\util\debug_util.cpp" />
     <ClCompile Include="..\util\file_allocator.cpp" />
     <ClCompile Include="..\util\intrusive_counter.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
@@ -1307,6 +1308,7 @@
     <ClCompile Include="pipeline\value.cpp" />
     <ClCompile Include="projection.cpp" />
     <ClInclude Include="..\util\progress_meter.h" />
+    <ClInclude Include="..\util\remap_lock.h" />
     <ClInclude Include="explain.h" />
     <ClInclude Include="namespace_details-inl.h" />
     <ClInclude Include="namespace_details.h" />
