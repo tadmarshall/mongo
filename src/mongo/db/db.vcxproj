@@ -179,7 +179,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>No</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -208,7 +208,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>No</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -237,7 +237,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -265,7 +265,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|x64'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -294,7 +294,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -325,7 +325,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -356,7 +356,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -385,7 +385,7 @@
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\boost</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..;..\..\js\src;..\..\third_party\pcre-8.30;..\..\third_party\snappy;..\..\third_party\boost</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>BOOST_ALL_NO_LIB;MONGO_EXPOSE_MACROS;OLDJS;STATIC_JS_API;XP_WIN;NDEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;HAVE_CONFIG_H;;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -1307,6 +1307,7 @@
     <ClCompile Include="pipeline\value.cpp" />
     <ClCompile Include="projection.cpp" />
     <ClInclude Include="..\util\progress_meter.h" />
+    <ClInclude Include="..\util\remap_lock.h" />
     <ClInclude Include="explain.h" />
     <ClInclude Include="namespace_details-inl.h" />
     <ClInclude Include="namespace_details.h" />
