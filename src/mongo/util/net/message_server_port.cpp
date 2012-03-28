@@ -27,6 +27,7 @@
 #include "../../db/cmdline.h"
 #include "../../db/lasterror.h"
 #include "../../db/stats/counters.h"
+//#include "mongo/util/mmap.h"
 
 #ifdef __linux__  // TODO: consider making this ifndef _WIN32
 # include <sys/resource.h>
@@ -132,7 +133,14 @@ namespace mongo {
 
             try {
 #ifndef __linux__  // TODO: consider making this ifdef _WIN32
-                boost::thread thr( boost::bind( &pms::threadRun , p ) );
+                {
+                    // This Windows-only lock is to protect MemoryMappedFile::remapPrivateView ...
+                    //  it unmaps and remaps the private map and needs to get the previous address,
+                    //  and if we let a new thread get created between those calls, its thread
+                    //  stack could be created within that block, leading to an fassert ...
+                    //LockMongoFilesExclusive lk;
+                    boost::thread thr( boost::bind( &pms::threadRun , p ) );
+                }
 #else
                 pthread_attr_t attrs;
                 pthread_attr_init(&attrs);
