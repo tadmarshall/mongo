@@ -186,12 +186,6 @@
     <ClCompile Include="..\..\util\md5main.cpp">
       <Filter>util\x</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\util\mmap.cpp">
-      <Filter>util\x</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\mmap_win.cpp">
-      <Filter>util\x</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\util\password.cpp">
       <Filter>util\x</Filter>
     </ClCompile>
