@@ -77,6 +77,9 @@
     <ClCompile Include="..\..\util\progress_meter.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\db\mongommf.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\bson\bson-inl.h">
@@ -125,6 +128,9 @@
       <Filter>includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\util\progress_meter.h">
+      <Filter>shared files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\mongommf.h">
       <Filter>shared files</Filter>
     </ClInclude>
   </ItemGroup>
