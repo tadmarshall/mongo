@@ -86,7 +86,7 @@ namespace mongo {
     class BSONIteratorSorted {
     public:
         ~BSONIteratorSorted() {
-            verify( _fields );
+            verify( _fields != 0 );
             delete[] _fields;
             _fields = 0;
         }
@@ -96,7 +96,7 @@ namespace mongo {
         }
 
         BSONElement next() {
-            verify( _fields );
+            verify( _fields != 0 );
             if ( _cur < _nfields )
                 return BSONElement( _fields[_cur++] );
             return BSONElement();
