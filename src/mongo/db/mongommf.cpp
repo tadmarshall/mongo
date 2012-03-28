@@ -112,76 +112,46 @@ namespace mongo {
 
         clearWritableBits(oldPrivateAddr);
 
+#if 1
         if( !UnmapViewOfFile(oldPrivateAddr) ) {
             DWORD e = GetLastError();
             log() << "UnMapViewOfFile failed " << filename() << ' ' << errnoWithDescription(e) << endl;
             verify(false);
         }
 
-#if 1
-        int loopCount = 0;
-        bool success = false;
-        bool timeout = false;
-        int dosError = ERROR_SUCCESS;
-        const int maximumLoopCount = 1000 * 1000;
-        const int maximumTimeInSeconds = 60;
-        void* newPrivateView;
-        Timer t;
-        while ( !success && !timeout && loopCount < maximumLoopCount ) {
-            ++loopCount;
-            newPrivateView = MapViewOfFileEx(
-                    maphandle,          // file mapping handle
-                    FILE_MAP_READ,      // access
-                    0, 0,               // file offset, high and low
-                    0,                  // bytes to map, 0 == all
-                    oldPrivateAddr );   // memory address to map to
-            success = 0 != newPrivateView;
-            if ( !success ) {
-                dosError = GetLastError();
-                if ( dosError != ERROR_INVALID_ADDRESS ) {
-                    break;
-                }
-                Sleep( 20 );
-                timeout = t.seconds() > maximumTimeInSeconds;
-            }
-        }
-        if ( success && loopCount > 1 ) {
-            log() << endl;
-            log() << "*********************************************************************************" << endl;
-            log() << "MapViewOfFileEx for " << filename()
-                    << " succeeded after " << loopCount
-                    << " attempts taking " << t.millis()
-                    << " ms" << endl;
-            log() << "*********************************************************************************" << endl;
-            log() << endl;
-        }
-        else if ( !success ) {
-            log() << endl;
-            log() << "*********************************************************************************" << endl;
-            log() << "MapViewOfFileEx for " << filename()
-                    << " failed with error " << dosError
-                    << " after " << loopCount
-                    << " attempts taking " << t.millis()
-                    << " ms" << endl;
-            log() << "*********************************************************************************" << endl;
-            log() << endl;
+        void* newPrivateView = MapViewOfFileEx(
+                maphandle,          // file mapping handle
+                FILE_MAP_READ,      // access
+                0, 0,               // file offset, high and low
+                0,                  // bytes to map, 0 == all
+                oldPrivateAddr );   // memory address to map to
+        if ( 0 == newPrivateView ) {
+            DWORD dosError = GetLastError();
+            log() << "MapViewOfFileEx for " << filename() << " failed with error " << dosError << endl;
         }
         verify( newPrivateView );
         return newPrivateView;
 #else // #if 1
-        // we want the new address to be the same as the old address in case things keep pointers around (as namespaceindex does).
-        void *p = MapViewOfFileEx(maphandle, FILE_MAP_READ, 0, 0,
-                                  /*dwNumberOfBytesToMap 0 means to eof*/0 /*len*/,
-                                  oldPrivateAddr);
-        
-        if ( p == 0 ) {
+        if( !UnmapViewOfFile(oldPrivateAddr) ) {
             DWORD e = GetLastError();
-            log() << "MapViewOfFileEx failed " << filename() << " " << errnoWithDescription(e) << endl;
-            verify( p );
+            log() << "UnMapViewOfFile failed " << filename() << ' ' << errnoWithDescription(e) << endl;
+            verify(false);
         }
-        verify( p == oldPrivateAddr );
-        return p;
+
+        void* newPrivateView = MapViewOfFileEx(
+                maphandle,          // file mapping handle
+                FILE_MAP_READ,      // access
+                0, 0,               // file offset, high and low
+                0,                  // bytes to map, 0 == all
+                oldPrivateAddr );   // memory address to map to
+        if ( 0 == newPrivateView ) {
+            DWORD dosError = GetLastError();
+            log() << "MapViewOfFileEx for " << filename() << " failed with error " << dosError << endl;
+        }
+        verify( newPrivateView );
+        return newPrivateView;
 #endif // #if 1
+
     }
 #endif // #if defined(_WIN32)
 
