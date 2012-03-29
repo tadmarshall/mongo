@@ -224,7 +224,7 @@ namespace mongo {
     void* MemoryMappedFile::remapPrivateView(void *oldPrivateAddr) {
         d.dbMutex.assertWriteLocked(); // short window where we are unmapped so must be exclusive
 
-        LockMongoFilesExclusive lockFiles;
+        //LockMongoFilesExclusive lockFiles;
 
         clearWritableBits(oldPrivateAddr);
         if( !UnmapViewOfFile(oldPrivateAddr) ) {
@@ -233,6 +233,9 @@ namespace mongo {
                     << " failed with error " << errnoWithDescription( dosError ) << endl;
             verify(false);
         }
+#if 1
+        VirtualAlloc( oldPrivateAddr, 64 * 1024, MEM_RESERVE, PAGE_NOACCESS );
+#endif
 
         void* newPrivateView = MapViewOfFileEx(
                 maphandle,          // file mapping handle

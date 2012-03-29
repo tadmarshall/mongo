@@ -469,7 +469,8 @@ namespace mongo {
                 fraction = 1;
             lastRemap = now;
 
-            LockMongoFilesShared lk;
+            //LockMongoFilesShared lk;
+            LockMongoFilesExclusive lk;
             set<MongoFile*>& files = MongoFile::getAllFiles();
             unsigned sz = files.size();
             if( sz == 0 )
