@@ -247,8 +247,8 @@ namespace mongo {
             DWORD dosError = GetLastError();
             log() << "MapViewOfFileEx for " << filename()
                     << " failed with error " << errnoWithDescription( dosError ) << endl;
+            fassert( 16141, newPrivateView );
         }
-        fassert( 16141, newPrivateView );
         return newPrivateView;
     }
 
