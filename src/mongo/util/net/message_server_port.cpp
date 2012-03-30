@@ -27,7 +27,7 @@
 #include "../../db/cmdline.h"
 #include "../../db/lasterror.h"
 #include "../../db/stats/counters.h"
-//#include "mongo/util/mmap.h"
+#include "mongo/util/remap_lock.h"
 
 #ifdef __linux__  // TODO: consider making this ifndef _WIN32
 # include <sys/resource.h>
@@ -138,7 +138,7 @@ namespace mongo {
                     //  it unmaps and remaps the private map and needs to get the previous address,
                     //  and if we let a new thread get created between those calls, its thread
                     //  stack could be created within that block, leading to an fassert ...
-                    //LockMongoFilesExclusive lk;
+                    RemapLock lk;
                     boost::thread thr( boost::bind( &pms::threadRun , p ) );
                 }
 #else

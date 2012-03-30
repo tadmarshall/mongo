@@ -22,6 +22,7 @@
 #include "../db/concurrency.h"
 #include "../db/memconcept.h"
 #include "mongo/util/timer.h"
+#include "mongo/util/remap_lock.h"
 
 namespace mongo {
 
@@ -223,6 +224,8 @@ namespace mongo {
 
     void* MemoryMappedFile::remapPrivateView(void *oldPrivateAddr) {
         d.dbMutex.assertWriteLocked(); // short window where we are unmapped so must be exclusive
+
+        RemapLock lk;   // Interlock with PortMessageServer::acceptedMP() to stop thread creation
 
         clearWritableBits(oldPrivateAddr);
         if( !UnmapViewOfFile(oldPrivateAddr) ) {
