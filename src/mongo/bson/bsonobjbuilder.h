@@ -145,7 +145,7 @@ namespace mongo {
 
         /** add a subobject as a member */
         BSONObjBuilder& appendObject(const StringData& fieldName, const char * objdata , int size = 0 ) {
-            verify( objdata );
+            verify( objdata != 0 );
             if ( size == 0 ) {
                 size = *((int*)objdata);
             }
@@ -580,7 +580,7 @@ namespace mongo {
         /* assume ownership of the buffer - you must then free it (with free()) */
         char* decouple(int& l) {
             char *x = _done();
-            verify( x );
+            verify( x != 0 );
             l = _b.len();
             _b.decouple();
             return x;

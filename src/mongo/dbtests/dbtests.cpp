@@ -20,14 +20,6 @@
 #include "pch.h"
 #include "dbtests.h"
 #include "../util/unittest.h"
-#include "mongo/util/remap_lock.h"
-
-namespace mongo {
-
-    RemapLock::RemapLock() {}
-    RemapLock::~RemapLock() {}
-
-}
 
 int main( int argc, char** argv ) {
     static StaticObserver StaticObserver;
