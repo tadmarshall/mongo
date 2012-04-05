@@ -250,7 +250,7 @@ namespace mongo {
             log() << "MapViewOfFileEx for " << filename()
                     << " failed with error " << errnoWithDescription( dosError ) << endl;
         }
-        fassert( 16145, newPrivateView == oldPrivateAddr );
+        fassert( 16146, newPrivateView == oldPrivateAddr );
         return newPrivateView;
     }
 
