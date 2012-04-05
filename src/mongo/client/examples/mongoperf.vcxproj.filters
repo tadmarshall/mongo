@@ -80,6 +80,9 @@
     <ClCompile Include="..\..\db\mongommf.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\util\debug_util.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\bson\bson-inl.h">
@@ -131,6 +134,9 @@
       <Filter>shared files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\db\mongommf.h">
+      <Filter>shared files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\debug_util.h">
       <Filter>shared files</Filter>
     </ClInclude>
   </ItemGroup>
