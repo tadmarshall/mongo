@@ -32,8 +32,10 @@ namespace mongo {
     MAdvise::MAdvise(void *,unsigned, Advice) { }
     MAdvise::~MAdvise() { }
 
-    // we need code for these ...
-    RemapLock::RemapLock() {}
+    SimpleMutex _remapLock("remapLock");
+    RemapLock::RemapLock() {
+        SimpleMutex::scoped_lock( &_remapLock );
+    }
     RemapLock::~RemapLock() {}
 
     /** notification on unmapping so we can clear writable bits */
