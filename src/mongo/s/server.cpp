@@ -41,6 +41,7 @@
 #include "shard_version.h"
 #include "../util/processinfo.h"
 #include "mongo/util/util.h"
+#include "mongo/util/remap_lock.h"
 
 #if defined(_WIN32)
 # include "../util/ntservice.h"
@@ -62,6 +63,9 @@ namespace mongo {
     bool dbexitCalled = false;
     static bool scriptingEnabled = true;
     static vector<string> configdbs;
+
+    RemapLock::RemapLock() {}
+    RemapLock::~RemapLock() {}
 
     bool inShutdown() {
         return dbexitCalled;
