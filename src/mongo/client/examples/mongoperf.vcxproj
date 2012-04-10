@@ -179,6 +179,7 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|Win32'">BOOST_THREAD_BUILD_LIB; _CRT_SECURE_NO_WARNINGS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|Win32'">BOOST_THREAD_BUILD_LIB; _CRT_SECURE_NO_WARNINGS;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ClCompile Include="..\..\util\debug_util.cpp" />
     <ClCompile Include="..\..\util\logfile.cpp" />
     <ClCompile Include="..\..\util\mmap.cpp" />
     <ClCompile Include="..\..\util\mmap_win.cpp" />
@@ -201,6 +202,7 @@
     <ClInclude Include="..\..\bson\oid.h" />
     <ClInclude Include="..\..\bson\ordering.h" />
     <ClInclude Include="..\..\bson\stringdata.h" />
+    <ClInclude Include="..\..\util\debug_util.h" />
     <ClInclude Include="..\..\util\logfile.h" />
     <ClInclude Include="..\..\util\mmap.h" />
     <ClInclude Include="..\..\util\progress_meter.h" />
