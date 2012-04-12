@@ -402,6 +402,18 @@
     <None Include="utils_sh.js">
       <Filter>JavaScript source files</Filter>
     </None>
+    <None Include="ReplSetBridge.js">
+      <Filter>JavaScript source files</Filter>
+    </None>
+    <None Include="ReplSetTest.js">
+      <Filter>JavaScript source files</Filter>
+    </None>
+    <None Include="servers_misc.js">
+      <Filter>JavaScript source files</Filter>
+    </None>
+    <None Include="ShardingTest.js">
+      <Filter>JavaScript source files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Library Include="..\..\..\..\js\js32d.lib">

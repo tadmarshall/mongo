@@ -28,6 +28,10 @@ namespace mongo {
 
     namespace JSFiles {
         extern const JSFile servers;
+        extern const JSFile ShardingTest;
+        extern const JSFile servers_misc;
+        extern const JSFile ReplSetTest;
+        extern const JSFile ReplSetBridge;
     }
 
     namespace shell_utils {
@@ -138,6 +142,10 @@ namespace mongo {
             scope.externalSetup();
             mongo::shell_utils::installShellUtils( scope );
             scope.execSetup(JSFiles::servers);
+            scope.execSetup(JSFiles::ShardingTest);
+            scope.execSetup(JSFiles::servers_misc);
+            scope.execSetup(JSFiles::ReplSetTest);
+            scope.execSetup(JSFiles::ReplSetBridge);
 
             if ( !_dbConnect.empty() ) {
                 uassert( 12513, "connect failed", scope.exec( _dbConnect , "(connect)" , false , true , false ) );
