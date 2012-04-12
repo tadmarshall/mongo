@@ -16,7 +16,7 @@ def checkOk():
     print( "expected version [" + m + "]" )
 
     from subprocess import Popen, PIPE
-    diff = Popen( [ "git", "diff", "origin/v1.2" ], stdout=PIPE ).communicate()[ 0 ]
+    diff = Popen( [ "git", "diff" ], stdout=PIPE ).communicate()[ 0 ]
     if len(diff) > 0:
         print( diff )
         raise Exception( "build bot broken?" )
