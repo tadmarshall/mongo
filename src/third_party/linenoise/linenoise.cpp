@@ -131,8 +131,8 @@ using linenoise_utf8::strncmp32;
 using linenoise_utf8::write32;
 
 struct linenoiseCompletions {
-  int       completionCount;
-  UChar32** completionStrings;
+    int         completionCount;
+    UChar32**   completionStrings;
 };
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
