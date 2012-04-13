@@ -166,16 +166,16 @@ namespace mongo {
                     access,     // access
                     0, 0,       // file offset, high and low
                     0 );        // bytes to map, 0 == all
-        }
-        if ( view == 0 ) {
-            DWORD dosError = GetLastError();
-            log() << "MapViewOfFile for " << filename
-                    << " failed with error " << errnoWithDescription( dosError )
-                    << " (file size is " << len << ")"
-                    << " in MemoryMappedFile::map"
-                    << endl;
-            close();
-            fassertFailed( 16151 );
+            if ( view == 0 ) {
+                DWORD dosError = GetLastError();
+                log() << "MapViewOfFile for " << filename
+                        << " failed with error " << errnoWithDescription( dosError )
+                        << " (file size is " << len << ")"
+                        << " in MemoryMappedFile::map"
+                        << endl;
+                close();
+                fassertFailed( 16151 );
+            }
         }
         views.push_back(view);
         memconcept::is(view, memconcept::concept::memorymappedfile, this->filename(), (unsigned) length);
