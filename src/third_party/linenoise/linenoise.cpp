@@ -199,7 +199,8 @@ struct PromptBase {                             // a convenience struct for grou
     int                     promptScreenColumns;    // width of screen in columns
     int                     promptPreviousLen;      // help erasing
     int                     promptErrorCode;        // error code (invalid UTF-8) or zero
-    PromptBase::PromptBase() : promptPreviousInputLen( 0 ) { }
+
+    PromptBase() : promptPreviousInputLen( 0 ) { }
 };
 
 struct PromptInfo : public PromptBase {
@@ -267,7 +268,7 @@ struct DynamicPrompt : public PromptBase {
     int                     searchTextLen;              // chars in searchText
     int                     direction;                  // current search direction, 1=forward, -1=reverse
 
-    DynamicPrompt( PromptBase& pi, int initialDirection ) : direction( initialDirection ), searchTextLen( 0 ) {
+    DynamicPrompt( PromptBase& pi, int initialDirection ) : searchTextLen( 0 ), direction( initialDirection ) {
         promptScreenColumns = pi.promptScreenColumns;
         promptCursorRowOffset = 0;
         searchText.reset( new UChar32[1] );     // start with empty search string
@@ -696,7 +697,7 @@ static void dynamicRefresh( PromptBase& pi, UChar32* buf32, int len, int pos ) {
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
 
     // display the prompt
-    if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) return;
+    if ( write32( 1, pi.promptText.get(), pi.promptChars ) == -1 ) return;
 
     // display the input line
     if ( write32( 1, buf32, len ) == -1 ) return;
@@ -2315,7 +2316,7 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
             disableRawMode();                       // Returning to Linux (whatever) shell, leave raw mode
             raise( SIGSTOP );                       // Break out in mid-line
             enableRawMode();                        // Back from Linux shell, re-enter raw mode
-            if ( write32( 1, pi.promptText, pi.promptChars ) == -1 ) break; // Redraw prompt
+            if ( write32( 1, pi.promptText.get(), pi.promptChars ) == -1 ) break; // Redraw prompt
             refreshLine( pi );                      // Refresh the line
             break;
 #endif
