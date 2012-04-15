@@ -1265,7 +1265,7 @@ static UChar32 linenoiseReadChar( void ) {
 #define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == ctrlChar( '^' ) ) {    // ctrl-^, special debug mode, prints all keys hit, ctrl-C to get out
-        printf( "\nEntering keyboard debugging mode (because you pressed ctrl-^), press ctrl-C to exit this mode\n" );
+        printf( "\nEntering keyboard debugging mode (ctrl-^), press ctrl-C to exit this mode\n" );
         while ( true ) {
             unsigned char keys[10];
             int ret = read( 0, keys, 10 );
@@ -1277,7 +1277,7 @@ static UChar32 linenoiseReadChar( void ) {
                 UChar32 key = static_cast<UChar32>( keys[i] );
                 char* friendlyTextPtr;
                 char friendlyTextBuf[10];
-                const char* prefixText = (key < 0x80) ? "" : "highbit-";
+                const char* prefixText = (key < 0x80) ? "" : "0x80+";
                 UChar32 keyCopy = (key < 0x80) ? key : key - 0x80;
                 if ( keyCopy >= '!' && keyCopy <= '~' ) {   // printable
                     friendlyTextBuf[0] = '\'';
@@ -1290,13 +1290,13 @@ static UChar32 linenoiseReadChar( void ) {
                     friendlyTextPtr = const_cast<char*>( "space" );
                 }
                 else if (keyCopy == 27 ) {
-                    friendlyTextPtr = (char *)"ESC";
+                    friendlyTextPtr = const_cast<char*>( "ESC" );
                 }
                 else if (keyCopy == 0 ) {
-                    friendlyTextPtr = (char *)"NUL";
+                    friendlyTextPtr = const_cast<char*>( "NUL" );
                 }
                 else if (keyCopy == 127 ) {
-                    friendlyTextPtr = (char *)"DEL";
+                    friendlyTextPtr = const_cast<char*>( "DEL" );
                 }
                 else {
                     friendlyTextBuf[0] = '^';
@@ -1304,7 +1304,7 @@ static UChar32 linenoiseReadChar( void ) {
                     friendlyTextBuf[2] = 0;
                     friendlyTextPtr = friendlyTextBuf;
                 }
-                printf( "%d [0x%02X] (%s%s)  ", key,  key, prefixText, friendlyTextPtr );
+                printf( "%d %02X (%s%s)  ", key,  key, prefixText, friendlyTextPtr );
             }
             printf( "\x1b[1G\n" );  // go to first column of new line
 
