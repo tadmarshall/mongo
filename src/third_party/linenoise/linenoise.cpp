@@ -1265,7 +1265,7 @@ static UChar32 linenoiseReadChar( void ) {
 #define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
-        printf( "\x1b[1G\n" ); /* go to first column of new line */
+        printf( "\nEntering keyboard debugging mode, press ctrl-C to exit this mode\n" );
         while ( true ) {
             unsigned char keys[10];
             int ret = read( 0, keys, 10 );
@@ -1310,7 +1310,7 @@ static UChar32 linenoiseReadChar( void ) {
 
             // drop out of this loop on ctrl-C
             if ( keys[0] == ctrlChar( 'C' ) ) {
-                return -1;
+                return -2;
             }
         }
     }
@@ -1928,10 +1928,17 @@ int InputBuffer::getInputLine( PromptBase& pi ) {
         }
         c = cleanupCtrl( c );           // convert CTRL + <char> into normal ctrl
 
-        if ( c == 0 )
+        if ( c == 0 ) {
             return len;
+        }
 
         if ( c == -1 ) {
+            refreshLine( pi );
+            continue;
+        }
+
+        if ( c == -2 ) {
+            if ( write32( 1, pi.promptText.get(), pi.promptChars ) == -1 ) return -1;
             refreshLine( pi );
             continue;
         }
