@@ -926,6 +926,8 @@ static UChar32 rightArrowKeyRoutine( UChar32 c )        { return thisKeyMetaCtrl
 static UChar32 leftArrowKeyRoutine( UChar32 c )         { return thisKeyMetaCtrl | LEFT_ARROW_KEY; }
 static UChar32 homeKeyRoutine( UChar32 c )              { return thisKeyMetaCtrl | HOME_KEY; }
 static UChar32 endKeyRoutine( UChar32 c )               { return thisKeyMetaCtrl | END_KEY; }
+static UChar32 pageUpKeyRoutine( UChar32 c )            { return thisKeyMetaCtrl | PAGE_UP_KEY; }
+static UChar32 pageDownKeyRoutine( UChar32 c )          { return thisKeyMetaCtrl | PAGE_DOWN_KEY; }
 static UChar32 deleteCharRoutine( UChar32 c )           { return thisKeyMetaCtrl | ctrlChar( 'H' ); } // key labeled Backspace
 static UChar32 deleteKeyRoutine( UChar32 c )            { return thisKeyMetaCtrl | DELETE_KEY; }      // key labeled Delete
 static UChar32 ctrlUpArrowKeyRoutine( UChar32 c )       { return thisKeyMetaCtrl | CTRL | UP_ARROW_KEY; }
@@ -996,6 +998,22 @@ static CharacterDispatchRoutine escLeftBracket4Routines[] = {
 };
 static CharacterDispatch escLeftBracket4Dispatch = { 1, "~", escLeftBracket4Routines };
 
+// Handle ESC [ 5 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket5Routines[] = {
+    pageUpKeyRoutine,
+    escFailureRoutine
+};
+static CharacterDispatch escLeftBracket5Dispatch = { 1, "~", escLeftBracket5Routines };
+
+// Handle ESC [ 6 <more stuff> escape sequences
+//
+static CharacterDispatchRoutine escLeftBracket6Routines[] = {
+    pageDownKeyRoutine,
+    escFailureRoutine
+};
+static CharacterDispatch escLeftBracket6Dispatch = { 1, "~", escLeftBracket6Routines };
+
 // Handle ESC [ 7 <more stuff> escape sequences
 //
 static CharacterDispatchRoutine escLeftBracket7Routines[] = {
@@ -1023,7 +1041,7 @@ static UChar32 escLeftBracket1Routine( UChar32 c ) {
     return doDispatch( c, escLeftBracket1Dispatch );
 }
 static UChar32 escLeftBracket2Routine( UChar32 c ) {
-    return escFailureRoutine( c );
+    return escFailureRoutine( c );  // Insert key, unused
 }
 static UChar32 escLeftBracket3Routine( UChar32 c ) {
     c = readUnicodeCharacter();
@@ -1036,10 +1054,14 @@ static UChar32 escLeftBracket4Routine( UChar32 c ) {
     return doDispatch( c, escLeftBracket4Dispatch );
 }
 static UChar32 escLeftBracket5Routine( UChar32 c ) {
-    return escFailureRoutine( c );
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
+    return doDispatch( c, escLeftBracket5Dispatch );
 }
 static UChar32 escLeftBracket6Routine( UChar32 c ) {
-    return escFailureRoutine( c );
+    c = readUnicodeCharacter();
+    if ( c == 0 ) return 0;
+    return doDispatch( c, escLeftBracket6Dispatch );
 }
 static UChar32 escLeftBracket7Routine( UChar32 c ) {
     c = readUnicodeCharacter();
@@ -1151,7 +1173,7 @@ static UChar32 setMetaRoutine( UChar32 c ) {
 //
 // A return value of zero means "no input available", and a return value of -1 means "invalid key".
 //
-static UChar32 linenoiseReadChar( void ){
+static UChar32 linenoiseReadChar( void ) {
 #ifdef _WIN32
 
     INPUT_RECORD rec;
