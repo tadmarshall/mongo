@@ -1310,7 +1310,8 @@ static UChar32 linenoiseReadChar( void ) {
 
             // drop out of this loop on ctrl-C
             if ( keys[0] == ctrlChar( 'C' ) ) {
-                printf( "Leaving keyboard debugging mode (on ctrl-C)" );
+                printf( "Leaving keyboard debugging mode (on ctrl-C)\n" );
+                fflush( stdout );
                 return -2;
             }
         }
