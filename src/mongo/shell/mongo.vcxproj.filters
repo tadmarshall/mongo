@@ -383,7 +383,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\SConstruct" />
     <None Include="collection.js">
       <Filter>JavaScript source files</Filter>
     </None>
@@ -625,9 +624,6 @@
     </ClInclude>
     <ClInclude Include="..\util\concurrency\value.h">
       <Filter>util\concurrency</Filter>
-    </ClInclude>
-    <ClInclude Include="..\targetver.h">
-      <Filter>third_party</Filter>
     </ClInclude>
     <ClInclude Include="..\..\third_party\linenoise\linenoise_utf8.h">
       <Filter>third_party\linenoise</Filter>
@@ -896,6 +892,7 @@
     <ClInclude Include="..\util\stacktrace.h">
       <Filter>util\Header</Filter>
     </ClInclude>
+    <ClInclude Include="..\targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\db\db.rc">

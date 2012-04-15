@@ -1354,7 +1354,6 @@
     <ClCompile Include="shell_utils_launcher.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\SConstruct" />
     <None Include="collection.js" />
     <None Include="db.js" />
     <None Include="mongo.js" />
