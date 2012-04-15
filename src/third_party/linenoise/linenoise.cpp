@@ -1265,7 +1265,7 @@ static UChar32 linenoiseReadChar( void ) {
 #define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
     if ( c == ctrlChar( '^' ) ) {    // ctrl-^, special debug mode, prints all keys hit, ctrl-C to get out
-        printf( "\nEntering keyboard debugging mode (ctrl-^), press ctrl-C to exit this mode\n" );
+        printf( "\nEntering keyboard debugging mode (on ctrl-^), press ctrl-C to exit this mode\n" );
         while ( true ) {
             unsigned char keys[10];
             int ret = read( 0, keys, 10 );
@@ -1304,7 +1304,7 @@ static UChar32 linenoiseReadChar( void ) {
                     friendlyTextBuf[2] = 0;
                     friendlyTextPtr = friendlyTextBuf;
                 }
-                printf( "%d %02X (%s%s)  ", key,  key, prefixText, friendlyTextPtr );
+                printf( "%d x%02X (%s%s)  ", key,  key, prefixText, friendlyTextPtr );
             }
             printf( "\x1b[1G\n" );  // go to first column of new line
 
