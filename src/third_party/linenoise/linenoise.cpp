@@ -1258,14 +1258,14 @@ static UChar32 linenoiseReadChar( void ) {
     c = readUnicodeCharacter();
     if ( c == 0 ) return 0;
 
-    // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-\ puts us into a keyboard debugging mode
+    // If _DEBUG_LINUX_KEYBOARD is set, then ctrl-^ puts us into a keyboard debugging mode
     // where we print out decimal and decoded values for whatever the "terminal" program
     // gives us on different keystrokes.  Hit ctrl-C to exit this mode.
     //
 #define _DEBUG_LINUX_KEYBOARD
 #if defined(_DEBUG_LINUX_KEYBOARD)
-    if ( c == 28 ) {    // ctrl-\, special debug mode, prints all keys hit, ctrl-C to get out.
-        printf( "\nEntering keyboard debugging mode, press ctrl-C to exit this mode\n" );
+    if ( c == ctrlChar( '^' ) ) {    // ctrl-^, special debug mode, prints all keys hit, ctrl-C to get out
+        printf( "\nEntering keyboard debugging mode (because you pressed ctrl-^), press ctrl-C to exit this mode\n" );
         while ( true ) {
             unsigned char keys[10];
             int ret = read( 0, keys, 10 );
@@ -1287,7 +1287,7 @@ static UChar32 linenoiseReadChar( void ) {
                     friendlyTextPtr = friendlyTextBuf;
                 }
                 else if ( keyCopy == ' ' ) {
-                    friendlyTextPtr = (char *)"space";
+                    friendlyTextPtr = const_cast<char*>( "space" );
                 }
                 else if (keyCopy == 27 ) {
                     friendlyTextPtr = (char *)"ESC";
@@ -1304,7 +1304,7 @@ static UChar32 linenoiseReadChar( void ) {
                     friendlyTextBuf[2] = 0;
                     friendlyTextPtr = friendlyTextBuf;
                 }
-                printf( "%d (%s%s)  ", key, prefixText, friendlyTextPtr );
+                printf( "%d [0x%02X] (%s%s)  ", key,  key, prefixText, friendlyTextPtr );
             }
             printf( "\x1b[1G\n" );  // go to first column of new line
 
