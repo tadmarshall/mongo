@@ -1363,7 +1363,7 @@ static int cleanupCtrl( int c ) {
 static const char breakChars[] = " =+-/\\*?\"'`&<>;|@{([])}";
 
 // maximum number of completions to display without asking
-static const int completionCountCutoff = 100;
+static const size_t completionCountCutoff = 100;
 
 /**
  * Handle command completion, using a completionCallback() routine to provide possible substitutions
@@ -1464,7 +1464,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         pos = len;
         refreshLine( pi );
         pos = savePos;
-        printf( "\nDisplay all %d possibilities? (y or n)", lc.completionStrings.size() );
+        printf( "\nDisplay all %u possibilities? (y or n)", lc.completionStrings.size() );
         fflush( stdout );
         onNewLine = true;
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
@@ -1509,7 +1509,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             refreshLine( pi );
             pos = savePos;
         }
-        int pauseRow = getScreenRows() - 1;
+        size_t pauseRow = getScreenRows() - 1;
         size_t rowCount = ( lc.completionStrings.size() + columnCount - 1) / columnCount;
         for ( size_t row = 0; row < rowCount; ++row ) {
             if ( row == pauseRow ) {
