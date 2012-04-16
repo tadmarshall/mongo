@@ -252,9 +252,9 @@ struct PromptInfo : public PromptBase {
 
 // Used with DynamicPrompt (history search)
 //
-static const UChar8 forwardSearchBasePrompt[] = "(i-search)`";
-static const UChar8 reverseSearchBasePrompt[] = "(reverse-i-search)`";
-static const UChar8 endSearchBasePrompt[] = "': ";
+static const Utf32String forwardSearchBasePrompt( reinterpret_cast<const UChar8*>( "(i-search)`" ) );
+static const Utf32String reverseSearchBasePrompt( reinterpret_cast<const UChar8*>( "(reverse-i-search)`" ) );
+static const Utf32String endSearchBasePrompt( reinterpret_cast<const UChar8*>( "': " ) );
 static Utf32String previousSearchText;          // remembered across invocations of linenoise()
 
 // changing prompt for "(reverse-i-search)`text':" etc.
@@ -270,56 +270,35 @@ struct DynamicPrompt : public PromptBase {
         promptCursorRowOffset = 0;
         Utf32String emptyString( 1 );
         searchText = emptyString;
-        size_t promptStartLength = ( ( direction > 0 ) ? sizeof(forwardSearchBasePrompt) : sizeof(reverseSearchBasePrompt) ) - 1;
-        promptChars = promptStartLength + sizeof(endSearchBasePrompt) - 1;
+        const Utf32String* basePrompt = ( direction > 0 ) ? &forwardSearchBasePrompt : &reverseSearchBasePrompt;
+        size_t promptStartLength = basePrompt->length();
+        promptChars = promptStartLength + endSearchBasePrompt.length();
         promptLastLinePosition = promptChars;   // TODO fix this, we are asssuming that the history prompt won't wrap (!)
         promptPreviousLen = promptChars;
         Utf32String tempUnicode( promptChars + 1 );
-        size_t ucharCount;
-        int errorCode;
-        copyString8to32(
-                tempUnicode.get(),
-                ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt,
-                promptChars + 1,
-                ucharCount,
-                errorCode );
-        copyString8to32(
-                &tempUnicode[ ucharCount ],
-                endSearchBasePrompt,
-                promptChars - ucharCount + 1,
-                ucharCount,
-                errorCode );
+        memcpy( tempUnicode.get(), basePrompt->get(), sizeof( UChar32 ) * promptStartLength );
+        memcpy( &tempUnicode[promptStartLength], endSearchBasePrompt.get(), sizeof( UChar32 ) * ( endSearchBasePrompt.length() + 1 ) );
         tempUnicode.initFromBuffer();
         promptText = tempUnicode;
         calculateScreenPosition( 0, 0, pi.promptScreenColumns, promptChars, promptIndentation, promptExtraLines );
     }
 
     void updateSearchPrompt( void ) {
-        size_t promptStartLength = ( ( direction > 0 ) ? sizeof(forwardSearchBasePrompt) : sizeof(reverseSearchBasePrompt) ) - 1;
-        promptChars = promptStartLength + searchTextLen + sizeof(endSearchBasePrompt) - 1;
+        const Utf32String* basePrompt = ( direction > 0 ) ? &forwardSearchBasePrompt : &reverseSearchBasePrompt;
+        size_t promptStartLength = basePrompt->length();
+        promptChars = promptStartLength + searchTextLen + endSearchBasePrompt.length();
         Utf32String tempUnicode( promptChars + 1 );
-        size_t ucharCount;
-        int errorCode;
-        copyString8to32(
-                tempUnicode.get(),
-                ( direction > 0 ) ? forwardSearchBasePrompt : reverseSearchBasePrompt,
-                promptChars + 1,
-                ucharCount,
-                errorCode );
-        copyString32( &tempUnicode[ ucharCount ], searchText.get(), promptChars - ucharCount + 1 );
-        copyString8to32(
-                &tempUnicode[ ucharCount + searchTextLen ],
-                endSearchBasePrompt,
-                promptChars - ucharCount - searchTextLen + 1,
-                ucharCount,
-                errorCode );
+        memcpy( tempUnicode.get(), basePrompt->get(), sizeof( UChar32 ) * promptStartLength );
+        memcpy( &tempUnicode[promptStartLength], searchText.get(), sizeof( UChar32 ) * searchTextLen );
+        size_t endIndex = promptStartLength + searchTextLen;
+        memcpy( &tempUnicode[endIndex], endSearchBasePrompt.get(), sizeof( UChar32 ) * ( endSearchBasePrompt.length() + 1 ) );
         tempUnicode.initFromBuffer();
         promptText = tempUnicode;
     }
 
     void updateSearchText( const UChar32* textPtr ) {
-        searchTextLen = strlen32( textPtr );
         Utf32String tempUnicode( textPtr );
+        searchTextLen = tempUnicode.chars();
         searchText = tempUnicode;
         updateSearchPrompt();
     }
@@ -1700,6 +1679,10 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         case META + 'Y':
         case 127:
         case DELETE_KEY:
+        case META + '<':        // start of history
+        case PAGE_UP_KEY:
+        case META + '>':        // end of history
+        case PAGE_DOWN_KEY:
             keepLooping = false;
             break;
 
