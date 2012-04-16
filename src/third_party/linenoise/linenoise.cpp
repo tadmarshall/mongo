@@ -1464,7 +1464,8 @@ int InputBuffer::completeLine( PromptBase& pi ) {
         pos = len;
         refreshLine( pi );
         pos = savePos;
-        printf( "\nDisplay all %u possibilities? (y or n)", lc.completionStrings.size() );
+        printf( "\nDisplay all %u possibilities? (y or n)",
+                static_cast<unsigned int>( lc.completionStrings.size() ) );
         fflush( stdout );
         onNewLine = true;
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
