@@ -135,8 +135,7 @@ using linenoise_utf8::Utf8String;
 using linenoise_utf8::Utf32String;
 
 struct linenoiseCompletions {
-    int         completionCount;
-    UChar32**   completionStrings;
+    vector<Utf32String> completionStrings;
 };
 
 #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
@@ -1334,13 +1333,7 @@ static UChar32 linenoiseReadChar( void ) {
  * @param lc pointer to a linenoiseCompletions struct
  */
 static void freeCompletions( linenoiseCompletions* lc ) {
-    if ( lc->completionStrings ) {
-        for ( int i = 0; i < lc->completionCount; ++i ) {
-            delete [] lc->completionStrings[i];
-        }
-        free( lc->completionStrings );
-        lc->completionStrings = 0;
-    }
+    lc->completionStrings.clear();
 }
 
 /**
@@ -1379,7 +1372,7 @@ static const int completionCountCutoff = 100;
  * @param pi     PromptBase struct holding information about the prompt and our screen position
  */
 int InputBuffer::completeLine( PromptBase& pi ) {
-    linenoiseCompletions lc = { 0, NULL };
+    linenoiseCompletions lc;
     char c = 0;
 
     // completionCallback() expects a parsable entity, so find the previous break character and extract
@@ -1392,20 +1385,14 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     }
     ++startIndex;
     int itemLength = pos - startIndex;
-    {
-        scoped_array< UChar32 > unicodeCopy( new UChar32[ itemLength + 1 ] );
-        memcpy( &unicodeCopy[0], &buf32[startIndex], sizeof( UChar32 ) * itemLength );
-        unicodeCopy[ itemLength ] = 0;
-        size_t tempBufferSize = sizeof( UChar32 ) * itemLength + 1;
-        scoped_array< UChar8 > parseItem( new UChar8[ tempBufferSize ] );
-        copyString32to8( parseItem.get(), unicodeCopy.get(), tempBufferSize );
+    Utf32String unicodeCopy( &buf32[startIndex], itemLength );
+    Utf8String parseItem( unicodeCopy );
 
-        // get a list of completions
-        completionCallback( reinterpret_cast< char * >( parseItem.get() ), &lc );
-    }
+    // get a list of completions
+    completionCallback( reinterpret_cast< char * >( parseItem.get() ), &lc );
 
     // if no completions, we are done
-    if ( lc.completionCount == 0 ) {
+    if ( lc.completionStrings.size() == 0 ) {
         beep();
         freeCompletions( &lc );
         return 0;
@@ -1414,13 +1401,13 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // at least one completion
     int longestCommonPrefix = 0;
     int displayLength = 0;
-    if ( lc.completionCount == 1 ) {
-        longestCommonPrefix = strlen32( lc.completionStrings[0] );
+    if ( lc.completionStrings.size() == 1 ) {
+        longestCommonPrefix = lc.completionStrings[0].length();
     }
     else {
         bool keepGoing = true;
         while ( keepGoing ) {
-            for ( int j = 0; j < lc.completionCount - 1; ++j ) {
+            for ( size_t j = 0; j < lc.completionStrings.size() - 1; ++j ) {
                 char c1 = lc.completionStrings[j][longestCommonPrefix];
                 char c2 = lc.completionStrings[j + 1][longestCommonPrefix];
                 if ( ( 0 == c1 ) || ( 0 == c2 ) || ( c1 != c2 ) ) {
@@ -1433,7 +1420,7 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             }
         }
     }
-    if ( lc.completionCount != 1 ) {    // beep if ambiguous
+    if ( lc.completionStrings.size() != 1 ) {    // beep if ambiguous
         beep();
     }
 
@@ -1445,15 +1432,11 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             displayLength = buflen;             // truncate the insertion
             beep();                             // and make a noise
         }
-        scoped_array<UChar32> displayText( new UChar32[ displayLength + 1 ] );
-        int j = 0;
-        for ( ; j < startIndex; ++j ) {
-            displayText[j] = buf32[j];
-        }
-        for ( int k = 0; k < longestCommonPrefix; ++j, ++k ) {
-            displayText[j] = lc.completionStrings[0][k];
-        }
-        copyString32( &displayText[j], &buf32[pos], displayLength - j + 1 );
+        Utf32String displayText( displayLength + 1 );
+        memcpy( displayText.get(), buf32, sizeof( UChar32 ) * startIndex );
+        memcpy( &displayText[startIndex], &lc.completionStrings[0][0], sizeof( UChar32 ) * longestCommonPrefix );
+        int tailIndex = startIndex + longestCommonPrefix;
+        memcpy( &displayText[tailIndex], &buf32[pos], sizeof( UChar32 ) * ( displayLength - tailIndex + 1 ) );
         copyString32( buf32, displayText.get(), buflen + 1 );
         pos = startIndex + longestCommonPrefix;
         len = displayLength;
@@ -1476,12 +1459,12 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     // we got a second tab, maybe show list of possible completions
     bool showCompletions = true;
     bool onNewLine = false;
-    if ( lc.completionCount > completionCountCutoff ) {
+    if ( lc.completionStrings.size() > completionCountCutoff ) {
         int savePos = pos;  // move cursor to EOL to avoid overwriting the command line
         pos = len;
         refreshLine( pi );
         pos = savePos;
-        printf( "\nDisplay all %d possibilities? (y or n)", lc.completionCount );
+        printf( "\nDisplay all %d possibilities? (y or n)", lc.completionStrings.size() );
         fflush( stdout );
         onNewLine = true;
         while ( c != 'y' && c != 'Y' && c != 'n' && c != 'N' && c != ctrlChar( 'C' ) ) {
@@ -1509,8 +1492,8 @@ int InputBuffer::completeLine( PromptBase& pi ) {
     bool stopList = false;
     if ( showCompletions ) {
         int longestCompletion = 0;
-        for ( int j = 0; j < lc.completionCount; ++j) {
-            itemLength = strlen32( lc.completionStrings[j] );
+        for ( size_t j = 0; j < lc.completionStrings.size(); ++j) {
+            itemLength = lc.completionStrings[j].length();
             if ( itemLength > longestCompletion ) {
                 longestCompletion = itemLength;
             }
@@ -1527,8 +1510,8 @@ int InputBuffer::completeLine( PromptBase& pi ) {
             pos = savePos;
         }
         int pauseRow = getScreenRows() - 1;
-        int rowCount = ( lc.completionCount + columnCount - 1) / columnCount;
-        for ( int row = 0; row < rowCount; ++row ) {
+        size_t rowCount = ( lc.completionStrings.size() + columnCount - 1) / columnCount;
+        for ( size_t row = 0; row < rowCount; ++row ) {
             if ( row == pauseRow ) {
                 printf( "\n--More--" );
                 fflush( stdout );
@@ -1576,12 +1559,12 @@ int InputBuffer::completeLine( PromptBase& pi ) {
                 break;
             }
             for ( int column = 0; column < columnCount; ++column ) {
-                int index = ( column * rowCount ) + row;
-                if ( index < lc.completionCount ) {
-                    itemLength = strlen32( lc.completionStrings[index] );
+                size_t index = ( column * rowCount ) + row;
+                if ( index < lc.completionStrings.size() ) {
+                    itemLength = lc.completionStrings[index].length();
                     fflush( stdout );
-                    if ( write32( 1, lc.completionStrings[index], itemLength ) == -1 ) return -1;
-                    if ( ( ( column + 1 ) * rowCount ) + row < lc.completionCount ) {
+                    if ( write32( 1, lc.completionStrings[index].get(), itemLength ) == -1 ) return -1;
+                    if ( ( ( column + 1 ) * rowCount ) + row < lc.completionStrings.size() ) {
                         for ( int k = itemLength; k < longestCompletion; ++k ) {
                             printf( " " );
                         }
@@ -2575,13 +2558,7 @@ void linenoiseSetCompletionCallback( linenoiseCompletionCallback* fn ) {
 }
 
 void linenoiseAddCompletion( linenoiseCompletions* lc, const char* str ) {
-    size_t bufferSize = strlen( str ) + 1;
-    UChar32* unicodeString = new UChar32[ bufferSize ];
-    size_t ucharCount;
-    int errorCode;
-    copyString8to32( unicodeString, reinterpret_cast< const UChar8* >( str ), bufferSize, ucharCount, errorCode );
-    lc->completionStrings = reinterpret_cast< UChar32** >( realloc( lc->completionStrings, sizeof( UChar32* ) * ( lc->completionCount + 1 ) ) );
-    lc->completionStrings[lc->completionCount++] = unicodeString;
+    lc->completionStrings.push_back( Utf32String( reinterpret_cast<const UChar8*>( str ) ) );
 }
 
 int linenoiseHistoryAdd( const char* line ) {
