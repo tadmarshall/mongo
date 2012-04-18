@@ -1264,6 +1264,27 @@ namespace mongo {
                  excPointers->ExceptionRecord->ExceptionAddress );
         log() << "*** unhandled exception " << exceptionString <<
                 " at " << addressString << ", terminating" << endl;
+        if ( excPointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) {
+            ULONG acType = excPointers->ExceptionRecord->ExceptionInformation[0];
+            const char* acTypeString;
+            switch ( acType ) {
+            case 0:
+                acTypeString = "read from";
+                break;
+            case 1:
+                acTypeString = "write to";
+                break;
+            case 8:
+                acTypeString = "DEP violation at";
+                break;
+            default:
+                acTypeString = "unknown violation at";
+                break;
+            }
+            sprintf_s( addressString, sizeof( addressString ), " 0x%p",
+                     excPointers->ExceptionRecord->ExceptionInformation[1] );
+            log() << "*** access violation was a " << acTypeString << addressString << endl;
+        }
 
         // In release builds, let dbexit() try to shut down cleanly
 #if !defined(_DEBUG)
