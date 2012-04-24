@@ -1287,7 +1287,7 @@ namespace mongo {
 
         // In release builds, let dbexit() try to shut down cleanly
 #if !defined(_DEBUG)
-        dbexit( EXIT_UNCAUGHT, "unhandled exception" );
+        //dbexit( EXIT_UNCAUGHT, "unhandled exception" );
 #endif
 
         // In debug builds, give debugger a chance to run
