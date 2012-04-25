@@ -1,30 +1,30 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="shared files">
-      <UniqueIdentifier>{847e788b-8e8c-48de-829f-6876c9008440}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="includes">
-      <UniqueIdentifier>{d855a95e-71ad-4f54-ae1b-94e7aa894394}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Boost">
       <UniqueIdentifier>{ed6f2fa2-7139-409b-8a84-0282e680e550}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="db">
+      <UniqueIdentifier>{a6a486fb-812f-40ca-bd53-0791415c9455}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{ae955f2f-6e88-4e7e-b97e-326e291f3895}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bson">
+      <UniqueIdentifier>{6fe86dad-dce4-4bce-aba0-38f7bef2a882}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="db\ops">
+      <UniqueIdentifier>{5697d889-8dcc-4305-9386-1c3dd5ced56d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client">
+      <UniqueIdentifier>{e19df32e-3426-4303-911a-f19d7ff4971c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\concurrency">
+      <UniqueIdentifier>{e542f915-2544-49f1-82a6-8002e20f7860}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mongoperf.cpp" />
-    <ClCompile Include="..\..\util\mmap.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\mmap_win.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\logfile.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\stringutils.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\thread.cpp">
       <Filter>Boost</Filter>
     </ClCompile>
@@ -70,151 +70,205 @@
     <ClCompile Include="..\..\..\third_party\boost\libs\system\src\error_code.cpp">
       <Filter>Boost</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\util\progress_meter.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\debug_util.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\stacktrace.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\timer.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\mongommf.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\pdfile.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\instance.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\util\assert_util.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\common.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\util.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\log.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\util\concurrency\vars.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\dbmessage.cpp">
-      <Filter>shared files</Filter>
+      <Filter>util</Filter>
     </ClCompile>
     <ClCompile Include="..\clientOnly.cpp">
-      <Filter>shared files</Filter>
+      <Filter>client</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\db\memconcept.cpp">
-      <Filter>shared files</Filter>
+    <ClCompile Include="..\..\db\common.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbmessage.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\debug_util.cpp">
+      <Filter>util</Filter>
     </ClCompile>
     <ClCompile Include="..\..\db\ops\delete.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\db\repl.cpp">
-      <Filter>shared files</Filter>
+      <Filter>db\ops</Filter>
     </ClCompile>
     <ClCompile Include="..\..\db\dur_journal.cpp">
-      <Filter>shared files</Filter>
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\instance.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\log.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\logfile.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\memconcept.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\mmap.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\mmap_win.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\mongommf.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\pdfile.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\progress_meter.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\stacktrace.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\stringutils.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\timer.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\util.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\vars.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\cmdline.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\clientAndShell.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\startup_test.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\lasterror.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\text.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\json.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\bson\oid.cpp">
+      <Filter>bson</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\base64.cpp">
+      <Filter>util</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\bson\bson-inl.h">
-      <Filter>includes</Filter>
+    <ClInclude Include="..\..\util\assert_util.h">
+      <Filter>util</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\bson\inline_decls.h">
-      <Filter>includes</Filter>
+    <ClInclude Include="..\..\bson\bson-inl.h">
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bson.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bson_db.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsonelement.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsonmisc.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsonobj.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsonobjbuilder.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsonobjiterator.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\bson\bsontypes.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\logfile.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\bson\stringdata.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\bson\oid.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\bson\ordering.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\mmap.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\debug_util.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\db\mongommf.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\progress_meter.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\stacktrace.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\timer.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\db\pdfile.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\timer-win32-inl.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\db\instance.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\assert_util.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\util.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\util\log.h">
-      <Filter>includes</Filter>
+      <Filter>bson</Filter>
     </ClInclude>
     <ClInclude Include="..\..\db\dbmessage.h">
-      <Filter>includes</Filter>
+      <Filter>db</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\db\repl.h">
-      <Filter>includes</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\db\dur_journal.h">
-      <Filter>includes</Filter>
+    <ClInclude Include="..\..\util\debug_util.h">
+      <Filter>util</Filter>
     </ClInclude>
     <ClInclude Include="..\..\db\ops\delete.h">
-      <Filter>includes</Filter>
+      <Filter>db\ops</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\dur_journal.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\bson\inline_decls.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\instance.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\log.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\logfile.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\mmap.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\mongommf.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\bson\oid.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\bson\ordering.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\pdfile.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\progress_meter.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\repl.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\stacktrace.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\bson\stringdata.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\timer-win32-inl.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\timer.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\util.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\cmdline.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\startup_test.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\lasterror.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\text.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\json.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\base64.h">
+      <Filter>util</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
