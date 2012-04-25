@@ -13,9 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mongoperf.cpp" />
-    <ClCompile Include="..\mongo_client_lib.cpp">
-      <Filter>shared files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\util\mmap.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
@@ -25,7 +22,6 @@
     <ClCompile Include="..\..\util\logfile.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\db\memconcept.cpp" />
     <ClCompile Include="..\..\util\stringutils.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
@@ -86,6 +82,48 @@
     <ClCompile Include="..\..\util\timer.cpp">
       <Filter>shared files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\db\mongommf.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\pdfile.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\instance.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\assert_util.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\common.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\util.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\log.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\vars.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbmessage.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\clientOnly.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\memconcept.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\ops\delete.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\repl.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dur_journal.cpp">
+      <Filter>shared files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\bson\bson-inl.h">
@@ -133,20 +171,50 @@
     <ClInclude Include="..\..\util\mmap.h">
       <Filter>includes</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\util\progress_meter.h">
-      <Filter>shared files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\util\debug_util.h">
-      <Filter>shared files</Filter>
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\mongommf.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\progress_meter.h">
+      <Filter>includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\util\stacktrace.h">
-      <Filter>shared files</Filter>
+      <Filter>includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\util\timer.h">
-      <Filter>shared files</Filter>
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\pdfile.h">
+      <Filter>includes</Filter>
     </ClInclude>
     <ClInclude Include="..\..\util\timer-win32-inl.h">
-      <Filter>shared files</Filter>
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\instance.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\assert_util.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\util.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\log.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\dbmessage.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\repl.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\dur_journal.h">
+      <Filter>includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\ops\delete.h">
+      <Filter>includes</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
