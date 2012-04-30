@@ -854,6 +854,12 @@
     <ClCompile Include="btreebuilder.cpp">
       <Filter>db\Source Files\a to d</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\hook_win32.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\hook_windows_memory.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />
@@ -1550,6 +1556,12 @@
     </ClInclude>
     <ClInclude Include="..\..\third_party\js-1.7\resource.h">
       <Filter>third_party\SpiderMonkey\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\hook_win32.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\hook_windows_memory.h">
+      <Filter>util\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
