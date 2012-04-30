@@ -47,9 +47,9 @@
 #include "d_globals.h"
 
 #if defined(_WIN32)
-# include "../util/ntservice.h"
+# include "mongo/util/ntservice.h"
+# include "mongo/util/hook_windows_memory.h"
 # include <DbgHelp.h>
-# include "mongo/util/hook_win32.h"
 #else
 # include <sys/file.h>
 #endif
@@ -997,13 +997,9 @@ int main(int argc, char* argv[]) {
             repairpath = dbpath;
 
 #if defined(_WIN32)
-        // we are still single-threaded at this point
-
-        // hack -- do the hook
-        log() << "Before call to testHook()" << endl;
-        bool success = testHook( "kernel32.dll", "HeapCreate" );
-        log() << ( success ? "Success!" : "failure!" ) << endl;
-        log() << "After call to testHook()" << endl;
+        // hook Windows APIs that can allocate memory so that we can RemapLock them out while
+        // remapPrivateView() has a data file unmapped -- we are still single-threaded at this point
+        hookWindowsMemory();
 #endif
 
         Module::configAll( params );

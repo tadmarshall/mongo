@@ -1,4 +1,4 @@
-// hook_win32.h
+// hook_windows_memory.h
 
 /*
  *    Copyright 2012 10gen Inc.
@@ -19,22 +19,11 @@
 // Used to hook Windows functions that are imported in this executable's
 // Import Address Table (IAT).
 
-#pragma once
-
 #if defined(_WIN32)
 
 namespace mongo {
-
-    struct HookWin32 {
-        HookWin32( char* moduleName, char* functionName, void* hookFunction );
-        ~HookWin32();
-        void* originalFunction() const { return _originalFunction; };
-
-    private:
-        void*   _originalFunction;  // original (unhooked) function
-        void**  _tablePointer;      // location in Import Address Table
-    };
-
+    void hookWindowsMemory( void );
+    void unhookWindowsMemory( void );
 }
 
 #endif // #if defined(_WIN32)
