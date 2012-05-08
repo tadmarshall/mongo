@@ -23,6 +23,7 @@
 #include "../db/memconcept.h"
 #include "mongo/util/timer.h"
 #include "mongo/util/concurrency/remap_lock.h"
+#include <boost/filesystem/operations.hpp>
 
 namespace mongo {
 
@@ -119,6 +120,7 @@ namespace mongo {
             }
         }
 
+        bool creatingNewFile = !boost::filesystem::exists( filename );
         updateLength( filename, length );
 
         {
@@ -126,7 +128,7 @@ namespace mongo {
             if ( options & SEQUENTIAL )
                 createOptions |= FILE_FLAG_SEQUENTIAL_SCAN;
             DWORD rw = GENERIC_READ | GENERIC_WRITE;
-            fd = CreateFile(
+            fd = CreateFileW(
                      toNativeString(filename).c_str(),
                      rw, // desired access
                      FILE_SHARE_WRITE | FILE_SHARE_READ, // share mode
@@ -135,9 +137,33 @@ namespace mongo {
                      createOptions , // flags
                      NULL); // hTempl
             if ( fd == INVALID_HANDLE_VALUE ) {
-                DWORD e = GetLastError();
-                log() << "Create/OpenFile failed " << filename << " errno:" << e << endl;
+                DWORD dosError = GetLastError();
+                log() << "CreateFileW for " << filename
+                        << " failed with " << errnoWithDescription( dosError )
+                        << " (file size is " << length << ")"
+                        << " in MemoryMappedFile::map"
+                        << endl;
                 return 0;
+            }
+
+            // Work around issues in Windows: if we don't zero out the file ourselves, the "VDL"
+            // (Valid Data Limit) is left pointing at the start of the file and the rest of the
+            // file is "implicitly zeroed" but not actually written yet.  This causes the
+            // FlushViewOfFile() call to have to do the zeroing itself, and leads to zero-length
+            // files if the file mapping call fails.  So, just write zeros ourselves, now.
+            //
+            if ( creatingNewFile ) {
+                static const size_t ZERO_BUFFER_SIZE = 4096;
+                boost::scoped_array<char> zeros( new char[ZERO_BUFFER_SIZE] );
+                memset( zeros.get(), 0, ZERO_BUFFER_SIZE );
+                for ( size_t ptr = 0; ptr < length; ptr += ZERO_BUFFER_SIZE) {
+                    WriteFile(
+                            fd,                 // file handle
+                            zeros.get(),        // buffer to write
+                            ZERO_BUFFER_SIZE,   // buffer size in bytes
+                            NULL,               // returned bytes written (unused)
+                            NULL );             // OVERLAPPED struct (unused)
+                }
             }
         }
 
@@ -145,15 +171,19 @@ namespace mongo {
 
         {
             DWORD flProtect = PAGE_READWRITE; //(options & READONLY)?PAGE_READONLY:PAGE_READWRITE;
-            maphandle = CreateFileMapping(fd, NULL, flProtect,
+            maphandle = CreateFileMappingW(fd, NULL, flProtect,
                                           length >> 32 /*maxsizehigh*/,
                                           (unsigned) length /*maxsizelow*/,
                                           NULL/*lpName*/);
             if ( maphandle == NULL ) {
-                DWORD e = GetLastError(); // log() call was killing lasterror before we get to that point in the stream
-                log() << "CreateFileMapping failed " << filename << ' ' << errnoWithDescription(e) << endl;
+                DWORD dosError = GetLastError();
+                log() << "CreateFileMappingW for " << filename
+                        << " failed with " << errnoWithDescription( dosError )
+                        << " (file size is " << length << ")"
+                        << " in MemoryMappedFile::map"
+                        << endl;
                 close();
-                return 0;
+                fassertFailed( 0 );
             }
         }
 
@@ -169,8 +199,8 @@ namespace mongo {
             if ( view == 0 ) {
                 DWORD dosError = GetLastError();
                 log() << "MapViewOfFile for " << filename
-                        << " failed with error " << errnoWithDescription( dosError )
-                        << " (file size is " << len << ")"
+                        << " failed with " << errnoWithDescription( dosError )
+                        << " (file size is " << length << ")"
                         << " in MemoryMappedFile::map"
                         << endl;
                 close();
