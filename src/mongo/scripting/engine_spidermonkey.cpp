@@ -967,6 +967,22 @@ namespace mongo {
             return JS_FALSE;
         }
         string s = c.toString(argv[1]);
+        size_t stringLength = s.length();
+        if ( stringLength%2 != 0 ) {
+            JS_ReportError( cx , "HexData argument 2 must be even length" );
+            return JS_FALSE;
+        }
+        for ( size_t i = 0; i < stringLength; ++i ) {
+            char ch = s[i];
+            if ( (ch >= '0' && ch <= '9')  || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F') ) {
+                continue;
+            }
+            string errorMessage( "HexData argument 2 contains non-hexadecimal character '" );
+            errorMessage += ch;
+            errorMessage += "'";
+            JS_ReportError( cx , errorMessage.c_str() );
+            return JS_FALSE;
+        }
         return hexToBinData(cx, rval, type, s);
     }
 
