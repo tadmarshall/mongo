@@ -573,6 +573,12 @@
     <ClInclude Include="..\db\ops\update_internal.h">
       <Filter>db\ops</Filter>
     </ClInclude>
+    <ClInclude Include="..\util\hook_win32.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\hook_windows_memory.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\client\connpool.cpp">
@@ -1398,6 +1404,12 @@
     </ClCompile>
     <ClCompile Include="..\db\ops\update_internal.cpp">
       <Filter>db\ops</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\hook_win32.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\hook_windows_memory.cpp">
+      <Filter>util\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
