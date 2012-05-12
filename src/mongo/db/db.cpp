@@ -52,7 +52,8 @@
 #include "ttl.h"
 
 #if defined(_WIN32)
-# include "../util/ntservice.h"
+# include "mongo/util/ntservice.h"
+# include "mongo/util/hook_windows_memory.h"
 # include <DbgHelp.h>
 #else
 # include <sys/file.h>
@@ -1000,6 +1001,12 @@ int main(int argc, char* argv[]) {
         // needs to be after things like --configsvr parsing, thus here.
         if( repairpath.empty() )
             repairpath = dbpath;
+
+#if defined(_WIN32)
+        // hook Windows APIs that can allocate memory so that we can RemapLock them out while
+        // remapPrivateView() has a data file unmapped -- we are still single-threaded at this point
+        hookWindowsMemory();
+#endif
 
         Module::configAll( params );
         dataFileSync.go();
