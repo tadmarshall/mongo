@@ -1,22 +1,20 @@
-// hook_win32.h
+// @file hook_win32.h : Used to hook Windows functions imported through the Import Address Table
 
-/*
- *    Copyright 2012 10gen Inc.
- *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
- */
-
-// Used to hook Windows functions imported through the Import Address Table (IAT).
+/**
+*    Copyright (C) 2012 10gen Inc.
+*
+*    This program is free software: you can redistribute it and/or modify
+*    it under the terms of the GNU Affero General Public License, version 3,
+*    as published by the Free Software Foundation.
+*
+*    This program is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU Affero General Public License for more details.
+*
+*    You should have received a copy of the GNU Affero General Public License
+*    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -24,19 +22,23 @@
 
 namespace mongo {
 
-    struct HookWin32 {
-        HookWin32(
-            char* hookModuleAddress,    // ptr to start of importing executable
-            char* functionModuleName,   // name of module containing function to hook
-            char* functionName,         // name of function to hook
-            void* hookFunction );       // ptr to replacement (hook) function
-        ~HookWin32();
-        void* originalFunction() const { return _originalFunction; };
+    /**
+     * Hook a Windows API through the Import Address Table of a calling module
+     *
+     * @param hookModuleAddress     ptr to start of importing executable
+     * @param functionModuleName    name of module containing function to hook
+     * @param functionName          name of function to hook
+     * @param hookFunction          ptr to replacement (hook) function
+     * @return                      ptr to original (hooked) function
+     */
+    void* HookWin32(
+        char* hookModuleAddress,
+        char* functionModuleName,
+        char* functionName,
+        void* hookFunction );
 
-    private:
-        void*   _originalFunction;      // original (unhooked) function
-        void**  _tablePointer;          // location in Import Address Table
-    };
+    //void*   _originalFunction;      // original (unhooked) function
+    //void**  _tablePointer;          // location in Import Address Table
 
 } // namespace mongo
 

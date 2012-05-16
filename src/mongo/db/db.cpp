@@ -1003,9 +1003,12 @@ int main(int argc, char* argv[]) {
             repairpath = dbpath;
 
 #if defined(_WIN32)
-        // hook Windows APIs that can allocate memory so that we can RemapLock them out while
-        // remapPrivateView() has a data file unmapped -- we are still single-threaded at this point
-        hookWindowsMemory();
+        if ( cmdLine.dur ) {
+            // Hook Windows APIs that can allocate memory so that we can RemapLock them out while
+            //  remapPrivateView() has a data file unmapped (so only needed when journaling)
+            // This is the last point where we are still single-threaded, makes hooking simpler
+            hookWindowsMemory();
+        }
 #endif
 
         Module::configAll( params );
