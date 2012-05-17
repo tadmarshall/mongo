@@ -1614,14 +1614,13 @@
     <ClInclude Include="ops\update_internal.h">
       <Filter>db\ops</Filter>
     </ClInclude>
-<<<<<<< HEAD
     <ClInclude Include="..\util\stack_introspect.h">
-=======
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\util\hook_win32.h">
       <Filter>util\Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\util\hook_windows_memory.h">
->>>>>>> SERVER-2942 Hook functions in the Windows Import Address Table
       <Filter>util\Header Files</Filter>
     </ClInclude>
   </ItemGroup>

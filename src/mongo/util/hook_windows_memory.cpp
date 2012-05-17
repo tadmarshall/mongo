@@ -30,11 +30,11 @@ namespace {
 
     // hooked function typedefs and routines
 
-    typedef PVOID ( WINAPI *type_RtlCreateHeap ) ( ULONG, PVOID, SIZE_T, SIZE_T, PVOID, void* );
+    typedef PVOID ( WINAPI *RtlCreateHeap_t ) ( ULONG, PVOID, SIZE_T, SIZE_T, PVOID, void* );
 
-    type_RtlCreateHeap originalRtlCreateHeap1;
+    RtlCreateHeap_t originalRtlCreateHeap_kernel32;
 
-    static PVOID WINAPI myRtlCreateHeap1(
+    static PVOID WINAPI myRtlCreateHeap_kernel32(
         ULONG Flags,
         PVOID HeapBase,
         SIZE_T ReserveSize,
@@ -43,12 +43,17 @@ namespace {
         void* /* PRTL_HEAP_PARAMETERS */ Parameters
     ) {
         mongo::RemapLock remapLock;
-        return originalRtlCreateHeap1( Flags, HeapBase, ReserveSize, CommitSize, Lock, Parameters );
+        return originalRtlCreateHeap_kernel32( Flags,
+                                               HeapBase,
+                                               ReserveSize,
+                                               CommitSize,
+                                               Lock,
+                                               Parameters );
     }
 
-    type_RtlCreateHeap originalRtlCreateHeap2;
+    RtlCreateHeap_t originalRtlCreateHeap_kernelbase;
 
-    static PVOID WINAPI myRtlCreateHeap2(
+    static PVOID WINAPI myRtlCreateHeap_kernelbase(
         ULONG Flags,
         PVOID HeapBase,
         SIZE_T ReserveSize,
@@ -57,15 +62,20 @@ namespace {
         void* /* PRTL_HEAP_PARAMETERS */ Parameters
     ) {
         mongo::RemapLock remapLock;
-        return originalRtlCreateHeap2( Flags, HeapBase, ReserveSize, CommitSize, Lock, Parameters );
+        return originalRtlCreateHeap_kernelbase( Flags,
+                                                 HeapBase,
+                                                 ReserveSize,
+                                                 CommitSize,
+                                                 Lock,
+                                                 Parameters );
     }
 
-    typedef LONG ( WINAPI *type_NtAllocateVirtualMemory )
+    typedef LONG ( WINAPI *NtAllocateVirtualMemory_t )
             ( HANDLE, PVOID*, ULONG_PTR, PSIZE_T, ULONG, ULONG );
 
-    type_NtAllocateVirtualMemory originalNtAllocateVirtualMemory1;
+    NtAllocateVirtualMemory_t originalNtAllocateVirtualMemory_kernel32;
 
-    static LONG WINAPI myNtAllocateVirtualMemory1(
+    static LONG WINAPI myNtAllocateVirtualMemory_kernel32(
         HANDLE ProcessHandle,
         PVOID* BaseAddress,
         ULONG_PTR ZeroBits,
@@ -74,13 +84,17 @@ namespace {
         ULONG Protect
     ) {
         mongo::RemapLock remapLock;
-        return originalNtAllocateVirtualMemory1(
-                ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect );
+        return originalNtAllocateVirtualMemory_kernel32( ProcessHandle,
+                                                         BaseAddress,
+                                                         ZeroBits,
+                                                         RegionSize,
+                                                         AllocationType,
+                                                         Protect );
     }
 
-    type_NtAllocateVirtualMemory originalNtAllocateVirtualMemory2;
+    NtAllocateVirtualMemory_t originalNtAllocateVirtualMemory_kernelbase;
 
-    static LONG WINAPI myNtAllocateVirtualMemory2(
+    static LONG WINAPI myNtAllocateVirtualMemory_kernelbase(
         HANDLE ProcessHandle,
         PVOID* BaseAddress,
         ULONG_PTR ZeroBits,
@@ -89,8 +103,12 @@ namespace {
         ULONG Protect
     ) {
         mongo::RemapLock remapLock;
-        return originalNtAllocateVirtualMemory2(
-                ProcessHandle, BaseAddress, ZeroBits, RegionSize, AllocationType, Protect );
+        return originalNtAllocateVirtualMemory_kernelbase( ProcessHandle,
+                                                           BaseAddress,
+                                                           ZeroBits,
+                                                           RegionSize,
+                                                           AllocationType,
+                                                           Protect );
     }
 
 } // namespace
@@ -101,19 +119,29 @@ namespace mongo {
 
         // kernel32.dll calls directly prior to Windows 7
         char* hookModuleAddress = reinterpret_cast<char*>( GetModuleHandleA( "kernel32.dll" ) );
-        originalRtlCreateHeap1 = reinterpret_cast<type_RtlCreateHeap>(
-                HookWin32( hookModuleAddress, "ntdll.dll", "RtlCreateHeap", myRtlCreateHeap1 ) );
-        originalNtAllocateVirtualMemory1 = reinterpret_cast<type_NtAllocateVirtualMemory>(
-                HookWin32( hookModuleAddress, "ntdll.dll", "NtAllocateVirtualMemory",
-                myNtAllocateVirtualMemory1 ) );
+        originalRtlCreateHeap_kernel32 = reinterpret_cast<RtlCreateHeap_t>(
+                        hookWin32( hookModuleAddress,
+                                   "ntdll.dll",
+                                   "RtlCreateHeap",
+                                   myRtlCreateHeap_kernel32 ) );
+        originalNtAllocateVirtualMemory_kernel32 = reinterpret_cast<NtAllocateVirtualMemory_t>(
+                        hookWin32( hookModuleAddress,
+                                   "ntdll.dll",
+                                   "NtAllocateVirtualMemory",
+                                    myNtAllocateVirtualMemory_kernel32 ) );
 
         // in Windows 7 and Server 2008 R2, calls are through kernelbase.dll
         hookModuleAddress = reinterpret_cast<char*>( GetModuleHandleA( "kernelbase.dll" ) );
-        originalRtlCreateHeap2 = reinterpret_cast<type_RtlCreateHeap>(
-                HookWin32( hookModuleAddress, "ntdll.dll", "RtlCreateHeap", myRtlCreateHeap2 ) );
-        originalNtAllocateVirtualMemory2 = reinterpret_cast<type_NtAllocateVirtualMemory>(
-                HookWin32( hookModuleAddress, "ntdll.dll", "NtAllocateVirtualMemory",
-                myNtAllocateVirtualMemory2 ) );
+        originalRtlCreateHeap_kernelbase = reinterpret_cast<RtlCreateHeap_t>(
+                hookWin32( hookModuleAddress,
+                           "ntdll.dll",
+                           "RtlCreateHeap",
+                           myRtlCreateHeap_kernelbase ) );
+        originalNtAllocateVirtualMemory_kernelbase = reinterpret_cast<NtAllocateVirtualMemory_t>(
+                hookWin32( hookModuleAddress,
+                           "ntdll.dll",
+                           "NtAllocateVirtualMemory",
+                           myNtAllocateVirtualMemory_kernelbase ) );
     }
 
 } //namespace mongo

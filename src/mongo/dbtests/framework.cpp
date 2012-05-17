@@ -221,7 +221,7 @@ namespace mongo {
 
 #if defined(_WIN32)
             if ( cmdLine.dur ) {
-                // Hook Windows APIs that can allocate memory so that we can RemapLock them out while
+                // Hook Windows APIs that allocate memory so that we can RemapLock them out while
                 //  remapPrivateView() has a data file unmapped (so only needed when journaling)
                 // This is the last point where we are still single-threaded, makes hooking simpler
                 hookWindowsMemory();

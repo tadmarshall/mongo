@@ -31,7 +31,7 @@ namespace mongo {
      * @param hookFunction          ptr to replacement (hook) function
      * @return                      ptr to original (hooked) function
      */
-    void* HookWin32(
+    void* hookWin32(
         char* hookModuleAddress,
         char* functionModuleName,
         char* functionName,

@@ -39,7 +39,7 @@ namespace mongo {
      * @param hookFunction          ptr to replacement (hook) function
      * @return                      ptr to original (hooked) function
      */
-    void* HookWin32(
+    void* hookWin32(
             char* hookModuleAddress,
             char* functionModuleName,
             char* functionName,
@@ -50,8 +50,8 @@ namespace mongo {
         }
 
         // look up the original function by module and function name
-        void* originalFunction = GetProcAddress(
-                GetModuleHandleA( functionModuleName ), functionName );
+        HMODULE moduleHandle = GetModuleHandleA( functionModuleName );
+        void* originalFunction = GetProcAddress( moduleHandle, functionName );
         if ( originalFunction == 0 ) {
             return NULL;
         }
@@ -65,8 +65,8 @@ namespace mongo {
                 &entrySize,                     // returned directory size
                 NULL                            // returned section ptr (always zero for IAT)
         );
-        IMAGE_IMPORT_DESCRIPTOR* importModule = reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>(
-                imageEntry);
+        IMAGE_IMPORT_DESCRIPTOR* importModule =
+                reinterpret_cast<IMAGE_IMPORT_DESCRIPTOR*>( imageEntry );
 
         // walk the imported module list until we find the desired module
         for ( ; importModule->Name; ++importModule ) {
@@ -83,16 +83,16 @@ namespace mongo {
                         void** _tablePointer = reinterpret_cast<void**>( &thunk->u1.Function );
                         MEMORY_BASIC_INFORMATION mbi;
                         VirtualQuery( _tablePointer, &mbi, sizeof(mbi) );
-                        fassert( 16232, VirtualProtect( mbi.BaseAddress,
-                                                    mbi.RegionSize,
-                                                    PAGE_EXECUTE_READWRITE,
-                                                    &mbi.Protect ) );
+                        fassert( 16237, VirtualProtect( mbi.BaseAddress,
+                                                        mbi.RegionSize,
+                                                        PAGE_EXECUTE_READWRITE,
+                                                        &mbi.Protect ) );
                         *_tablePointer = hookFunction;
                         DWORD unused;
-                        fassert( 16233, VirtualProtect( mbi.BaseAddress,
-                                                    mbi.RegionSize,
-                                                    mbi.Protect,
-                                                    &unused ) );
+                        fassert( 16238, VirtualProtect( mbi.BaseAddress,
+                                                        mbi.RegionSize,
+                                                        mbi.Protect,
+                                                        &unused ) );
                         return originalFunction;
                     }
                 }
