@@ -83,13 +83,13 @@ namespace mongo {
                         void** _tablePointer = reinterpret_cast<void**>( &thunk->u1.Function );
                         MEMORY_BASIC_INFORMATION mbi;
                         VirtualQuery( _tablePointer, &mbi, sizeof(mbi) );
-                        fassert( 16237, VirtualProtect( mbi.BaseAddress,
+                        fassert( 16239, VirtualProtect( mbi.BaseAddress,
                                                         mbi.RegionSize,
                                                         PAGE_EXECUTE_READWRITE,
                                                         &mbi.Protect ) );
                         *_tablePointer = hookFunction;
                         DWORD unused;
-                        fassert( 16238, VirtualProtect( mbi.BaseAddress,
+                        fassert( 16240, VirtualProtect( mbi.BaseAddress,
                                                         mbi.RegionSize,
                                                         mbi.Protect,
                                                         &unused ) );
