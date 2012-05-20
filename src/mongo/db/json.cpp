@@ -32,11 +32,11 @@
 
 #include "mongo/bson/bsonobjbuilder.h"
 #include "mongo/bson/util/builder.h"
+#include "mongo/db/jsobj.h"
 #include "mongo/db/json.h"
 #include "mongo/util/base64.h"
 #include "mongo/util/hex.h"
 #include "mongo/util/optime.h"
-
 
 using namespace boost::spirit;
 
