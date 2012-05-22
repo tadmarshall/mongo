@@ -146,7 +146,6 @@ namespace mongo {
         JSCLASS_NO_OPTIONAL_MEMBERS
     };
 
-
     // ------ mongo stuff ------
 
     JSBool mongo_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
@@ -1117,7 +1116,6 @@ zzz
             c.setProperty( obj , "_options" , argv[9] );
         else
             c.setProperty( obj , "_options" , JSVAL_ZERO );
-
 
         c.setProperty( obj , "_cursor" , JSVAL_NULL );
         c.setProperty( obj , "_numReturned" , JSVAL_ZERO );

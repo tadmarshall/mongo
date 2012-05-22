@@ -15,7 +15,7 @@
  *    limitations under the License.
  */
 
-#include "pch.h"
+#include "mongo/pch.h"
 
 #include "mongo/scripting/engine_spidermonkey.h"
 
@@ -194,37 +194,19 @@ namespace mongo {
             _context = cx;
         }
 
-        string toString( JSString * so ) {
-            jschar * s = JS_GetStringChars( so );
-            size_t srclen = JS_GetStringLength( so );
-            if( srclen == 0 )
+        string toString( JSString * jsString ) {
+            size_t srclen = JS_GetStringLength( jsString );
+            if( srclen == 0 ) {
                 return "";
-
-            size_t len = srclen * 6; // we only need *3, but see note on len below
-            char * dst = (char*)malloc( len );
-
-            len /= 2;
-            // doc re weird JS_EncodeCharacters api claims len expected in 16bit
-            // units, but experiments suggest 8bit units expected.  We allocate
-            // enough memory that either will work.
-
-            if ( !JS_EncodeCharacters( _context , s , srclen , dst , &len) ) {
-                StringBuilder temp;
-                temp << "Not proper UTF-16: ";
-                for ( size_t i=0; i<srclen; i++ ) {
-                    if ( i > 0 )
-                        temp << ",";
-                    temp << s[i];
-                }
-                uasserted( 13498 , temp.str() );
             }
 
-            string ss( dst , len );
-            free( dst );
-            if ( !JS_CStringsAreUTF8() )
-                for( string::const_iterator i = ss.begin(); i != ss.end(); ++i )
-                    uassert( 10213 ,  "non ascii character detected", (unsigned char)(*i) <= 127 );
-            return ss;
+            size_t len = srclen * 6;
+            boost::scoped_array<char> utf8Chars( new char[len+1] );
+            jschar* utf16Chars = JS_GetStringChars( jsString );
+            if ( !JS_EncodeCharacters( _context, utf16Chars, srclen, utf8Chars.get(), &len ) ) {
+                return "";
+            }
+            return string( utf8Chars.get(), len );
         }
 
         string toString( jsval v ) {
@@ -597,6 +579,7 @@ namespace mongo {
         }
 
         jsval toval( const BSONElement& e ) {
+            JSObject * jsObject;
 
             switch( e.type() ) {
             case EOO:
@@ -618,7 +601,6 @@ namespace mongo {
                 return toval( &embed );
             }
             case Array: {
-
                 BSONObj embed = e.embeddedObject().getOwned();
 
                 if ( embed.isEmpty() ) {
@@ -641,10 +623,10 @@ namespace mongo {
             }
             case jstOID: {
                 OID oid = e.__oid();
-                JSObject * o = JS_NewObject( _context , &object_id_class , 0 , 0 );
-                CHECKNEWOBJECT(o,_context,"jstOID");
-                setProperty( o , "str" , toval( oid.str().c_str() ) );
-                return OBJECT_TO_JSVAL( o );
+                jsObject = JS_NewObject( _context , &object_id_class , 0 , 0 );
+                CHECKNEWOBJECT(jsObject,_context,"jstOID");
+                setProperty( jsObject , "str" , toval( oid.str().c_str() ) );
+                return OBJECT_TO_JSVAL( jsObject );
             }
             case RegEx: {
                 const char * flags = e.regexFlags();
@@ -662,9 +644,9 @@ namespace mongo {
                     flags++;
                 }
 
-                JSObject * r = JS_NewRegExpObject( _context , (char*)e.regex() , strlen( e.regex() ) , flagNumber );
-                verify( r );
-                return OBJECT_TO_JSVAL( r );
+                jsObject = JS_NewRegExpObject( _context , (char*)e.regex() , strlen( e.regex() ) , flagNumber );
+                verify( jsObject );
+                return OBJECT_TO_JSVAL( jsObject );
             }
             case Code: {
                 JSFunction * func = compileFunction( e.valuestr() );
@@ -694,40 +676,41 @@ namespace mongo {
                 return OBJECT_TO_JSVAL( JS_NewObject( _context , &maxkey_class , 0 , 0 ) );
 
             case Timestamp: {
-                JSObject * o = JS_NewObject( _context , &timestamp_class , 0 , 0 );
-                CHECKNEWOBJECT(o,_context,"Timestamp1");
-                setProperty( o , "t" , toval( (double)(e.timestampTime()) ) );
-                setProperty( o , "i" , toval( (double)(e.timestampInc()) ) );
-                return OBJECT_TO_JSVAL( o );
+                jsObject = JS_NewObject( _context , &timestamp_class , 0 , 0 );
+                CHECKNEWOBJECT( jsObject,_context,"Timestamp1" );
+                setProperty( jsObject , "t" , toval( (double)(e.timestampTime()) ) );
+                setProperty( jsObject , "i" , toval( (double)(e.timestampInc()) ) );
+                return OBJECT_TO_JSVAL( jsObject );
             }
             case NumberLong: {
                 return toval( e.numberLong() );
             }
             case DBRef: {
-                JSObject * o = JS_NewObject( _context , &dbpointer_class , 0 , 0 );
-                CHECKNEWOBJECT(o,_context,"DBRef1");
-                setProperty( o , "ns" , toval( e.dbrefNS() ) );
+                jsObject = JS_NewObject( _context , &dbpointer_class , 0 , 0 );
+                CHECKNEWOBJECT( jsObject,_context,"DBRef1" );
+                setProperty( jsObject , "ns" , toval( e.dbrefNS() ) );
 
                 JSObject * oid = JS_NewObject( _context , &object_id_class , 0 , 0 );
-                CHECKNEWOBJECT(oid,_context,"DBRef2");
+                CHECKNEWOBJECT( oid,_context,"DBRef2" );
                 setProperty( oid , "str" , toval( e.dbrefOID().str().c_str() ) );
 
-                setProperty( o , "id" , OBJECT_TO_JSVAL( oid ) );
-                return OBJECT_TO_JSVAL( o );
+                setProperty( jsObject , "id" , OBJECT_TO_JSVAL( oid ) );
+                return OBJECT_TO_JSVAL( jsObject );
             }
-            case BinData: {
-                JSObject * o = JS_NewObject( _context , &bindata_class , 0 , 0 );
-                CHECKNEWOBJECT(o,_context,"Bindata_BinData1");
-                int len;
-                const char * data = e.binData( len );
-                verify( data );
-                verify( JS_SetPrivate( _context , o , new BinDataHolder( data , len ) ) );
+            case BinData:
+                {
+                    jsObject = JS_NewObject( _context , &bindata_class , 0 , 0 );
+                    CHECKNEWOBJECT( jsObject,_context,"Bindata_BinData1" );
+                    int len;
+                    const char * data = e.binData( len );
+                    verify( data );
+                    verify( JS_SetPrivate( _context , jsObject , new BinDataHolder( data , len ) ) );
 
-                setProperty( o , "len" , toval( (double)len ) );
-                setProperty( o , "type" , toval( (double)e.binDataType() ) );
-                return OBJECT_TO_JSVAL( o );
-            }
-            }
+                    setProperty( jsObject , "len" , toval( (double)len ) );
+                    setProperty( jsObject , "type" , toval( (double)e.binDataType() ) );
+                    return OBJECT_TO_JSVAL( jsObject );
+                }
+            } // switch
 
             log() << "toval: unknown type: " << (int) e.type() << endl;
             uassert( 10218 ,  "not done: toval" , 0 );
@@ -793,10 +776,7 @@ namespace mongo {
         }
 
         JSContext * _context;
-
-
     };
-
 
     void bson_finalize( JSContext * cx , JSObject * obj ) {
         BSONHolder * o = GETHOLDER( cx , obj );
@@ -865,14 +845,20 @@ namespace mongo {
     }
 
     JSClass bson_ro_class = {
-        "bson_ro_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        noaccess, noaccess, JS_PropertyStub, noaccess,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_ro_object",                                                   // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        noaccess,                                                           // addProperty
+        noaccess,                                                           // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        noaccess,                                                           // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     JSBool bson_cons( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        cerr << "bson_cons : shouldn't be here!" << endl;
         JS_ReportError( cx , "can't construct bson object" );
         return JS_FALSE;
     }
@@ -898,7 +884,6 @@ namespace mongo {
         return JS_TRUE;
     }
 
-
     JSBool mark_modified( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
         Convertor c(cx);
         BSONHolder * holder = GETHOLDER( cx , obj );
@@ -922,17 +907,31 @@ namespace mongo {
     }
 
     JSClass bson_class = {
-        "bson_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        bson_add_prop, mark_modified_remove, JS_PropertyStub, mark_modified,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_object",                                                      // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        bson_add_prop,                                                      // addProperty
+        mark_modified_remove,                                               // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        mark_modified,                                                      // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     static JSClass global_class = {
-        "global", JSCLASS_GLOBAL_FLAGS,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "global",                       // class name
+        JSCLASS_GLOBAL_FLAGS,           // flags
+        JS_PropertyStub,                // addProperty
+        JS_PropertyStub,                // delProperty
+        JS_PropertyStub,                // getProperty
+        JS_PropertyStub,                // setProperty
+        JS_EnumerateStub,               // enumerate
+        JS_ResolveStub,                 // resolve
+        JS_ConvertStub,                 // convert
+        JS_FinalizeStub,                // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS     // optional members
     };
 
     // --- global helpers ---
@@ -999,7 +998,7 @@ namespace mongo {
         return hexToBinData(cx, rval, 5, s);
     }
 
-    JSBool native_print( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
+    JSBool native_print( JSContext * cx, JSObject * obj, uintN argc, jsval *argv, jsval *rval ) {
         stringstream ss;
         Convertor c( cx );
         for ( uintN i=0; i<argc; i++ ) {
@@ -1163,7 +1162,6 @@ namespace mongo {
         return JS_TRUE;
     }
 
-
     class SMScope;
 
     class SMEngine : public ScriptEngine {
@@ -1202,14 +1200,12 @@ namespace mongo {
         JSClass * _regexClass;
 #endif
 
-
     private:
         JSRuntime * _runtime;
         friend class SMScope;
     };
 
     SMEngine * globalSMEngine;
-
 
     void ScriptEngine::setup() {
         globalSMEngine = new SMEngine();
@@ -1218,7 +1214,6 @@ namespace mongo {
 
 
     // ------ scope ------
-
 
     JSBool no_gc(JSContext *cx, JSGCStatus status) {
         return JS_FALSE;
@@ -1284,7 +1279,6 @@ namespace mongo {
                 JS_DestroyContext( _context );
                 _context = 0;
             }
-
         }
 
         void reset() {
@@ -1315,7 +1309,6 @@ namespace mongo {
                 _convertor->setProperty( _global , e.fieldName() , _convertor->toval( e ) );
                 _initFieldNames.insert( e.fieldName() );
             }
-
         }
 
         bool hasOutOfMemoryException() {
@@ -1679,7 +1672,6 @@ namespace mongo {
         bool _localConnect;
 
         set<string> _initFieldNames;
-
     };
 
     /* used to make the logging not overly chatty in the mongo shell. */
@@ -1721,8 +1713,6 @@ namespace mongo {
 
         return JS_TRUE;
     }
-
-
 
     void SMEngine::runTest() {
         SMScope s;
