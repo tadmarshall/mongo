@@ -194,37 +194,19 @@ namespace mongo {
             _context = cx;
         }
 
-        string toString( JSString * so ) {
-            jschar * s = JS_GetStringChars( so );
-            size_t srclen = JS_GetStringLength( so );
-            if( srclen == 0 )
+        string toString( JSString * jsString ) {
+            size_t srclen = JS_GetStringLength( jsString );
+            if( srclen == 0 ) {
                 return "";
-
-            size_t len = srclen * 6; // we only need *3, but see note on len below
-            char * dst = (char*)malloc( len );
-
-            len /= 2;
-            // doc re weird JS_EncodeCharacters api claims len expected in 16bit
-            // units, but experiments suggest 8bit units expected.  We allocate
-            // enough memory that either will work.
-
-            if ( !JS_EncodeCharacters( _context , s , srclen , dst , &len) ) {
-                StringBuilder temp;
-                temp << "Not proper UTF-16: ";
-                for ( size_t i=0; i<srclen; i++ ) {
-                    if ( i > 0 )
-                        temp << ",";
-                    temp << s[i];
-                }
-                uasserted( 13498 , temp.str() );
             }
 
-            string ss( dst , len );
-            free( dst );
-            if ( !JS_CStringsAreUTF8() )
-                for( string::const_iterator i = ss.begin(); i != ss.end(); ++i )
-                    uassert( 10213 ,  "non ascii character detected", (unsigned char)(*i) <= 127 );
-            return ss;
+            size_t len = srclen * 6;
+            boost::scoped_array<char> utf8Chars( new char[len+1] );
+            jschar* utf16Chars = JS_GetStringChars( jsString );
+            if ( !JS_EncodeCharacters( _context, utf16Chars, srclen, utf8Chars.get(), &len ) ) {
+                throw std::exception(); // JavaScript exception, pass control to caller's catch
+            }
+            return string( utf8Chars.get(), len );
         }
 
         string toString( jsval v ) {
@@ -305,20 +287,28 @@ namespace mongo {
                 JSIdArray * properties = JS_Enumerate( _context , o );
                 verify( properties );
 
-                for ( jsint i=0; i<properties->length; i++ ) {
-                    jsid id = properties->vector[i];
-                    jsval nameval;
-                    verify( JS_IdToValue( _context ,id , &nameval ) );
-                    string name = toString( nameval );
-                    if ( stack.isTop() && name == "_id" )
-                        continue;
+                try {
+                    for ( jsint i=0; i<properties->length; i++ ) {
+                        jsid id = properties->vector[i];
+                        jsval nameval;
+                        verify( JS_IdToValue( _context, id, &nameval ) );
+                        string name = toString( nameval );  // may throw
+                        if ( stack.isTop() && name == "_id" )
+                            continue;
 
-                    append( b , name , getProperty( o , name.c_str() ) , orig[name].type() , stack.dive( o ) );
+                        append( b,
+                                name,
+                                getProperty( o, name.c_str() ),
+                                orig[name].type(),
+                                stack.dive( o ) );
+                    }
                 }
-
+                catch ( std::exception ) {
+                    JS_DestroyIdArray( _context , properties );
+                    throw;
+                }
                 JS_DestroyIdArray( _context , properties );
             }
-
             return b.obj();
         }
 
@@ -327,7 +317,10 @@ namespace mongo {
                     JSVAL_IS_VOID( v ) )
                 return BSONObj();
 
-            uassert( 10215 ,  "not an object" , JSVAL_IS_OBJECT( v ) );
+            if ( ! JSVAL_IS_OBJECT( v ) ) {
+                JS_ReportError( _context, "10215 not an object" );
+                throw std::exception();
+            }
             return toObject( JSVAL_TO_OBJECT( v ) );
         }
 
@@ -336,7 +329,10 @@ namespace mongo {
         }
 
         string getFunctionCode( jsval v ) {
-            uassert( 10216 ,  "not a function" , JS_TypeOfValue( _context , v ) == JSTYPE_FUNCTION );
+            if ( JS_TypeOfValue( _context, v ) != JSTYPE_FUNCTION ) {
+                JS_ReportError( _context, "10216 not a function" );
+                throw std::exception();
+            }
             return getFunctionCode( JS_ValueToFunction( _context , v ) );
         }
 
@@ -865,14 +861,20 @@ namespace mongo {
     }
 
     JSClass bson_ro_class = {
-        "bson_ro_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        noaccess, noaccess, JS_PropertyStub, noaccess,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_ro_object",                                                   // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        noaccess,                                                           // addProperty
+        noaccess,                                                           // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        noaccess,                                                           // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     JSBool bson_cons( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        cerr << "bson_cons : shouldn't be here!" << endl;
         JS_ReportError( cx , "can't construct bson object" );
         return JS_FALSE;
     }
@@ -889,7 +891,13 @@ namespace mongo {
         }
         if ( ! holder->_inResolve ) {
             Convertor c(cx);
-            string name = c.toString( idval );
+            string name;
+            try {
+                name = c.toString( idval );  // may throw
+            }
+            catch ( std::exception ) {
+                return JS_FALSE;
+            }
             if ( holder->_obj[name].eoo() ) {
                 holder->_extra.push_back( name );
             }
@@ -901,38 +909,66 @@ namespace mongo {
 
     JSBool mark_modified( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
         Convertor c(cx);
+        string name;
+        try {
+            name =  c.toString( idval );    // may throw
+        }
+        catch ( std::exception ) {
+            return JS_FALSE;
+        }
         BSONHolder * holder = GETHOLDER( cx , obj );
         if ( !holder ) // needed when we're messing with DBRef.prototype
             return JS_TRUE;
         if ( holder->_inResolve )
             return JS_TRUE;
         holder->_modified = true;
-        holder->_removed.erase( c.toString( idval ) );
+        holder->_removed.erase( name );
         return JS_TRUE;
     }
 
     JSBool mark_modified_remove( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
         Convertor c(cx);
+        string name;
+        try {
+            name = c.toString( idval );  // may throw
+        }
+        catch ( std::exception ) {
+            return JS_FALSE;
+        }
         BSONHolder * holder = GETHOLDER( cx , obj );
         if ( holder->_inResolve )
             return JS_TRUE;
         holder->_modified = true;
-        holder->_removed.insert( c.toString( idval ) );
+        holder->_removed.insert( name );
         return JS_TRUE;
     }
 
     JSClass bson_class = {
-        "bson_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        bson_add_prop, mark_modified_remove, JS_PropertyStub, mark_modified,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_object",                                                      // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        bson_add_prop,                                                      // addProperty
+        mark_modified_remove,                                               // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        mark_modified,                                                      // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     static JSClass global_class = {
-        "global", JSCLASS_GLOBAL_FLAGS,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "global",                       // class name
+        JSCLASS_GLOBAL_FLAGS,           // flags
+        JS_PropertyStub,                // addProperty
+        JS_PropertyStub,                // delProperty
+        JS_PropertyStub,                // getProperty
+        JS_PropertyStub,                // setProperty
+        JS_EnumerateStub,               // enumerate
+        JS_ResolveStub,                 // resolve
+        JS_ConvertStub,                 // convert
+        JS_FinalizeStub,                // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS     // optional members
     };
 
     // --- global helpers ---
@@ -999,16 +1035,21 @@ namespace mongo {
         return hexToBinData(cx, rval, 5, s);
     }
 
-    JSBool native_print( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
+    JSBool native_print( JSContext * cx, JSObject * obj, uintN argc, jsval *argv, jsval *rval ) {
         stringstream ss;
         Convertor c( cx );
-        for ( uintN i=0; i<argc; i++ ) {
-            if ( i > 0 )
-                ss << " ";
-            ss << c.toString( argv[i] );
+        try {
+            for ( uintN i=0; i<argc; i++ ) {
+                if ( i > 0 )
+                    ss << " ";
+                ss << c.toString( argv[i] );
+            }
+            ss << "\n";
+            Logstream::logLockless( ss.str() );
         }
-        ss << "\n";
-        Logstream::logLockless( ss.str() );
+        catch ( std::exception ) {
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
