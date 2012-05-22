@@ -46,8 +46,8 @@ namespace mongo {
     }
 
     void AssertionCount::condrollover( int newvalue ) {
-        static int max = (int)pow( 2.0 , 30 );
-        if ( newvalue >= max )
+        static const int rolloverPoint = ( 1 << 30 );
+        if ( newvalue >= rolloverPoint )
             rollover();
     }
 
@@ -112,11 +112,11 @@ namespace mongo {
         temp << "assertion " << file << ":" << line;
         AssertionException e(temp.str(),0);
         breakpoint();
-#if defined(_DEBUG) || defined(_DURABLEDEFAULTON) || defined(_DURABLEDEFAULTOFF)
-        // this is so we notice in buildbot
-        log() << "\n\n***aborting after verify() failure as this is a debug/test build\n\n" << endl;
-        abort();
-#endif
+//#if defined(_DEBUG) || defined(_DURABLEDEFAULTON) || defined(_DURABLEDEFAULTOFF)
+//        // this is so we notice in buildbot
+//        log() << "\n\n***aborting after verify() failure as this is a debug/test build\n\n" << endl;
+//        abort();
+//#endif
         throw e;
     }
 

@@ -44,10 +44,10 @@ namespace mongo {
     }
 
     BSONObj JSSleep(const mongo::BSONObj &args, void* data) {
-        verify( args.nFields() == 1 );
-        verify( args.firstElement().isNumber() );
-        int ms = int( args.firstElement().number() );
-        sleepmillis( ms );
+        uassert( 0,
+                 "sleep takes a single numeric argument -- sleep(milliseconds)",
+                 args.nFields() == 1 && args.firstElement().isNumber() );
+        sleepmillis( static_cast<long long>( args.firstElement().number() ) );
 
         BSONObjBuilder b;
         b.appendUndefined( "" );
