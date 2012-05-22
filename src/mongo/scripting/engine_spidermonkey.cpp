@@ -19,6 +19,7 @@
 
 #include "mongo/scripting/engine_spidermonkey.h"
 
+#include <boost/smart_ptr/scoped_array.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 #ifndef _WIN32
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -194,37 +195,19 @@ namespace mongo {
             _context = cx;
         }
 
-        string toString( JSString * so ) {
-            jschar * s = JS_GetStringChars( so );
-            size_t srclen = JS_GetStringLength( so );
-            if( srclen == 0 )
+        string toString( JSString * jsString ) {
+            size_t srclen = JS_GetStringLength( jsString );
+            if( srclen == 0 ) {
                 return "";
-
-            size_t len = srclen * 6; // we only need *3, but see note on len below
-            char * dst = (char*)malloc( len );
-
-            len /= 2;
-            // doc re weird JS_EncodeCharacters api claims len expected in 16bit
-            // units, but experiments suggest 8bit units expected.  We allocate
-            // enough memory that either will work.
-
-            if ( !JS_EncodeCharacters( _context , s , srclen , dst , &len) ) {
-                StringBuilder temp;
-                temp << "Not proper UTF-16: ";
-                for ( size_t i=0; i<srclen; i++ ) {
-                    if ( i > 0 )
-                        temp << ",";
-                    temp << s[i];
-                }
-                uasserted( 13498 , temp.str() );
             }
 
-            string ss( dst , len );
-            free( dst );
-            if ( !JS_CStringsAreUTF8() )
-                for( string::const_iterator i = ss.begin(); i != ss.end(); ++i )
-                    uassert( 10213 ,  "non ascii character detected", (unsigned char)(*i) <= 127 );
-            return ss;
+            size_t len = srclen * 6;
+            boost::scoped_array<char> utf8Chars( new char[len+1] );
+            jschar* utf16Chars = JS_GetStringChars( jsString );
+            if ( !JS_EncodeCharacters( _context, utf16Chars, srclen, utf8Chars.get(), &len ) ) {
+                throw std::exception();
+            }
+            return string( utf8Chars.get(), len );
         }
 
         string toString( jsval v ) {
@@ -305,20 +288,28 @@ namespace mongo {
                 JSIdArray * properties = JS_Enumerate( _context , o );
                 verify( properties );
 
-                for ( jsint i=0; i<properties->length; i++ ) {
-                    jsid id = properties->vector[i];
-                    jsval nameval;
-                    verify( JS_IdToValue( _context ,id , &nameval ) );
-                    string name = toString( nameval );
-                    if ( stack.isTop() && name == "_id" )
-                        continue;
+                try {
+                    for ( jsint i=0; i<properties->length; i++ ) {
+                        jsid id = properties->vector[i];
+                        jsval nameval;
+                        verify( JS_IdToValue( _context, id, &nameval ) );
+                        string name = toString( nameval );  // may throw
+                        if ( stack.isTop() && name == "_id" )
+                            continue;
 
-                    append( b , name , getProperty( o , name.c_str() ) , orig[name].type() , stack.dive( o ) );
+                        append( b,
+                                name,
+                                getProperty( o, name.c_str() ),
+                                orig[name].type(),
+                                stack.dive( o ) );
+                    }
                 }
-
+                catch ( std::exception ) {
+                    JS_DestroyIdArray( _context , properties );
+                    throw;
+                }
                 JS_DestroyIdArray( _context , properties );
             }
-
             return b.obj();
         }
 
@@ -327,7 +318,10 @@ namespace mongo {
                     JSVAL_IS_VOID( v ) )
                 return BSONObj();
 
-            uassert( 10215 ,  "not an object" , JSVAL_IS_OBJECT( v ) );
+            if ( ! JSVAL_IS_OBJECT( v ) ) {
+                JS_ReportError( _context, "10215 not an object" );
+                throw std::exception();
+            }
             return toObject( JSVAL_TO_OBJECT( v ) );
         }
 
@@ -336,7 +330,10 @@ namespace mongo {
         }
 
         string getFunctionCode( jsval v ) {
-            uassert( 10216 ,  "not a function" , JS_TypeOfValue( _context , v ) == JSTYPE_FUNCTION );
+            if ( JS_TypeOfValue( _context, v ) != JSTYPE_FUNCTION ) {
+                JS_ReportError( _context, "10216 not a function" );
+                throw std::exception();
+            }
             return getFunctionCode( JS_ValueToFunction( _context , v ) );
         }
 
@@ -865,14 +862,20 @@ namespace mongo {
     }
 
     JSClass bson_ro_class = {
-        "bson_ro_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        noaccess, noaccess, JS_PropertyStub, noaccess,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_ro_object",                                                   // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        noaccess,                                                           // addProperty
+        noaccess,                                                           // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        noaccess,                                                           // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     JSBool bson_cons( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        cerr << "bson_cons : shouldn't be here!" << endl;
         JS_ReportError( cx , "can't construct bson object" );
         return JS_FALSE;
     }
@@ -889,7 +892,13 @@ namespace mongo {
         }
         if ( ! holder->_inResolve ) {
             Convertor c(cx);
-            string name = c.toString( idval );
+            string name;
+            try {
+                name = c.toString( idval );  // may throw
+            }
+            catch ( std::exception ) {
+                return JS_FALSE;
+            }
             if ( holder->_obj[name].eoo() ) {
                 holder->_extra.push_back( name );
             }
@@ -901,58 +910,98 @@ namespace mongo {
 
     JSBool mark_modified( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
         Convertor c(cx);
+        string name;
+        try {
+            name = c.toString( idval ); // may throw
+        }
+        catch ( std::exception ) {
+            return JS_FALSE;
+        }
         BSONHolder * holder = GETHOLDER( cx , obj );
         if ( !holder ) // needed when we're messing with DBRef.prototype
             return JS_TRUE;
         if ( holder->_inResolve )
             return JS_TRUE;
         holder->_modified = true;
-        holder->_removed.erase( c.toString( idval ) );
+        holder->_removed.erase( name );
         return JS_TRUE;
     }
 
     JSBool mark_modified_remove( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
         Convertor c(cx);
+        string name;
+        try {
+            name = c.toString( idval ); // may throw
+        }
+        catch ( std::exception ) {
+            return JS_FALSE;
+        }
         BSONHolder * holder = GETHOLDER( cx , obj );
         if ( holder->_inResolve )
             return JS_TRUE;
         holder->_modified = true;
-        holder->_removed.insert( c.toString( idval ) );
+        holder->_removed.insert( name );
         return JS_TRUE;
     }
 
     JSClass bson_class = {
-        "bson_object" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE ,
-        bson_add_prop, mark_modified_remove, JS_PropertyStub, mark_modified,
-        (JSEnumerateOp)bson_enumerate, (JSResolveOp)(&resolveBSONField) , JS_ConvertStub, bson_finalize ,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "bson_object",                                                      // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE | JSCLASS_NEW_ENUMERATE,  // flags
+        bson_add_prop,                                                      // addProperty
+        mark_modified_remove,                                               // delProperty
+        JS_PropertyStub,                                                    // getProperty
+        mark_modified,                                                      // setProperty
+        (JSEnumerateOp)bson_enumerate,                                      // enumerate
+        (JSResolveOp)(&resolveBSONField),                                   // resolve
+        JS_ConvertStub,                                                     // convert
+        bson_finalize,                                                      // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                                         // optional members
     };
 
     static JSClass global_class = {
-        "global", JSCLASS_GLOBAL_FLAGS,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "global",                       // class name
+        JSCLASS_GLOBAL_FLAGS,           // flags
+        JS_PropertyStub,                // addProperty
+        JS_PropertyStub,                // delProperty
+        JS_PropertyStub,                // getProperty
+        JS_PropertyStub,                // setProperty
+        JS_EnumerateStub,               // enumerate
+        JS_ResolveStub,                 // resolve
+        JS_ConvertStub,                 // convert
+        JS_FinalizeStub,                // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS     // optional members
     };
 
     // --- global helpers ---
 
-    JSBool hexToBinData(JSContext * cx, jsval *rval, int subtype, string s) { 
+    static JSBool hexToBinData( JSContext* cx, jsval* rval, int subtype, const string& s ) {
         JSObject * o = JS_NewObject( cx , &bindata_class , 0 , 0 );
         CHECKNEWOBJECT(o,_context,"Bindata_BinData1");
         int len = s.size() / 2;
-        char * data = new char[len];
-        char *p = data;
+        boost::scoped_array<char> data( new char[len] );
+        char* p = data.get();
         const char *src = s.c_str();
         for( size_t i = 0; i+1 < s.size(); i += 2 ) { 
             *p++ = fromHex(src + i);
         }
-        verify( JS_SetPrivate( cx , o , new BinDataHolder( data , len ) ) );
+        verify( JS_SetPrivate( cx, o, new BinDataHolder( data.get(), len ) ) );
         Convertor c(cx);
         c.setProperty( o, "len", c.toval((double)len) );
         c.setProperty( o, "type", c.toval((double)subtype) );
         *rval = OBJECT_TO_JSVAL( o );
-        delete data;
+        return JS_TRUE;
+    }
+
+    static JSBool testHexString( JSContext* cx, const string& hexString ) {
+        size_t len = hexString.length();
+        for ( size_t i = 0; i < len; ++i ) {
+            char ch = hexString[i];
+            if ( (ch>='0' && ch<='9') || (ch>='a' && ch<='f') || (ch>='A' && ch<='F') ) {
+                continue;
+            }
+            JS_ReportError( cx, "invalid hexstring character '%c'", ch );
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
@@ -967,7 +1016,26 @@ namespace mongo {
             JS_ReportError( cx , "BinData subtype 2 is deprecated" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[1]);
+        else if ( type < 0 || type > 255 ) {
+            JS_ReportError( cx, "subtype must be between 0 and 255" );
+            return JS_FALSE;
+        }
+        string s;
+        try {
+            s = c.toString(argv[1]);    // may throw
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( 0 != ( len % 2 ) ) {
+                JS_ReportError( cx, "hexstring must be even length" );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
+            return JS_FALSE;
+        }
         return hexToBinData(cx, rval, type, s);
     }
 
@@ -977,9 +1045,20 @@ namespace mongo {
             JS_ReportError( cx , "UUID needs argument -- UUID(hexstring)" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[0]);
-        if( s.size() != 32 ) {
-            JS_ReportError( cx , "bad UUID hex string len" );
+        string s;
+        try {
+            s = c.toString(argv[0]);
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( len != 32 ) {
+                JS_ReportError( cx, "UUID hexstring length is %d, must be 32", len );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
             return JS_FALSE;
         }
         return hexToBinData(cx, rval, 3, s);
@@ -991,24 +1070,46 @@ namespace mongo {
             JS_ReportError( cx , "MD5 needs argument -- MD5(hexstring)" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[0]);
-        if( s.size() != 32 ) {
-            JS_ReportError( cx , "bad MD5 hex string len" );
+        string s;
+        try {
+            s = c.toString(argv[0]);
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( len != 32 ) {
+                JS_ReportError( cx, "MD5 hexstring length is %d, must be 32", len );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
             return JS_FALSE;
         }
         return hexToBinData(cx, rval, 5, s);
     }
 
-    JSBool native_print( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
+    JSBool native_print( JSContext * cx, JSObject * obj, uintN argc, jsval *argv, jsval *rval ) {
         stringstream ss;
         Convertor c( cx );
-        for ( uintN i=0; i<argc; i++ ) {
-            if ( i > 0 )
-                ss << " ";
-            ss << c.toString( argv[i] );
+        bool someWritten = false;
+        try {
+            for ( uintN i=0; i<argc; i++ ) {
+                if ( i > 0 )
+                    ss << " ";
+                ss << c.toString( argv[i] );    // may throw
+                someWritten = true;
+            }
+            ss << "\n";
+            Logstream::logLockless( ss.str() );
         }
-        ss << "\n";
-        Logstream::logLockless( ss.str() );
+        catch ( std::exception ) {
+            if ( someWritten ) {
+                ss << "\n";
+                Logstream::logLockless( ss.str() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
