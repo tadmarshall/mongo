@@ -77,58 +77,81 @@ namespace mongo {
     }
 
     JSBool internal_cursor_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        uassert( 10236 ,  "no args to internal_cursor_constructor" , argc == 0 );
-        verify( JS_SetPrivate( cx , obj , 0 ) ); // just for safety
+        try {
+            uassert( 10236 ,  "no args to internal_cursor_constructor" , argc == 0 );
+            verify( JS_SetPrivate( cx , obj , 0 ) ); // just for safety
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     void internal_cursor_finalize( JSContext * cx , JSObject * obj ) {
-        CursorHolder * holder = (CursorHolder*)JS_GetPrivate( cx , obj );
-        if ( holder ) {
-            delete holder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            CursorHolder * holder = (CursorHolder*)JS_GetPrivate( cx , obj );
+            if ( holder ) {
+                delete holder;
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
     JSBool internal_cursor_hasNext(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        DBClientCursor *cursor = getCursor( cx, obj );
         try {
+            DBClientCursor *cursor = getCursor( cx, obj );
             *rval = cursor->more() ? JSVAL_TRUE : JSVAL_FALSE;
         }
-        catch ( std::exception& e ) {
-            JS_ReportError( cx , e.what() );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
     }
 
     JSBool internal_cursor_objsLeftInBatch(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        DBClientCursor *cursor = getCursor( cx, obj );
-        Convertor c(cx);
-        *rval = c.toval((double) cursor->objsLeftInBatch() );
+        try {
+            DBClientCursor *cursor = getCursor( cx, obj );
+            Convertor c(cx);
+            *rval = c.toval((double) cursor->objsLeftInBatch() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool internal_cursor_next(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        DBClientCursor *cursor = getCursor( cx, obj );
-
-        BSONObj n;
-
         try {
+            DBClientCursor *cursor = getCursor( cx, obj );
             if ( ! cursor->more() ) {
                 JS_ReportError( cx , "cursor at the end" );
                 return JS_FALSE;
             }
 
-            n = cursor->next();
+            BSONObj n = cursor->next();
+            Convertor c(cx);
+            *rval = c.toval( &n );
         }
-        catch ( std::exception& e ) {
-            JS_ReportError( cx , e.what() );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
-        Convertor c(cx);
-        *rval = c.toval( &n );
         return JS_TRUE;
     }
 
@@ -140,70 +163,83 @@ namespace mongo {
     };
 
     JSClass internal_cursor_class = {
-        "InternalCursor" , JSCLASS_HAS_PRIVATE  ,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, JS_ResolveStub , JS_ConvertStub, internal_cursor_finalize,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "InternalCursor",               // class name
+        JSCLASS_HAS_PRIVATE,            // flags
+        JS_PropertyStub,                // addProperty
+        JS_PropertyStub,                // delProperty
+        JS_PropertyStub,                // getProperty
+        JS_PropertyStub,                // setProperty
+        JS_EnumerateStub,               // enumerate
+        JS_ResolveStub,                 // resolve
+        JS_ConvertStub,                 // convert
+        internal_cursor_finalize,       // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS     // optional members
     };
 
 
     // ------ mongo stuff ------
 
-    JSBool mongo_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        uassert( 10237 ,  "mongo_constructor not implemented yet" , 0 );
-        throw -1;
-    }
-
     JSBool mongo_local_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
+        try {
+            shared_ptr< DBClientWithCommands > client( createDirectClient() );
+            verify( JS_SetPrivate( cx , obj , (void*)( new shared_ptr< DBClientWithCommands >( client ) ) ) );
 
-        shared_ptr< DBClientWithCommands > client( createDirectClient() );
-        verify( JS_SetPrivate( cx , obj , (void*)( new shared_ptr< DBClientWithCommands >( client ) ) ) );
-
-        jsval host = c.toval( "EMBEDDED" );
-        verify( JS_SetProperty( cx , obj , "host" , &host ) );
-
+            Convertor c( cx );
+            jsval host = c.toval( "EMBEDDED" );
+            verify( JS_SetProperty( cx , obj , "host" , &host ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool mongo_external_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
+        try {
+            smuassert( cx ,  "0 or 1 args to Mongo" , argc <= 1 );
 
-        smuassert( cx ,  "0 or 1 args to Mongo" , argc <= 1 );
+            string host( "127.0.0.1" );
+            Convertor c( cx );
+            if ( argc > 0 )
+                host = c.toString( argv[0] );
 
-        string host = "127.0.0.1";
-        if ( argc > 0 )
-            host = c.toString( argv[0] );
+            string errmsg;
+            ConnectionString cs = ConnectionString::parse( host , errmsg );
+            if ( ! cs.isValid() ) {
+                JS_ReportError( cx , errmsg.c_str() );
+                return JS_FALSE;
+            }
 
-        string errmsg;
+            shared_ptr< DBClientWithCommands > conn( cs.connect( errmsg ) );
+            if ( ! conn ) {
+                JS_ReportError( cx , errmsg.c_str() );
+                return JS_FALSE;
+            }
 
-        ConnectionString cs = ConnectionString::parse( host , errmsg );
-        if ( ! cs.isValid() ) {
-            JS_ReportError( cx , errmsg.c_str() );
+            try {
+                ScriptEngine::runConnectCallback( *conn );
+            }
+            catch ( const std::exception& e ){
+                // Can happen if connection goes down while we're starting up here
+                // Catch so that we don't get a hard-to-trace segfault from SM
+                JS_ReportError( cx, ((string)( str::stream() << "Error during mongo startup." << causedBy( e ) )).c_str() );
+                return JS_FALSE;
+            }
+
+            verify( JS_SetPrivate( cx , obj , (void*)( new shared_ptr< DBClientWithCommands >( conn ) ) ) );
+            jsval host_val = c.toval( host.c_str() );
+            verify( JS_SetProperty( cx , obj , "host" , &host_val ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
-        shared_ptr< DBClientWithCommands > conn( cs.connect( errmsg ) );
-        if ( ! conn ) {
-            JS_ReportError( cx , errmsg.c_str() );
-            return JS_FALSE;
-        }
-
-        try{
-            ScriptEngine::runConnectCallback( *conn );
-        }
-        catch( std::exception& e ){
-            // Can happen if connection goes down while we're starting up here
-            // Catch so that we don't get a hard-to-trace segfault from SM
-            JS_ReportError( cx, ((string)( str::stream() << "Error during mongo startup." << causedBy( e ) )).c_str() );
-            return JS_FALSE;
-        }
-
-        verify( JS_SetPrivate( cx , obj , (void*)( new shared_ptr< DBClientWithCommands >( conn ) ) ) );
-        jsval host_val = c.toval( host.c_str() );
-        verify( JS_SetProperty( cx , obj , "host" , &host_val ) );
         return JS_TRUE;
-
     }
 
     DBClientWithCommands *getConnection( JSContext *cx, JSObject *obj ) {
@@ -213,64 +249,80 @@ namespace mongo {
     }
 
     void mongo_finalize( JSContext * cx , JSObject * obj ) {
-        shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
-        if ( connHolder ) {
-            delete connHolder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
+            if ( connHolder ) {
+                delete connHolder;
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
     JSClass mongo_class = {
-        "Mongo" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE ,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, JS_ResolveStub , JS_ConvertStub, mongo_finalize,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "Mongo",                                        // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE,      // flags
+        JS_PropertyStub,                                // addProperty
+        JS_PropertyStub,                                // delProperty
+        JS_PropertyStub,                                // getProperty
+        JS_PropertyStub,                                // setProperty
+        JS_EnumerateStub,                               // enumerate
+        JS_ResolveStub,                                 // resolve
+        JS_ConvertStub,                                 // convert
+        mongo_finalize,                                 // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                     // optional members
     };
 
     JSBool mongo_auth(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        smuassert( cx , "mongo_auth needs 3 args" , argc == 3 );
-        shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
-        smuassert( cx ,  "no connection!" , connHolder && connHolder->get() );
-        DBClientWithCommands *conn = connHolder->get();
-
-        Convertor c( cx );
-
-        string db = c.toString( argv[0] );
-        string username = c.toString( argv[1] );
-        string password = c.toString( argv[2] );
-        string errmsg = "";
-
         try {
-            if (conn->auth(db, username, password, errmsg)) {
-                return JS_TRUE;
+            smuassert( cx , "mongo_auth needs 3 args" , argc == 3 );
+            shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
+            smuassert( cx ,  "no connection!" , connHolder && connHolder->get() );
+            DBClientWithCommands *conn = connHolder->get();
+
+            Convertor c( cx );
+
+            string db = c.toString( argv[0] );
+            string username = c.toString( argv[1] );
+            string password = c.toString( argv[2] );
+            string errmsg = "";
+
+            if ( ! conn->auth( db, username, password, errmsg ) ) {
+                JS_ReportError( cx, errmsg.c_str() );
+                return JS_FALSE;
             }
-            JS_ReportError( cx, errmsg.c_str() );
         }
-        catch ( ... ) {
-            JS_ReportError( cx , "error doing query: unknown" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
         }
-        return JS_FALSE;
+        return JS_TRUE;
     }
 
     JSBool mongo_find(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        smuassert( cx , "mongo_find needs 7 args" , argc == 7 );
-        shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
-        smuassert( cx ,  "no connection!" , connHolder && connHolder->get() );
-        DBClientWithCommands *conn = connHolder->get();
-
-        Convertor c( cx );
-
-        string ns = c.toString( argv[0] );
-
-        BSONObj q = c.toObject( argv[1] );
-        BSONObj f = c.toObject( argv[2] );
-
-        int nToReturn = (int) c.toNumber( argv[3] );
-        int nToSkip = (int) c.toNumber( argv[4] );
-        int batchSize = (int) c.toNumber( argv[5] );
-        int options = (int)c.toNumber( argv[6] );
-
         try {
+            smuassert( cx , "mongo_find needs 7 args" , argc == 7 );
+            shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
+            smuassert( cx ,  "no connection!" , connHolder && connHolder->get() );
+            DBClientWithCommands *conn = connHolder->get();
+
+            Convertor c( cx );
+
+            string ns = c.toString( argv[0] );
+
+            BSONObj q = c.toObject( argv[1] );
+            BSONObj f = c.toObject( argv[2] );
+
+            int nToReturn = (int) c.toNumber( argv[3] );
+            int nToSkip = (int) c.toNumber( argv[4] );
+            int batchSize = (int) c.toNumber( argv[5] );
+            int options = (int)c.toNumber( argv[6] );
 
             auto_ptr<DBClientCursor> cursor = conn->query( ns , q , nToReturn , nToSkip , f.nFields() ? &f : 0  , options , batchSize );
             if ( ! cursor.get() ) {
@@ -282,59 +334,63 @@ namespace mongo {
             CHECKNEWOBJECT( mycursor, cx, "internal_cursor_class" );
             verify( JS_SetPrivate( cx , mycursor , new CursorHolder( cursor, *connHolder ) ) );
             *rval = OBJECT_TO_JSVAL( mycursor );
-            return JS_TRUE;
         }
-        catch ( ... ) {
-            JS_ReportError( cx , "error doing query: unknown" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSBool mongo_update(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        smuassert( cx ,  "mongo_update needs at least 3 args" , argc >= 3 );
-        smuassert( cx ,  "2nd param to update has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
-        smuassert( cx ,  "3rd param to update has to be an object" , JSVAL_IS_OBJECT( argv[2] ) );
-
-        Convertor c( cx );
-        if ( c.getBoolean( obj , "readOnly" ) ) {
-            JS_ReportError( cx , "js db in read only mode - mongo_update" );
-            return JS_FALSE;
-        }
-
-        DBClientWithCommands * conn = getConnection( cx, obj );
-        uassert( 10245 ,  "no connection!" , conn );
-
-        string ns = c.toString( argv[0] );
-
-        bool upsert = argc > 3 && c.toBoolean( argv[3] );
-        bool multi = argc > 4 && c.toBoolean( argv[4] );
-
         try {
+            smuassert( cx ,  "mongo_update needs at least 3 args" , argc >= 3 );
+            smuassert( cx ,  "2nd param to update has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
+            smuassert( cx ,  "3rd param to update has to be an object" , JSVAL_IS_OBJECT( argv[2] ) );
+
+            Convertor c( cx );
+            if ( c.getBoolean( obj , "readOnly" ) ) {
+                JS_ReportError( cx , "js db in read only mode - mongo_update" );
+                return JS_FALSE;
+            }
+
+            DBClientWithCommands * conn = getConnection( cx, obj );
+            uassert( 10245 ,  "no connection!" , conn );
+
+            string ns = c.toString( argv[0] );
+
+            bool upsert = argc > 3 && c.toBoolean( argv[3] );
+            bool multi = argc > 4 && c.toBoolean( argv[4] );
+
             conn->update( ns , c.toObject( argv[1] ) , c.toObject( argv[2] ) , upsert , multi );
-            return JS_TRUE;
         }
-        catch ( ... ) {
-            JS_ReportError( cx , "error doing update" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSBool mongo_insert(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        smuassert( cx ,  "mongo_insert needs 2 args" , argc == 2 );
-        smuassert( cx ,  "2nd param to insert has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
-
-        Convertor c( cx );
-        if ( c.getBoolean( obj , "readOnly" ) ) {
-            JS_ReportError( cx , "js db in read only mode - mongo_insert" );
-            return JS_FALSE;
-        }
-
-        DBClientWithCommands * conn = getConnection( cx, obj );
-        uassert( 10248 ,  "no connection!" , conn );
-
-        string ns = c.toString( argv[0] );
-
         try {
+            smuassert( cx ,  "mongo_insert needs 2 args" , argc == 2 );
+            smuassert( cx ,  "2nd param to insert has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
+
+            Convertor c( cx );
+            if ( c.getBoolean( obj , "readOnly" ) ) {
+                JS_ReportError( cx , "js db in read only mode - mongo_insert" );
+                return JS_FALSE;
+            }
+
+            DBClientWithCommands * conn = getConnection( cx, obj );
+            uassert( 10248 ,  "no connection!" , conn );
+
+            string ns = c.toString( argv[0] );
+
             JSObject * insertObj = JSVAL_TO_OBJECT( argv[1] );
 
             if( JS_IsArrayObject( cx, insertObj ) ){
@@ -354,63 +410,52 @@ namespace mongo {
                 }
 
                 conn->insert( ns, bos );
-
-                return JS_TRUE;
             }
             else {
                 BSONObj o = c.toObject( argv[1] );
                 // TODO: add _id
 
                 conn->insert( ns , o );
-                return JS_TRUE;
             }
         }
-        catch ( std::exception& e ) {
-            stringstream ss;
-            ss << "error doing insert:" << e.what();
-            string s = ss.str();
-            JS_ReportError( cx , s.c_str() );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-        catch ( ... ) {
-            JS_ReportError( cx , "error doing insert" );
-            return JS_FALSE;
-        }
+        return JS_TRUE;
     }
 
     JSBool mongo_remove(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        smuassert( cx ,  "mongo_remove needs 2 or 3 arguments" , argc == 2 || argc == 3 );
-        smuassert( cx ,  "2nd param to insert has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
-
-        Convertor c( cx );
-        if ( c.getBoolean( obj , "readOnly" ) ) {
-            JS_ReportError( cx , "js db in read only mode - mongo_remove" );
-            return JS_FALSE;
-        }
-
-        DBClientWithCommands * conn = getConnection( cx, obj );
-        uassert( 10251 ,  "no connection!" , conn );
-
-        string ns = c.toString( argv[0] );
-        BSONObj o = c.toObject( argv[1] );
-        bool justOne = false;
-        if ( argc > 2 )
-            justOne = c.toBoolean( argv[2] );
-
         try {
-            conn->remove( ns , o , justOne );
-            return JS_TRUE;
-        }
-        catch ( std::exception& e ) {
-            JS_ReportError( cx , e.what() );
-            return JS_FALSE;
-        }
-        
-        catch ( ... ) {
-            JS_ReportError( cx , "error doing remove" );
-            return JS_FALSE;
-        }
+            smuassert( cx ,  "mongo_remove needs 2 or 3 arguments" , argc == 2 || argc == 3 );
+            smuassert( cx ,  "2nd param to insert has to be an object" , JSVAL_IS_OBJECT( argv[1] ) );
 
+            Convertor c( cx );
+            if ( c.getBoolean( obj , "readOnly" ) ) {
+                JS_ReportError( cx , "js db in read only mode - mongo_remove" );
+                return JS_FALSE;
+            }
+
+            DBClientWithCommands * conn = getConnection( cx, obj );
+            uassert( 10251 ,  "no connection!" , conn );
+
+            string ns = c.toString( argv[0] );
+            BSONObj o = c.toObject( argv[1] );
+            bool justOne = false;
+            if ( argc > 2 )
+                justOne = c.toBoolean( argv[2] );
+
+            conn->remove( ns , o , justOne );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSFunctionSpec mongo_functions[] = {
@@ -425,59 +470,81 @@ namespace mongo {
     // -------------  db_collection -------------
 
     JSBool db_collection_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx ,  "db_collection_constructor wrong args" , argc == 4 );
-        verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
-        verify( JS_SetProperty( cx , obj , "_db" , &(argv[1]) ) );
-        verify( JS_SetProperty( cx , obj , "_shortName" , &(argv[2]) ) );
-        verify( JS_SetProperty( cx , obj , "_fullName" , &(argv[3]) ) );
+        try {
+            smuassert( cx ,  "db_collection_constructor wrong args" , argc == 4 );
+            Convertor c(cx);
+            if ( haveLocalShardingInfo( c.toString( argv[3] ) ) ) {
+                JS_ReportError( cx , "can't use sharded collection from db.eval" );
+                return JS_FALSE;
+            }
 
-        Convertor c(cx);
-        if ( haveLocalShardingInfo( c.toString( argv[3] ) ) ) {
-            JS_ReportError( cx , "can't use sharded collection from db.eval" );
+            verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
+            verify( JS_SetProperty( cx , obj , "_db" , &(argv[1]) ) );
+            verify( JS_SetProperty( cx , obj , "_shortName" , &(argv[2]) ) );
+            verify( JS_SetProperty( cx , obj , "_fullName" , &(argv[3]) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
         return JS_TRUE;
     }
 
     JSBool db_collection_resolve( JSContext *cx, JSObject *obj, jsval id, uintN flags, JSObject **objp ) {
-        if ( flags & JSRESOLVE_ASSIGNING )
-            return JS_TRUE;
+        try {
+            if ( flags & JSRESOLVE_ASSIGNING )
+                return JS_TRUE;
 
-        Convertor c( cx );
-        string collname = c.toString( id );
+            Convertor c( cx );
+            string collname = c.toString( id );
 
-        if ( isSpecialName( collname ) )
-            return JS_TRUE;
+            if ( isSpecialName( collname ) )
+                return JS_TRUE;
 
-        if ( obj == c.getGlobalPrototype( "DBCollection" ) )
-            return JS_TRUE;
+            if ( obj == c.getGlobalPrototype( "DBCollection" ) )
+                return JS_TRUE;
 
-        JSObject * proto = JS_GetPrototype( cx , obj );
-        if ( c.hasProperty( obj , collname.c_str() ) || ( proto && c.hasProperty( proto , collname.c_str() )  ) )
-            return JS_TRUE;
+            JSObject * proto = JS_GetPrototype( cx , obj );
+            if ( c.hasProperty( obj , collname.c_str() ) || ( proto && c.hasProperty( proto , collname.c_str() )  ) )
+                return JS_TRUE;
 
-        string name = c.toString( c.getProperty( obj , "_shortName" ) );
-        name += ".";
-        name += collname;
+            string name = c.toString( c.getProperty( obj , "_shortName" ) );
+            name += ".";
+            name += collname;
 
-        jsval db = c.getProperty( obj , "_db" );
-        if ( ! JSVAL_IS_OBJECT( db ) )
-            return JS_TRUE;
+            jsval db = c.getProperty( obj , "_db" );
+            if ( ! JSVAL_IS_OBJECT( db ) )
+                return JS_TRUE;
 
-        JSObject * coll = doCreateCollection( cx , JSVAL_TO_OBJECT( db ) , name );
-        if ( ! coll )
+            JSObject * coll = doCreateCollection( cx , JSVAL_TO_OBJECT( db ) , name );
+            if ( ! coll )
+                return JS_FALSE;
+            c.setProperty( obj , collname.c_str() , OBJECT_TO_JSVAL( coll ) );
+            *objp = obj;
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
-        c.setProperty( obj , collname.c_str() , OBJECT_TO_JSVAL( coll ) );
-        *objp = obj;
+        }
         return JS_TRUE;
     }
 
     JSClass db_collection_class = {
-        "DBCollection" , JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE ,
-        JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_PropertyStub,
-        JS_EnumerateStub, (JSResolveOp)(&db_collection_resolve) , JS_ConvertStub, JS_FinalizeStub,
-        JSCLASS_NO_OPTIONAL_MEMBERS
+        "DBCollection",                                 // class name
+        JSCLASS_HAS_PRIVATE | JSCLASS_NEW_RESOLVE,      // flags
+        JS_PropertyStub,                                // addProperty
+        JS_PropertyStub,                                // delProperty
+        JS_PropertyStub,                                // getProperty
+        JS_PropertyStub,                                // setProperty
+        JS_EnumerateStub,                               // enumerate
+        (JSResolveOp)db_collection_resolve,             // resolve
+        JS_ConvertStub,                                 // convert
+        JS_FinalizeStub,                                // finalize
+        JSCLASS_NO_OPTIONAL_MEMBERS                     // optional members
     };
 
 
@@ -509,44 +576,58 @@ namespace mongo {
 
 
     JSBool db_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx,  "wrong number of arguments to DB" , argc == 2 );
+        try {
+            smuassert( cx,  "wrong number of arguments to DB" , argc == 2 );
 
-        Convertor convertor( cx );
-        string dbName = convertor.toString( argv[1] );
-        string msg = str::stream() << "[" << dbName << "] is not a "
-                                   << "valid database name";
-        smuassert( cx, msg.c_str(), NamespaceString::validDBName( dbName ) );
+            Convertor convertor( cx );
+            string dbName = convertor.toString( argv[1] );
+            string msg = str::stream() << "[" << dbName << "] is not a valid database name";
+            smuassert( cx, msg.c_str(), NamespaceString::validDBName( dbName ) );
 
-        verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
-        verify( JS_SetProperty( cx , obj , "_name" , &(argv[1]) ) );
-
+            verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
+            verify( JS_SetProperty( cx , obj , "_name" , &(argv[1]) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool db_resolve( JSContext *cx, JSObject *obj, jsval id, uintN flags, JSObject **objp ) {
-        if ( flags & JSRESOLVE_ASSIGNING )
-            return JS_TRUE;
+        try {
+            if ( flags & JSRESOLVE_ASSIGNING )
+                return JS_TRUE;
 
-        Convertor c( cx );
+            Convertor c( cx );
 
-        if ( obj == c.getGlobalPrototype( "DB" ) )
-            return JS_TRUE;
+            if ( obj == c.getGlobalPrototype( "DB" ) )
+                return JS_TRUE;
 
-        string collname = c.toString( id );
+            string collname = c.toString( id );
 
-        if ( isSpecialName( collname ) )
-            return JS_TRUE;
+            if ( isSpecialName( collname ) )
+                return JS_TRUE;
 
-        JSObject * proto = JS_GetPrototype( cx , obj );
-        if ( proto && c.hasProperty( proto , collname.c_str() ) )
-            return JS_TRUE;
+            JSObject * proto = JS_GetPrototype( cx , obj );
+            if ( proto && c.hasProperty( proto , collname.c_str() ) )
+                return JS_TRUE;
 
-        JSObject * coll = doCreateCollection( cx , obj , collname );
-        if ( ! coll )
+            JSObject * coll = doCreateCollection( cx , obj , collname );
+            if ( ! coll )
+                return JS_FALSE;
+            c.setProperty( obj , collname.c_str() , OBJECT_TO_JSVAL( coll ) );
+
+            *objp = obj;
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
-        c.setProperty( obj , collname.c_str() , OBJECT_TO_JSVAL( coll ) );
-
-        *objp = obj;
+        }
         return JS_TRUE;
     }
 
@@ -561,36 +642,36 @@ namespace mongo {
     // -------------- object id -------------
 
     JSBool object_id_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
+        try {
+            Convertor c( cx );
 
-        OID oid;
-        if ( argc == 0 ) {
-            oid.init();
-        }
-        else {
-            smuassert( cx ,  "object_id_constructor can't take more than 1 param" , argc == 1 );
-            string s = c.toString( argv[0] );
+            OID oid;
+            if ( argc == 0 ) {
+                oid.init();
+            }
+            else {
+                smuassert( cx ,  "object_id_constructor can't take more than 1 param" , argc == 1 );
+                string s = c.toString( argv[0] );
 
-            try {
                 Scope::validateObjectIdString( s );
+                oid.init( s );
             }
-            catch ( const MsgAssertionException &m ) {
-                static string error = m.toString();
-                JS_ReportError( cx, error.c_str() );
-                return JS_FALSE;
+
+            if ( ! JS_InstanceOf( cx , obj , &object_id_class , 0 ) ) {
+                obj = JS_NewObject( cx , &object_id_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "object_id_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
             }
-            oid.init( s );
+
+            jsval v = c.toval( oid.str().c_str() );
+            verify( JS_SetProperty( cx , obj , "str" , &v  ) );
         }
-
-        if ( ! JS_InstanceOf( cx , obj , &object_id_class , 0 ) ) {
-            obj = JS_NewObject( cx , &object_id_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "object_id_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
         }
-
-        jsval v = c.toval( oid.str().c_str() );
-        verify( JS_SetProperty( cx , obj , "str" , &v  ) );
-
         return JS_TRUE;
     }
 
@@ -604,28 +685,31 @@ namespace mongo {
     // dbpointer
 
     JSBool dbpointer_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &dbpointer_class , 0 ) ) {
-            obj = JS_NewObject( cx , &dbpointer_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "dbpointer_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
-
-            if ( ! JSVAL_IS_OID( argv[1] ) ) {
-                JS_ReportError( cx , "2nd arg to DBPointer needs to be oid" );
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx, "DBPointer takes 2 arguments -- DBPointer(namespace,objectId)" );
                 return JS_FALSE;
             }
-
+            if ( ! JSVAL_IS_OID( argv[1] ) ) {
+                JS_ReportError( cx , "2nd argument to DBPointer must be objectId" );
+                return JS_FALSE;
+            }
+            Convertor c( cx );
+            if ( ! JS_InstanceOf( cx , obj , &dbpointer_class , 0 ) ) {
+                obj = JS_NewObject( cx , &dbpointer_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "dbpointer_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             verify( JS_SetProperty( cx , obj , "ns" , &(argv[0]) ) );
             verify( JS_SetProperty( cx , obj , "id" , &(argv[1]) ) );
-            return JS_TRUE;
         }
-        else {
-            JS_ReportError( cx , "DBPointer needs 2 arguments" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSClass dbpointer_class = {
@@ -641,27 +725,32 @@ namespace mongo {
 
 
     JSBool dbref_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &dbref_class , 0 ) ) {
-            obj = JS_NewObject( cx , &dbref_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "dbref_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx , "DBRef takes 2 arguments -- DBRef($ref,$id)" );
+                verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( BSONObj().getOwned() ) ) ) );
+                return JS_FALSE;
+            }
+            Convertor c( cx );
+            if ( ! JS_InstanceOf( cx , obj , &dbref_class , 0 ) ) {
+                obj = JS_NewObject( cx , &dbref_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "dbref_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             JSObject * o = JS_NewObject( cx , NULL , NULL, NULL );
             CHECKNEWOBJECT( o, cx, "dbref_constructor" );
             verify( JS_SetProperty( cx, o , "$ref" , &argv[ 0 ] ) );
             verify( JS_SetProperty( cx, o , "$id" , &argv[ 1 ] ) );
             BSONObj bo = c.toObject( o );
             verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( bo.getOwned() ) ) ) );
-            return JS_TRUE;
         }
-        else {
-            JS_ReportError( cx , "DBRef needs 2 arguments" );
-            verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( BSONObj().getOwned() ) ) ) );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSClass dbref_class = bson_class; // name will be fixed later
@@ -745,93 +834,128 @@ zzz
     // BinData **************************
 
     JSBool bindata_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &bindata_class , 0 ) ) {
-            obj = JS_NewObject( cx , &bindata_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "bindata_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
-
-            int type = (int)c.toNumber( argv[ 0 ] );
-            if( type < 0 || type > 255 ) {
-                JS_ReportError( cx , "invalid BinData subtype -- range is 0..255 see bsonspec.org" );
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx , "BinData takes 2 arguments -- BinData(subtype,data)" );
                 return JS_FALSE;
             }
-            string encoded = c.toString( argv[ 1 ] );
+            Convertor c( cx );
+            int subtype = static_cast<int>( c.toNumber( argv[ 0 ] ) );
+            if ( subtype < 0 || subtype > 255 ) {
+                JS_ReportError( cx, "BinData subtype must be between 0 and 255" );
+                return JS_FALSE;
+            }
+            string encoded( c.toString( argv[ 1 ] ) );
             string decoded;
             try {
                 decoded = base64::decode( encoded );
             }
             catch(...) {
-                JS_ReportError(cx, "BinData could not decode base64 parameter");
+                JS_ReportError( cx, "BinData could not decode base64 parameter" );
                 return JS_FALSE;
             }
-
+            if ( ! JS_InstanceOf( cx , obj , &bindata_class , 0 ) ) {
+                obj = JS_NewObject( cx , &bindata_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "bindata_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             verify( JS_SetPrivate( cx, obj, new BinDataHolder( decoded.data(), decoded.length() ) ) );
             c.setProperty( obj, "len", c.toval( (double)decoded.length() ) );
-            c.setProperty( obj, "type", c.toval( (double)type ) );
-
-            return JS_TRUE;
+            c.setProperty( obj, "type", c.toval( (double)subtype ) );
         }
-        else {
-            JS_ReportError( cx , "BinData needs 2 arguments -- BinData(subtype,data)" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSBool bindata_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int type = (int)c.getNumber( obj , "type" );
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        ss << "BinData(" << type << ",\"";
-        base64::encode( ss, (const char *)data, len );
-        ss << "\")";
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int type = static_cast<int>( c.getNumber( obj, "type" ) );
+            int len = static_cast<int>(c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            ss << "BinData(" << type << ",\"";
+            base64::encode( ss, data, len );
+            ss << "\")";
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool bindataBase64(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        base64::encode( ss, (const char *)data, len );
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int len = static_cast<int>( c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            base64::encode( ss, data, len );
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool bindataAsHex(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        ss.setf (ios_base::hex , ios_base::basefield);
-        ss.fill ('0');
-        ss.setf (ios_base::right , ios_base::adjustfield);
-        for( int i = 0; i < len; i++ ) {
-            unsigned v = (unsigned char) data[i];
-            ss << setw(2) << v;
+        try {
+            Convertor c(cx);
+            int len = static_cast<int>( c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            ss.setf( ios_base::hex, ios_base::basefield );
+            ss.fill( '0' );
+            ss.setf( ios_base::right, ios_base::adjustfield );
+            for( int i = 0; i < len; i++ ) {
+                unsigned v = static_cast<unsigned char>( data[i] );
+                ss << setw(2) << v;
+            }
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
         }
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     void bindata_finalize( JSContext * cx , JSObject * obj ) {
-        Convertor c(cx);
-        void *holder = JS_GetPrivate( cx, obj );
-        if ( holder ) {
-            delete ( BinDataHolder* )holder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            void *holder = JS_GetPrivate( cx, obj );
+            if ( holder ) {
+                delete reinterpret_cast<BinDataHolder*>( holder );
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
@@ -856,28 +980,44 @@ zzz
     }
 
     JSBool map_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        if ( argc > 0 ) {
-            JS_ReportError( cx , "Map takes no arguments" );
+        try {
+            if ( argc > 0 ) {
+                JS_ReportError( cx , "Map takes no arguments" );
+                return JS_FALSE;
+            }
+
+            JSObject * arrayObj = JS_NewObject( cx , 0 , 0 , 0 );
+            CHECKNEWOBJECT( arrayObj, cx, "map_constructor" );
+
+            jsval a = OBJECT_TO_JSVAL( arrayObj );
+            JS_SetProperty( cx , obj , "_data" , &a );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
-        JSObject * array = JS_NewObject( cx , 0 , 0 , 0 );
-        CHECKNEWOBJECT( array, cx, "map_constructor" );
-
-        jsval a = OBJECT_TO_JSVAL( array );
-        JS_SetProperty( cx , obj , "_data" , &a );
-
         return JS_TRUE;
     }
 
     JSBool map_prop( JSContext *cx, JSObject *obj, jsval idval, jsval *vp ) {
-        Convertor c(cx);
-        if ( specialMapString( c.toString( idval ) ) )
-            return JS_TRUE;
-
-        log() << "illegal prop access: " << c.toString( idval ) << endl;
-        JS_ReportError( cx , "can't use array access with Map" );
-        return JS_FALSE;
+        try {
+            Convertor c(cx);
+            string str( c.toString( idval ) );
+            if ( ! specialMapString( str ) ) {
+                log() << "illegal prop access: " << str << endl;
+                JS_ReportError( cx , "can't use array access with Map" );
+                return JS_FALSE;
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSClass map_class = {
@@ -902,24 +1042,33 @@ zzz
     };
 
     JSBool timestamp_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "Timestamp needs 0 or 2 args" , argc == 0 || argc == 2 );
+        try {
+            smuassert( cx,
+                       "Timestamp takes 0 or 2 arguments -- Timestamp() or Timestamp(t,i)",
+                       argc == 0 || argc == 2 );
 
-        if ( ! JS_InstanceOf( cx , obj , &timestamp_class , 0 ) ) {
-            obj = JS_NewObject( cx , &timestamp_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "timestamp_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
+            if ( ! JS_InstanceOf( cx , obj , &timestamp_class , 0 ) ) {
+                obj = JS_NewObject( cx , &timestamp_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "timestamp_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
 
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "t", c.toval( 0.0 ) );
-            c.setProperty( obj, "i", c.toval( 0.0 ) );
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "t", c.toval( 0.0 ) );
+                c.setProperty( obj, "i", c.toval( 0.0 ) );
+            }
+            else {
+                c.setProperty( obj, "t", argv[ 0 ] );
+                c.setProperty( obj, "i", argv[ 1 ] );
+            }
         }
-        else {
-            c.setProperty( obj, "t", argv[ 0 ] );
-            c.setProperty( obj, "i", argv[ 1 ] );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
         }
-
         return JS_TRUE;
     }
 
@@ -931,42 +1080,58 @@ zzz
     };
 
     JSBool numberlong_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "NumberLong needs 0 or 1 args" , argc == 0 || argc == 1 );
+        try {
+            smuassert( cx , "NumberLong needs 0 or 1 args" , argc == 0 || argc == 1 );
 
-        if ( ! JS_InstanceOf( cx , obj , &numberlong_class , 0 ) ) {
-            obj = JS_NewObject( cx , &numberlong_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "numberlong_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
-        }
-        else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
-            c.setProperty( obj, "floatApprox", argv[ 0 ] );
-        }
-        else {
-            string num = c.toString( argv[ 0 ] );
-            //PRINT(num);
-            const char *numStr = num.c_str();
-            long long n;
-            try {
-                n = parseLL( numStr );
-                //PRINT(n);
+            if ( ! JS_InstanceOf( cx , obj , &numberlong_class , 0 ) ) {
+                obj = JS_NewObject( cx , &numberlong_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "numberlong_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
             }
-            catch ( const AssertionException & ) {
-                smuassert( cx , "could not convert string to long long" , false );
-            }
-            c.makeLongObj( n, obj );
-        }
 
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
+            }
+            else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
+                c.setProperty( obj, "floatApprox", argv[ 0 ] );
+            }
+            else {
+                string num = c.toString( argv[ 0 ] );
+                //PRINT(num);
+                const char *numStr = num.c_str();
+                long long n;
+                try {
+                    n = parseLL( numStr );
+                    //PRINT(n);
+                }
+                catch ( const AssertionException & ) {
+                    smuassert( cx , "could not convert string to long long" , false );
+                }
+                c.makeLongObj( n, obj );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool numberlong_valueof(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        return *rval = c.toval( double( c.toNumberLongUnsafe( obj ) ) );
+        try {
+            Convertor c(cx);
+            *rval = c.toval( static_cast<double>( c.toNumberLongUnsafe( obj ) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool numberlong_tonumber(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
@@ -974,18 +1139,27 @@ zzz
     }
 
     JSBool numberlong_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        stringstream ss;
-        long long val = c.toNumberLongUnsafe( obj );
-        const long long limit = 2LL << 30;
+        try {
+            Convertor c(cx);
+            stringstream ss;
+            long long val = c.toNumberLongUnsafe( obj );
+            const long long limit = 2LL << 30;
 
-        if ( val <= -limit || limit <= val )
-            ss << "NumberLong(\"" << val << "\")";
-        else
-            ss << "NumberLong(" << val << ")";
+            if ( val <= -limit || limit <= val )
+                ss << "NumberLong(\"" << val << "\")";
+            else
+                ss << "NumberLong(" << val << ")";
 
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSFunctionSpec numberlong_functions[] = {
@@ -1003,42 +1177,58 @@ zzz
     };
 
     JSBool numberint_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "NumberInt needs 0 or 1 args" , argc == 0 || argc == 1 );
+        try {
+            smuassert( cx , "NumberInt needs 0 or 1 args" , argc == 0 || argc == 1 );
 
-        if ( ! JS_InstanceOf( cx , obj , &numberint_class , 0 ) ) {
-            obj = JS_NewObject( cx , &numberint_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "numberint_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
-        }
-        else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
-            c.setProperty( obj, "floatApprox", argv[ 0 ] );
-        }
-        else {
-            string num = c.toString( argv[ 0 ] );
-            //PRINT(num);
-            const char *numStr = num.c_str();
-            int n;
-            try {
-                n = (int) parseLL( numStr );
-                //PRINT(n);
+            if ( ! JS_InstanceOf( cx , obj , &numberint_class , 0 ) ) {
+                obj = JS_NewObject( cx , &numberint_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "numberint_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
             }
-            catch ( const AssertionException & ) {
-                smuassert( cx , "could not convert string to integer" , false );
-            }
-            c.makeIntObj( n, obj );
-        }
 
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
+            }
+            else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
+                c.setProperty( obj, "floatApprox", argv[ 0 ] );
+            }
+            else {
+                string num = c.toString( argv[ 0 ] );
+                //PRINT(num);
+                const char *numStr = num.c_str();
+                int n;
+                try {
+                    n = static_cast<int>( parseLL( numStr ) );
+                    //PRINT(n);
+                }
+                catch ( const AssertionException & ) {
+                    smuassert( cx , "could not convert string to integer" , false );
+                }
+                c.makeIntObj( n, obj );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool numberint_valueof(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        return *rval = c.toval( double( c.toNumberInt( obj ) ) );
+        try {
+            Convertor c(cx);
+            *rval = c.toval( static_cast<double>( c.toNumberInt( obj ) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool numberint_tonumber(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
@@ -1046,10 +1236,19 @@ zzz
     }
 
     JSBool numberint_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int val = c.toNumberInt( obj );
-        string ret = str::stream() << "NumberInt(" << val << ")";
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int val = c.toNumberInt( obj );
+            string ret = str::stream() << "NumberInt(" << val << ")";
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSFunctionSpec numberint_functions[] = {
@@ -1076,68 +1275,82 @@ zzz
     // dbquery
 
     JSBool dbquery_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx ,  "DDQuery needs at least 4 args" , argc >= 4 );
+        try {
+            smuassert( cx ,  "DDQuery needs at least 4 args" , argc >= 4 );
 
-        Convertor c(cx);
-        c.setProperty( obj , "_mongo" , argv[0] );
-        c.setProperty( obj , "_db" , argv[1] );
-        c.setProperty( obj , "_collection" , argv[2] );
-        c.setProperty( obj , "_ns" , argv[3] );
+            Convertor c(cx);
+            c.setProperty( obj , "_mongo" , argv[0] );
+            c.setProperty( obj , "_db" , argv[1] );
+            c.setProperty( obj , "_collection" , argv[2] );
+            c.setProperty( obj , "_ns" , argv[3] );
 
-        if ( argc > 4 && JSVAL_IS_OBJECT( argv[4] ) )
-            c.setProperty( obj , "_query" , argv[4] );
-        else {
-            JSObject * temp = JS_NewObject( cx , 0 , 0 , 0 );
-            CHECKNEWOBJECT( temp, cx, "dbquery_constructor" );
-            c.setProperty( obj , "_query" , OBJECT_TO_JSVAL( temp ) );
+            if ( argc > 4 && JSVAL_IS_OBJECT( argv[4] ) )
+                c.setProperty( obj , "_query" , argv[4] );
+            else {
+                JSObject * temp = JS_NewObject( cx , 0 , 0 , 0 );
+                CHECKNEWOBJECT( temp, cx, "dbquery_constructor" );
+                c.setProperty( obj , "_query" , OBJECT_TO_JSVAL( temp ) );
+            }
+
+            if ( argc > 5 && JSVAL_IS_OBJECT( argv[5] ) )
+                c.setProperty( obj , "_fields" , argv[5] );
+            else
+                c.setProperty( obj , "_fields" , JSVAL_NULL );
+
+
+            if ( argc > 6 && JSVAL_IS_NUMBER( argv[6] ) )
+                c.setProperty( obj , "_limit" , argv[6] );
+            else
+                c.setProperty( obj , "_limit" , JSVAL_ZERO );
+
+            if ( argc > 7 && JSVAL_IS_NUMBER( argv[7] ) )
+                c.setProperty( obj , "_skip" , argv[7] );
+            else
+                c.setProperty( obj , "_skip" , JSVAL_ZERO );
+
+            if ( argc > 8 && JSVAL_IS_NUMBER( argv[8] ) )
+                c.setProperty( obj , "_batchSize" , argv[8] );
+            else
+                c.setProperty( obj , "_batchSize" , JSVAL_ZERO );
+
+            if ( argc > 9 && JSVAL_IS_NUMBER( argv[9] ) )
+                c.setProperty( obj , "_options" , argv[9] );
+            else
+                c.setProperty( obj , "_options" , JSVAL_ZERO );
+
+            c.setProperty( obj , "_cursor" , JSVAL_NULL );
+            c.setProperty( obj , "_numReturned" , JSVAL_ZERO );
+            c.setProperty( obj , "_special" , JSVAL_FALSE );
         }
-
-        if ( argc > 5 && JSVAL_IS_OBJECT( argv[5] ) )
-            c.setProperty( obj , "_fields" , argv[5] );
-        else
-            c.setProperty( obj , "_fields" , JSVAL_NULL );
-
-
-        if ( argc > 6 && JSVAL_IS_NUMBER( argv[6] ) )
-            c.setProperty( obj , "_limit" , argv[6] );
-        else
-            c.setProperty( obj , "_limit" , JSVAL_ZERO );
-
-        if ( argc > 7 && JSVAL_IS_NUMBER( argv[7] ) )
-            c.setProperty( obj , "_skip" , argv[7] );
-        else
-            c.setProperty( obj , "_skip" , JSVAL_ZERO );
-
-        if ( argc > 8 && JSVAL_IS_NUMBER( argv[8] ) )
-            c.setProperty( obj , "_batchSize" , argv[8] );
-        else
-            c.setProperty( obj , "_batchSize" , JSVAL_ZERO );
-
-        if ( argc > 9 && JSVAL_IS_NUMBER( argv[9] ) )
-            c.setProperty( obj , "_options" , argv[9] );
-        else
-            c.setProperty( obj , "_options" , JSVAL_ZERO );
-
-
-        c.setProperty( obj , "_cursor" , JSVAL_NULL );
-        c.setProperty( obj , "_numReturned" , JSVAL_ZERO );
-        c.setProperty( obj , "_special" , JSVAL_FALSE );
-
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool dbquery_resolve( JSContext *cx, JSObject *obj, jsval id, uintN flags, JSObject **objp ) {
-        if ( flags & JSRESOLVE_ASSIGNING )
-            return JS_TRUE;
+        try {
+            if ( flags & JSRESOLVE_ASSIGNING )
+                return JS_TRUE;
 
-        if ( ! JSVAL_IS_NUMBER( id ) )
-            return JS_TRUE;
+            if ( ! JSVAL_IS_NUMBER( id ) )
+                return JS_TRUE;
 
-        jsval val = JSVAL_VOID;
-        verify( JS_CallFunctionName( cx , obj , "arrayAccess" , 1 , &id , &val ) );
-        Convertor c(cx);
-        c.setProperty( obj , c.toString( id ).c_str() , val );
-        *objp = obj;
+            jsval val = JSVAL_VOID;
+            verify( JS_CallFunctionName( cx , obj , "arrayAccess" , 1 , &id , &val ) );
+            Convertor c(cx);
+            c.setProperty( obj , c.toString( id ).c_str() , val );
+            *objp = obj;
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
