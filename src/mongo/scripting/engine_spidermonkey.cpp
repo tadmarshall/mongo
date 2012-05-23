@@ -204,7 +204,7 @@ namespace mongo {
             boost::scoped_array<char> utf8Chars( new char[len+1] );
             jschar* utf16Chars = JS_GetStringChars( jsString );
             if ( !JS_EncodeCharacters( _context, utf16Chars, srclen, utf8Chars.get(), &len ) ) {
-                throw std::exception(); // JavaScript exception, pass control to caller's catch
+                throw std::exception();
             }
             return string( utf8Chars.get(), len );
         }
@@ -992,6 +992,19 @@ namespace mongo {
         return JS_TRUE;
     }
 
+    JSBool testHexString( JSContext* cx, const string& hexString ) {
+        size_t len = hexString.length();
+        for ( size_t i = 0; i < len; ++i ) {
+            char ch = hexString[i];
+            if ( (ch>='0' && ch<='9') || (ch>='a' && ch<='f') || (ch>='A' && ch<='F') ) {
+                continue;
+            }
+            JS_ReportError( cx, "invalid hexstring character '%c'", ch );
+            return JS_FALSE;
+        }
+        return JS_TRUE;
+    }
+
     JSBool _HexData( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
         Convertor c( cx );
         if ( argc != 2 ) {
@@ -1003,7 +1016,26 @@ namespace mongo {
             JS_ReportError( cx , "BinData subtype 2 is deprecated" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[1]);
+        else if ( type < 0 || type > 255 ) {
+            JS_ReportError( cx, "subtype must be between 0 and 255" );
+            return JS_FALSE;
+        }
+        string s;
+        try {
+            s = c.toString(argv[1]);
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( 0 != ( len % 2 ) ) {
+                JS_ReportError( cx, "hexstring must be even length" );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
+            return JS_FALSE;
+        }
         return hexToBinData(cx, rval, type, s);
     }
 
@@ -1013,9 +1045,20 @@ namespace mongo {
             JS_ReportError( cx , "UUID needs argument -- UUID(hexstring)" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[0]);
-        if( s.size() != 32 ) {
-            JS_ReportError( cx , "bad UUID hex string len" );
+        string s;
+        try {
+            s = c.toString(argv[0]);
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( len != 32 ) {
+                JS_ReportError( cx, "UUID hexstring length is %d, must be 32", len );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
             return JS_FALSE;
         }
         return hexToBinData(cx, rval, 3, s);
@@ -1027,9 +1070,20 @@ namespace mongo {
             JS_ReportError( cx , "MD5 needs argument -- MD5(hexstring)" );
             return JS_FALSE;
         }
-        string s = c.toString(argv[0]);
-        if( s.size() != 32 ) {
-            JS_ReportError( cx , "bad MD5 hex string len" );
+        string s;
+        try {
+            s = c.toString(argv[0]);
+            if ( ! testHexString( cx, s ) ) {
+                return JS_FALSE;
+            }
+            size_t len = s.length();
+            if ( len != 32 ) {
+                JS_ReportError( cx, "MD5 hexstring length is %d, must be 32", len );
+                return JS_FALSE;
+            }
+        }
+        catch ( std::exception ) {
+            // JavaScript error already reported
             return JS_FALSE;
         }
         return hexToBinData(cx, rval, 5, s);
