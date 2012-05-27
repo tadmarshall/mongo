@@ -911,7 +911,7 @@ namespace mongo {
         Convertor c(cx);
         string name;
         try {
-            name =  c.toString( idval );    // may throw
+            name = c.toString( idval ); // may throw
         }
         catch ( std::exception ) {
             return JS_FALSE;
@@ -930,7 +930,7 @@ namespace mongo {
         Convertor c(cx);
         string name;
         try {
-            name = c.toString( idval );  // may throw
+            name = c.toString( idval ); // may throw
         }
         catch ( std::exception ) {
             return JS_FALSE;
@@ -973,7 +973,7 @@ namespace mongo {
 
     // --- global helpers ---
 
-    JSBool hexToBinData(JSContext * cx, jsval *rval, int subtype, string s) { 
+    static JSBool hexToBinData(JSContext * cx, jsval *rval, int subtype, string s) { 
         JSObject * o = JS_NewObject( cx , &bindata_class , 0 , 0 );
         CHECKNEWOBJECT(o,_context,"Bindata_BinData1");
         int len = s.size() / 2;
@@ -992,7 +992,7 @@ namespace mongo {
         return JS_TRUE;
     }
 
-    JSBool testHexString( JSContext* cx, const string& hexString ) {
+    static JSBool testHexString( JSContext* cx, const string& hexString ) {
         size_t len = hexString.length();
         for ( size_t i = 0; i < len; ++i ) {
             char ch = hexString[i];
