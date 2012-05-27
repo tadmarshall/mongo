@@ -422,12 +422,9 @@ namespace mongo {
             return true;
         }
 
-        //void addRoot( JSFunction * f , const char * name );
-
         JSFunction * compileFunction( const char * code, JSObject * assoc = 0 ) {
             const char * gcName = "unknown";
             JSFunction * f = _compileFunction( code , assoc , gcName );
-            //addRoot( f , gcName );
             return f;
         }
 
@@ -1355,11 +1352,6 @@ namespace mongo {
             smlock;
             uassert( 10223 ,  "deleted SMScope twice?" , _convertor );
 
-            for ( list<void*>::iterator i=_roots.begin(); i != _roots.end(); i++ ) {
-                JS_RemoveRoot( _context , *i );
-            }
-            _roots.clear();
-
             if ( _this ) {
                 JS_RemoveRoot( _context , &_this );
                 _this = 0;
@@ -1381,21 +1373,7 @@ namespace mongo {
         void reset() {
             smlock;
             verify( _convertor );
-            return;
-            if ( _this ) {
-                JS_RemoveRoot( _context , &_this );
-                _this = 0;
-            }
-            currentScope.reset( this );
-            _error = "";
         }
-
-#if 0
-        void addRoot( void * root , const char * name ) {
-            JS_AddNamedRoot( _context , root , name );
-            _roots.push_back( root );
-        }
-#endif
 
         void init( const BSONObj * data ) {
             smlock;
@@ -1766,7 +1744,6 @@ namespace mongo {
 
         string _error;
         bool _reportError;
-        list<void*> _roots;
 
         bool _externalSetup;
         bool _localConnect;
@@ -1850,20 +1827,6 @@ namespace mongo {
     Scope * SMEngine::createScope() {
         return new SMScope();
     }
-
-#if 0
-    void Convertor::addRoot( JSFunction * f , const char * name ) {
-        if ( ! f )
-            return;
-
-        SMScope * scope = currentScope.get();
-        uassert( 10229 ,  "need a scope" , scope );
-
-        JSObject * o = JS_GetFunctionObject( f );
-        verify( o );
-        scope->addRoot( &o , name );
-    }
-#endif
 
 }
 #include "sm_db.cpp"
