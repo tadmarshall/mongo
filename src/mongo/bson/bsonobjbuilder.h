@@ -258,7 +258,6 @@ namespace mongo {
         }
 
         BSONObjBuilder& appendNumber( const StringData& fieldName , size_t n ) {
-#if 1
             static const size_t maxInt = ( 1 << 30 );
 
             if ( n < maxInt )
@@ -266,21 +265,12 @@ namespace mongo {
             else
                 append( fieldName, static_cast<long long>( n ) );
             return *this;
-#else
-            static size_t maxInt = (size_t)pow( 2.0 , 30.0 );
-
-            if ( n < maxInt )
-                append( fieldName , (int)n );
-            else
-                append( fieldName , (long long)n );
-            return *this;
-#endif
         }
 
         BSONObjBuilder& appendNumber( const StringData& fieldName, long long llNumber ) {
-#if 1
             static const long long maxInt = ( 1LL << 30 );
             static const long long maxDouble = ( 1LL << 40 );
+
             long long nonNegative = llNumber >= 0 ? llNumber : -llNumber;
             if ( nonNegative < maxInt )
                 append( fieldName, static_cast<int>( llNumber ) );
@@ -289,18 +279,6 @@ namespace mongo {
             else
                 append( fieldName, llNumber );
             return *this;
-#else
-            static long long maxInt = (int)pow( 2.0 , 30.0 );
-            static long long maxDouble = (long long)pow( 2.0 , 40.0 );
-            long long x = l >= 0 ? l : -l;
-            if ( x < maxInt )
-                append( fieldName , (int)l );
-            else if ( x < maxDouble )
-                append( fieldName , (double)l );
-            else
-                append( fieldName , l );
-            return *this;
-#endif
         }
 
         /** Append a double element */
