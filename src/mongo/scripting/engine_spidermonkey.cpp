@@ -422,7 +422,7 @@ namespace mongo {
             return true;
         }
 
-        void addRoot( JSFunction * f , const char * name );
+        //void addRoot( JSFunction * f , const char * name );
 
         JSFunction * compileFunction( const char * code, JSObject * assoc = 0 ) {
             const char * gcName = "unknown";
@@ -1275,10 +1275,6 @@ namespace mongo {
             if ( ! utf8Ok() ) {
                 log() << "*** warning: spider monkey build without utf8 support.  consider rebuilding with utf8 support" << endl;
             }
-
-            int x = 0;
-            verify( x = 1 );
-            uassert( 10222 ,  "assert not being executed" , x == 1 );
         }
 
         ~SMEngine() {
@@ -1394,10 +1390,12 @@ namespace mongo {
             _error = "";
         }
 
+#if 0
         void addRoot( void * root , const char * name ) {
             JS_AddNamedRoot( _context , root , name );
             _roots.push_back( root );
         }
+#endif
 
         void init( const BSONObj * data ) {
             smlock;
@@ -1853,6 +1851,7 @@ namespace mongo {
         return new SMScope();
     }
 
+#if 0
     void Convertor::addRoot( JSFunction * f , const char * name ) {
         if ( ! f )
             return;
@@ -1864,6 +1863,7 @@ namespace mongo {
         verify( o );
         scope->addRoot( &o , name );
     }
+#endif
 
 }
 #include "sm_db.cpp"
