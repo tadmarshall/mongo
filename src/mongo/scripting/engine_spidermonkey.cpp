@@ -19,6 +19,7 @@
 
 #include "mongo/scripting/engine_spidermonkey.h"
 
+#include <boost/smart_ptr/scoped_array.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 #ifndef _WIN32
 #include <boost/date_time/posix_time/posix_time.hpp>
@@ -973,22 +974,21 @@ namespace mongo {
 
     // --- global helpers ---
 
-    static JSBool hexToBinData(JSContext * cx, jsval *rval, int subtype, string s) { 
+    static JSBool hexToBinData( JSContext* cx, jsval* rval, int subtype, const string& s ) {
         JSObject * o = JS_NewObject( cx , &bindata_class , 0 , 0 );
         CHECKNEWOBJECT(o,_context,"Bindata_BinData1");
         int len = s.size() / 2;
-        char * data = new char[len];
-        char *p = data;
+        boost::scoped_array<char> data( new char[len] );
+        char* p = data.get();
         const char *src = s.c_str();
         for( size_t i = 0; i+1 < s.size(); i += 2 ) { 
             *p++ = fromHex(src + i);
         }
-        verify( JS_SetPrivate( cx , o , new BinDataHolder( data , len ) ) );
+        verify( JS_SetPrivate( cx, o, new BinDataHolder( data.get(), len ) ) );
         Convertor c(cx);
         c.setProperty( o, "len", c.toval((double)len) );
         c.setProperty( o, "type", c.toval((double)subtype) );
         *rval = OBJECT_TO_JSVAL( o );
-        delete data;
         return JS_TRUE;
     }
 
@@ -1022,7 +1022,7 @@ namespace mongo {
         }
         string s;
         try {
-            s = c.toString(argv[1]);
+            s = c.toString(argv[1]);    // may throw
             if ( ! testHexString( cx, s ) ) {
                 return JS_FALSE;
             }
@@ -1092,16 +1092,22 @@ namespace mongo {
     JSBool native_print( JSContext * cx, JSObject * obj, uintN argc, jsval *argv, jsval *rval ) {
         stringstream ss;
         Convertor c( cx );
+        bool someWritten = false;
         try {
             for ( uintN i=0; i<argc; i++ ) {
                 if ( i > 0 )
                     ss << " ";
-                ss << c.toString( argv[i] );
+                ss << c.toString( argv[i] );    // may throw
+                someWritten = true;
             }
             ss << "\n";
             Logstream::logLockless( ss.str() );
         }
         catch ( std::exception ) {
+            if ( someWritten ) {
+                ss << "\n";
+                Logstream::logLockless( ss.str() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
