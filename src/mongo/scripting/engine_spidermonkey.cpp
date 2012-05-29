@@ -790,10 +790,17 @@ namespace mongo {
 
 
     void bson_finalize( JSContext * cx , JSObject * obj ) {
-        BSONHolder * o = GETHOLDER( cx , obj );
-        if ( o ) {
-            delete o;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            BSONHolder * o = GETHOLDER( cx , obj );
+            if ( o ) {
+                delete o;
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 

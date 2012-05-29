@@ -91,10 +91,17 @@ namespace mongo {
     }
 
     void internal_cursor_finalize( JSContext * cx , JSObject * obj ) {
-        CursorHolder * holder = (CursorHolder*)JS_GetPrivate( cx , obj );
-        if ( holder ) {
-            delete holder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            CursorHolder * holder = (CursorHolder*)JS_GetPrivate( cx , obj );
+            if ( holder ) {
+                delete holder;
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
@@ -242,10 +249,17 @@ namespace mongo {
     }
 
     void mongo_finalize( JSContext * cx , JSObject * obj ) {
-        shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
-        if ( connHolder ) {
-            delete connHolder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            shared_ptr< DBClientWithCommands > * connHolder = (shared_ptr< DBClientWithCommands >*)JS_GetPrivate( cx , obj );
+            if ( connHolder ) {
+                delete connHolder;
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
