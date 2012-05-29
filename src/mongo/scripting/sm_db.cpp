@@ -859,56 +859,89 @@ zzz
     }
 
     JSBool bindata_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int type = (int)c.getNumber( obj , "type" );
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        ss << "BinData(" << type << ",\"";
-        base64::encode( ss, (const char *)data, len );
-        ss << "\")";
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int type = static_cast<int>( c.getNumber( obj, "type" ) );
+            int len = static_cast<int>(c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            ss << "BinData(" << type << ",\"";
+            base64::encode( ss, data, len );
+            ss << "\")";
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool bindataBase64(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        base64::encode( ss, (const char *)data, len );
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int len = static_cast<int>( c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            base64::encode( ss, data, len );
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool bindataAsHex(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int len = (int)c.getNumber( obj, "len" );
-        void *holder = JS_GetPrivate( cx, obj );
-        verify( holder );
-        const char *data = ( ( BinDataHolder* )( holder ) )->c_;
-        stringstream ss;
-        ss.setf (ios_base::hex , ios_base::basefield);
-        ss.fill ('0');
-        ss.setf (ios_base::right , ios_base::adjustfield);
-        for( int i = 0; i < len; i++ ) {
-            unsigned v = (unsigned char) data[i];
-            ss << setw(2) << v;
+        try {
+            Convertor c(cx);
+            int len = static_cast<int>( c.getNumber( obj, "len" ) );
+            void *holder = JS_GetPrivate( cx, obj );
+            verify( holder );
+            const char *data = ( ( BinDataHolder* )( holder ) )->c_;
+            stringstream ss;
+            ss.setf( ios_base::hex, ios_base::basefield );
+            ss.fill( '0' );
+            ss.setf( ios_base::right, ios_base::adjustfield );
+            for( int i = 0; i < len; i++ ) {
+                unsigned v = static_cast<unsigned char>( data[i] );
+                ss << setw(2) << v;
+            }
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
         }
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     void bindata_finalize( JSContext * cx , JSObject * obj ) {
-        Convertor c(cx);
-        void *holder = JS_GetPrivate( cx, obj );
-        if ( holder ) {
-            delete ( BinDataHolder* )holder;
-            verify( JS_SetPrivate( cx , obj , 0 ) );
+        try {
+            void *holder = JS_GetPrivate( cx, obj );
+            if ( holder ) {
+                delete reinterpret_cast<BinDataHolder*>( holder );
+                verify( JS_SetPrivate( cx , obj , 0 ) );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
         }
     }
 
@@ -933,28 +966,44 @@ zzz
     }
 
     JSBool map_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        if ( argc > 0 ) {
-            JS_ReportError( cx , "Map takes no arguments" );
+        try {
+            if ( argc > 0 ) {
+                JS_ReportError( cx , "Map takes no arguments" );
+                return JS_FALSE;
+            }
+
+            JSObject * arrayObj = JS_NewObject( cx , 0 , 0 , 0 );
+            CHECKNEWOBJECT( arrayObj, cx, "map_constructor" );
+
+            jsval a = OBJECT_TO_JSVAL( arrayObj );
+            JS_SetProperty( cx , obj , "_data" , &a );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
-        JSObject * array = JS_NewObject( cx , 0 , 0 , 0 );
-        CHECKNEWOBJECT( array, cx, "map_constructor" );
-
-        jsval a = OBJECT_TO_JSVAL( array );
-        JS_SetProperty( cx , obj , "_data" , &a );
-
         return JS_TRUE;
     }
 
     JSBool map_prop( JSContext *cx, JSObject *obj, jsval idval, jsval *vp ) {
-        Convertor c(cx);
-        if ( specialMapString( c.toString( idval ) ) )
-            return JS_TRUE;
-
-        log() << "illegal prop access: " << c.toString( idval ) << endl;
-        JS_ReportError( cx , "can't use array access with Map" );
-        return JS_FALSE;
+        try {
+            Convertor c(cx);
+            string str( c.toString( idval ) );
+            if ( ! specialMapString( str ) ) {
+                log() << "illegal prop access: " << str << endl;
+                JS_ReportError( cx , "can't use array access with Map" );
+                return JS_FALSE;
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSClass map_class = {
@@ -979,24 +1028,33 @@ zzz
     };
 
     JSBool timestamp_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "Timestamp needs 0 or 2 args" , argc == 0 || argc == 2 );
+        try {
+            smuassert( cx,
+                       "Timestamp takes 0 or 2 arguments -- Timestamp() or Timestamp(t,i)",
+                       argc == 0 || argc == 2 );
 
-        if ( ! JS_InstanceOf( cx , obj , &timestamp_class , 0 ) ) {
-            obj = JS_NewObject( cx , &timestamp_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "timestamp_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
+            if ( ! JS_InstanceOf( cx , obj , &timestamp_class , 0 ) ) {
+                obj = JS_NewObject( cx , &timestamp_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "timestamp_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
 
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "t", c.toval( 0.0 ) );
-            c.setProperty( obj, "i", c.toval( 0.0 ) );
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "t", c.toval( 0.0 ) );
+                c.setProperty( obj, "i", c.toval( 0.0 ) );
+            }
+            else {
+                c.setProperty( obj, "t", argv[ 0 ] );
+                c.setProperty( obj, "i", argv[ 1 ] );
+            }
         }
-        else {
-            c.setProperty( obj, "t", argv[ 0 ] );
-            c.setProperty( obj, "i", argv[ 1 ] );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
         }
-
         return JS_TRUE;
     }
 
@@ -1008,42 +1066,58 @@ zzz
     };
 
     JSBool numberlong_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "NumberLong needs 0 or 1 args" , argc == 0 || argc == 1 );
+        try {
+            smuassert( cx , "NumberLong needs 0 or 1 args" , argc == 0 || argc == 1 );
 
-        if ( ! JS_InstanceOf( cx , obj , &numberlong_class , 0 ) ) {
-            obj = JS_NewObject( cx , &numberlong_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "numberlong_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
-        }
-        else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
-            c.setProperty( obj, "floatApprox", argv[ 0 ] );
-        }
-        else {
-            string num = c.toString( argv[ 0 ] );
-            //PRINT(num);
-            const char *numStr = num.c_str();
-            long long n;
-            try {
-                n = parseLL( numStr );
-                //PRINT(n);
+            if ( ! JS_InstanceOf( cx , obj , &numberlong_class , 0 ) ) {
+                obj = JS_NewObject( cx , &numberlong_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "numberlong_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
             }
-            catch ( const AssertionException & ) {
-                smuassert( cx , "could not convert string to long long" , false );
-            }
-            c.makeLongObj( n, obj );
-        }
 
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
+            }
+            else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
+                c.setProperty( obj, "floatApprox", argv[ 0 ] );
+            }
+            else {
+                string num = c.toString( argv[ 0 ] );
+                //PRINT(num);
+                const char *numStr = num.c_str();
+                long long n;
+                try {
+                    n = parseLL( numStr );
+                    //PRINT(n);
+                }
+                catch ( const AssertionException & ) {
+                    smuassert( cx , "could not convert string to long long" , false );
+                }
+                c.makeLongObj( n, obj );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool numberlong_valueof(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        return *rval = c.toval( double( c.toNumberLongUnsafe( obj ) ) );
+        try {
+            Convertor c(cx);
+            *rval = c.toval( static_cast<double>( c.toNumberLongUnsafe( obj ) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool numberlong_tonumber(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
@@ -1051,18 +1125,27 @@ zzz
     }
 
     JSBool numberlong_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        stringstream ss;
-        long long val = c.toNumberLongUnsafe( obj );
-        const long long limit = 2LL << 30;
+        try {
+            Convertor c(cx);
+            stringstream ss;
+            long long val = c.toNumberLongUnsafe( obj );
+            const long long limit = 2LL << 30;
 
-        if ( val <= -limit || limit <= val )
-            ss << "NumberLong(\"" << val << "\")";
-        else
-            ss << "NumberLong(" << val << ")";
+            if ( val <= -limit || limit <= val )
+                ss << "NumberLong(\"" << val << "\")";
+            else
+                ss << "NumberLong(" << val << ")";
 
-        string ret = ss.str();
-        return *rval = c.toval( ret.c_str() );
+            string ret = ss.str();
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSFunctionSpec numberlong_functions[] = {
@@ -1080,42 +1163,58 @@ zzz
     };
 
     JSBool numberint_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx , "NumberInt needs 0 or 1 args" , argc == 0 || argc == 1 );
+        try {
+            smuassert( cx , "NumberInt needs 0 or 1 args" , argc == 0 || argc == 1 );
 
-        if ( ! JS_InstanceOf( cx , obj , &numberint_class , 0 ) ) {
-            obj = JS_NewObject( cx , &numberint_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "numberint_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        Convertor c( cx );
-        if ( argc == 0 ) {
-            c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
-        }
-        else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
-            c.setProperty( obj, "floatApprox", argv[ 0 ] );
-        }
-        else {
-            string num = c.toString( argv[ 0 ] );
-            //PRINT(num);
-            const char *numStr = num.c_str();
-            int n;
-            try {
-                n = (int) parseLL( numStr );
-                //PRINT(n);
+            if ( ! JS_InstanceOf( cx , obj , &numberint_class , 0 ) ) {
+                obj = JS_NewObject( cx , &numberint_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "numberint_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
             }
-            catch ( const AssertionException & ) {
-                smuassert( cx , "could not convert string to integer" , false );
-            }
-            c.makeIntObj( n, obj );
-        }
 
+            Convertor c( cx );
+            if ( argc == 0 ) {
+                c.setProperty( obj, "floatApprox", c.toval( 0.0 ) );
+            }
+            else if ( JSVAL_IS_NUMBER( argv[ 0 ] ) ) {
+                c.setProperty( obj, "floatApprox", argv[ 0 ] );
+            }
+            else {
+                string num = c.toString( argv[ 0 ] );
+                //PRINT(num);
+                const char *numStr = num.c_str();
+                int n;
+                try {
+                    n = static_cast<int>( parseLL( numStr ) );
+                    //PRINT(n);
+                }
+                catch ( const AssertionException & ) {
+                    smuassert( cx , "could not convert string to integer" , false );
+                }
+                c.makeIntObj( n, obj );
+            }
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool numberint_valueof(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        return *rval = c.toval( double( c.toNumberInt( obj ) ) );
+        try {
+            Convertor c(cx);
+            *rval = c.toval( static_cast<double>( c.toNumberInt( obj ) ) );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSBool numberint_tonumber(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
@@ -1123,10 +1222,19 @@ zzz
     }
 
     JSBool numberint_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        Convertor c(cx);
-        int val = c.toNumberInt( obj );
-        string ret = str::stream() << "NumberInt(" << val << ")";
-        return *rval = c.toval( ret.c_str() );
+        try {
+            Convertor c(cx);
+            int val = c.toNumberInt( obj );
+            string ret = str::stream() << "NumberInt(" << val << ")";
+            *rval = c.toval( ret.c_str() );
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
+        return JS_TRUE;
     }
 
     JSFunctionSpec numberint_functions[] = {
@@ -1153,68 +1261,82 @@ zzz
     // dbquery
 
     JSBool dbquery_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        smuassert( cx ,  "DDQuery needs at least 4 args" , argc >= 4 );
+        try {
+            smuassert( cx ,  "DDQuery needs at least 4 args" , argc >= 4 );
 
-        Convertor c(cx);
-        c.setProperty( obj , "_mongo" , argv[0] );
-        c.setProperty( obj , "_db" , argv[1] );
-        c.setProperty( obj , "_collection" , argv[2] );
-        c.setProperty( obj , "_ns" , argv[3] );
+            Convertor c(cx);
+            c.setProperty( obj , "_mongo" , argv[0] );
+            c.setProperty( obj , "_db" , argv[1] );
+            c.setProperty( obj , "_collection" , argv[2] );
+            c.setProperty( obj , "_ns" , argv[3] );
 
-        if ( argc > 4 && JSVAL_IS_OBJECT( argv[4] ) )
-            c.setProperty( obj , "_query" , argv[4] );
-        else {
-            JSObject * temp = JS_NewObject( cx , 0 , 0 , 0 );
-            CHECKNEWOBJECT( temp, cx, "dbquery_constructor" );
-            c.setProperty( obj , "_query" , OBJECT_TO_JSVAL( temp ) );
+            if ( argc > 4 && JSVAL_IS_OBJECT( argv[4] ) )
+                c.setProperty( obj , "_query" , argv[4] );
+            else {
+                JSObject * temp = JS_NewObject( cx , 0 , 0 , 0 );
+                CHECKNEWOBJECT( temp, cx, "dbquery_constructor" );
+                c.setProperty( obj , "_query" , OBJECT_TO_JSVAL( temp ) );
+            }
+
+            if ( argc > 5 && JSVAL_IS_OBJECT( argv[5] ) )
+                c.setProperty( obj , "_fields" , argv[5] );
+            else
+                c.setProperty( obj , "_fields" , JSVAL_NULL );
+
+
+            if ( argc > 6 && JSVAL_IS_NUMBER( argv[6] ) )
+                c.setProperty( obj , "_limit" , argv[6] );
+            else
+                c.setProperty( obj , "_limit" , JSVAL_ZERO );
+
+            if ( argc > 7 && JSVAL_IS_NUMBER( argv[7] ) )
+                c.setProperty( obj , "_skip" , argv[7] );
+            else
+                c.setProperty( obj , "_skip" , JSVAL_ZERO );
+
+            if ( argc > 8 && JSVAL_IS_NUMBER( argv[8] ) )
+                c.setProperty( obj , "_batchSize" , argv[8] );
+            else
+                c.setProperty( obj , "_batchSize" , JSVAL_ZERO );
+
+            if ( argc > 9 && JSVAL_IS_NUMBER( argv[9] ) )
+                c.setProperty( obj , "_options" , argv[9] );
+            else
+                c.setProperty( obj , "_options" , JSVAL_ZERO );
+
+            c.setProperty( obj , "_cursor" , JSVAL_NULL );
+            c.setProperty( obj , "_numReturned" , JSVAL_ZERO );
+            c.setProperty( obj , "_special" , JSVAL_FALSE );
         }
-
-        if ( argc > 5 && JSVAL_IS_OBJECT( argv[5] ) )
-            c.setProperty( obj , "_fields" , argv[5] );
-        else
-            c.setProperty( obj , "_fields" , JSVAL_NULL );
-
-
-        if ( argc > 6 && JSVAL_IS_NUMBER( argv[6] ) )
-            c.setProperty( obj , "_limit" , argv[6] );
-        else
-            c.setProperty( obj , "_limit" , JSVAL_ZERO );
-
-        if ( argc > 7 && JSVAL_IS_NUMBER( argv[7] ) )
-            c.setProperty( obj , "_skip" , argv[7] );
-        else
-            c.setProperty( obj , "_skip" , JSVAL_ZERO );
-
-        if ( argc > 8 && JSVAL_IS_NUMBER( argv[8] ) )
-            c.setProperty( obj , "_batchSize" , argv[8] );
-        else
-            c.setProperty( obj , "_batchSize" , JSVAL_ZERO );
-
-        if ( argc > 9 && JSVAL_IS_NUMBER( argv[9] ) )
-            c.setProperty( obj , "_options" , argv[9] );
-        else
-            c.setProperty( obj , "_options" , JSVAL_ZERO );
-
-
-        c.setProperty( obj , "_cursor" , JSVAL_NULL );
-        c.setProperty( obj , "_numReturned" , JSVAL_ZERO );
-        c.setProperty( obj , "_special" , JSVAL_FALSE );
-
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
     JSBool dbquery_resolve( JSContext *cx, JSObject *obj, jsval id, uintN flags, JSObject **objp ) {
-        if ( flags & JSRESOLVE_ASSIGNING )
-            return JS_TRUE;
+        try {
+            if ( flags & JSRESOLVE_ASSIGNING )
+                return JS_TRUE;
 
-        if ( ! JSVAL_IS_NUMBER( id ) )
-            return JS_TRUE;
+            if ( ! JSVAL_IS_NUMBER( id ) )
+                return JS_TRUE;
 
-        jsval val = JSVAL_VOID;
-        verify( JS_CallFunctionName( cx , obj , "arrayAccess" , 1 , &id , &val ) );
-        Convertor c(cx);
-        c.setProperty( obj , c.toString( id ).c_str() , val );
-        *objp = obj;
+            jsval val = JSVAL_VOID;
+            verify( JS_CallFunctionName( cx , obj , "arrayAccess" , 1 , &id , &val ) );
+            Convertor c(cx);
+            c.setProperty( obj , c.toString( id ).c_str() , val );
+            *objp = obj;
+        }
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
         return JS_TRUE;
     }
 
