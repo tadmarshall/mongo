@@ -848,19 +848,26 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        //return JS_TRUE;
     }
 
     JSBool noaccess( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
-        BSONHolder * holder = GETHOLDER( cx , obj );
-        if ( ! holder ) {
-            // in init code still
-            return JS_TRUE;
+        try {
+            BSONHolder * holder = GETHOLDER( cx , obj );
+            if ( ! holder ) {
+                // in init code still
+                return JS_TRUE;
+            }
+            if ( holder->_inResolve )
+                return JS_TRUE;
+            JS_ReportError( cx , "doing write op on read only operation" );
+            return JS_FALSE;
         }
-        if ( holder->_inResolve )
-            return JS_TRUE;
-        JS_ReportError( cx , "doing write op on read only operation" );
-        return JS_FALSE;
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
+            return JS_FALSE;
+        }
     }
 
     JSClass bson_ro_class = {
@@ -887,62 +894,66 @@ namespace mongo {
     };
 
     JSBool bson_add_prop( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
-        BSONHolder * holder = GETHOLDER( cx , obj );
-        if ( ! holder ) {
-            // static init
-            return JS_TRUE;
+        try {
+            BSONHolder * holder = GETHOLDER( cx , obj );
+            if ( ! holder ) {
+                // static init
+                return JS_TRUE;
+            }
+            if ( ! holder->_inResolve ) {
+                Convertor c(cx);
+                string name( c.toString( idval ) );
+                if ( holder->_obj[name].eoo() ) {
+                    holder->_extra.push_back( name );
+                }
+                holder->_modified = true;
+            }
         }
-        if ( ! holder->_inResolve ) {
-            Convertor c(cx);
-            string name;
-            try {
-                name = c.toString( idval );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
             }
-            catch ( const std::exception& ) {
-                return JS_FALSE;
-            }
-            if ( holder->_obj[name].eoo() ) {
-                holder->_extra.push_back( name );
-            }
-            holder->_modified = true;
+            return JS_FALSE;
         }
         return JS_TRUE;
     }
 
 
     JSBool mark_modified( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
-        Convertor c(cx);
-        BSONHolder * holder = GETHOLDER( cx , obj );
-        if ( !holder ) // needed when we're messing with DBRef.prototype
-            return JS_TRUE;
-        if ( holder->_inResolve )
-            return JS_TRUE;
-        string name;
         try {
-            name = c.toString( idval );
+            Convertor c(cx);
+            BSONHolder * holder = GETHOLDER( cx , obj );
+            if ( !holder ) // needed when we're messing with DBRef.prototype
+                return JS_TRUE;
+            if ( holder->_inResolve )
+                return JS_TRUE;
+            holder->_modified = true;
+            holder->_removed.erase( c.toString( idval ) );
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-        holder->_modified = true;
-        holder->_removed.erase( name );
         return JS_TRUE;
     }
 
     JSBool mark_modified_remove( JSContext *cx, JSObject *obj, jsval idval, jsval *vp) {
-        Convertor c(cx);
-        BSONHolder * holder = GETHOLDER( cx , obj );
-        if ( holder->_inResolve )
-            return JS_TRUE;
-        string name;
         try {
-            name = c.toString( idval );
+            Convertor c(cx);
+            BSONHolder * holder = GETHOLDER( cx , obj );
+            if ( holder->_inResolve )
+                return JS_TRUE;
+            holder->_modified = true;
+            holder->_removed.insert( c.toString( idval ) );
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-        holder->_modified = true;
-        holder->_removed.insert( name );
         return JS_TRUE;
     }
 
@@ -1011,11 +1022,11 @@ namespace mongo {
     }
 
     JSBool _HexData( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
-        if ( argc != 2 ) {
-            JS_ReportError( cx , "HexData needs 2 arguments -- HexData(subtype,hexstring)" );
-            return JS_FALSE;
-        }
         try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx , "HexData needs 2 arguments -- HexData(subtype,hexstring)" );
+                return JS_FALSE;
+            }
             Convertor c( cx );
             int subtype = static_cast<int>( c.toNumber( argv[ 0 ] ) );
             if ( subtype == 2 ) {
@@ -1037,19 +1048,22 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, subtype, s);
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
     }
 
     JSBool _UUID( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( argc != 1 ) {
-            JS_ReportError( cx , "UUID needs argument -- UUID(hexstring)" );
-            return JS_FALSE;
-        }
         try {
+            if ( argc != 1 ) {
+                JS_ReportError( cx , "UUID needs argument -- UUID(hexstring)" );
+                return JS_FALSE;
+            }
+            Convertor c( cx );
             string s( c.toString( argv[0] ) );
             if ( ! testHexString( cx, s ) ) {
                 return JS_FALSE;
@@ -1061,18 +1075,21 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, 3, s);
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
     }
 
     JSBool _MD5( JSContext * cx , JSObject * obj , uintN argc, jsval *argv, jsval *rval ) {
-        if ( argc != 1 ) {
-            JS_ReportError( cx , "MD5 needs argument -- MD5(hexstring)" );
-            return JS_FALSE;
-        }
         try {
+            if ( argc != 1 ) {
+                JS_ReportError( cx , "MD5 needs argument -- MD5(hexstring)" );
+                return JS_FALSE;
+            }
             Convertor c( cx );
             string s( c.toString( argv[0] ) );
             if ( ! testHexString( cx, s ) ) {
@@ -1085,7 +1102,10 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, 5, s);
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
@@ -1142,7 +1162,9 @@ namespace mongo {
             }
         }
         catch ( const std::exception& e ) {
-            JS_ReportError( cx, e.what() );
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
@@ -1171,12 +1193,11 @@ namespace mongo {
     // Object helpers
 
     JSBool bson_get_size(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
-        if ( argc != 1 || !JSVAL_IS_OBJECT( argv[ 0 ] ) ) {
-            JS_ReportError( cx , "bsonsize requires one valid object" );
-            return JS_FALSE;
-        }
-
         try {
+            if ( argc != 1 || !JSVAL_IS_OBJECT( argv[ 0 ] ) ) {
+                JS_ReportError( cx , "bsonsize requires one valid object" );
+                return JS_FALSE;
+            }
             Convertor c(cx);
             if ( argv[0] == JSVAL_VOID || argv[0] == JSVAL_NULL ) {
                 *rval = c.toval( 0.0 );
@@ -1200,7 +1221,9 @@ namespace mongo {
             *rval = c.toval( size );
         }
         catch ( const std::exception& e ) {
-            JS_ReportError( cx, e.what() );
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
         return JS_TRUE;
@@ -1233,7 +1256,7 @@ namespace mongo {
             holder->check();
 
             Convertor c( cx );
-            string s = c.toString( id );
+            string s( c.toString( id ) );
             BSONElement e = holder->_obj[ s.c_str() ];
             if ( e.type() == EOO || holder->_removed.count( s ) ) {
                 *objp = 0;
@@ -1263,10 +1286,11 @@ namespace mongo {
         }
         catch ( const std::exception& e ) {
             JS_LeaveLocalRootScope( cx );
-            JS_ReportError( cx, e.what() );
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
-
         return JS_TRUE;
     }
 
@@ -1706,24 +1730,40 @@ namespace mongo {
             smlock;
             precall();
 
-            verify( JS_EnterLocalRootScope( _context ) );
+            try {
+                verify( JS_EnterLocalRootScope( _context ) );
+            }
+            catch ( const std::exception& e ) {
+                if ( ! JS_IsExceptionPending( _context ) ) {
+                    JS_ReportError( _context, e.what() );
+                }
+                return 0;
+            }
 
             int nargs = args ? args->nFields() : 0;
             scoped_array<jsval> smargsPtr( new jsval[nargs] );
-            if ( nargs ) {
-                BSONObjIterator it( *args );
-                for ( int i=0; i<nargs; i++ ) {
-                    smargsPtr[i] = _convertor->toval( it.next() );
+            try {
+                if ( nargs ) {
+                    BSONObjIterator it( *args );
+                    for ( int i=0; i<nargs; i++ ) {
+                        smargsPtr[i] = _convertor->toval( it.next() );
+                    }
+                }
+
+                if ( !args ) {
+                    _convertor->setProperty( _global , "args" , JSVAL_NULL );
+                }
+                else {
+                    setObject( "args" , *args , true ); // this is for backwards compatability
                 }
             }
-
-            if ( !args ) {
-                _convertor->setProperty( _global , "args" , JSVAL_NULL );
+            catch ( const std::exception& e ) {
+                JS_LeaveLocalRootScope( _context );
+                if ( ! JS_IsExceptionPending( _context ) ) {
+                    JS_ReportError( _context, e.what() );
+                }
+                return 0;
             }
-            else {
-                setObject( "args" , *args , true ); // this is for backwards compatability
-            }
-
             JS_LeaveLocalRootScope( _context );
 
             installInterrupt( timeoutMs );
@@ -1776,15 +1816,14 @@ namespace mongo {
         void injectNative( const char *field, NativeFunction func, void* data ) {
             smlock;
             string name = field;
-            _convertor->setProperty( _global,
-                                     (name + "_").c_str(),
-                _convertor->toval( static_cast<double>( reinterpret_cast<long long>( func ) ) ) );
+            jsval v;
+            v = _convertor->toval( static_cast<double>( reinterpret_cast<long long>(func) ) );
+            _convertor->setProperty( _global, (name + "_").c_str(), v );
 
             stringstream code;
             if (data) {
-                _convertor->setProperty( _global,
-                                         (name + "_data_").c_str(),
-                _convertor->toval( static_cast<double>( reinterpret_cast<long long>( data ) ) ) );
+                v = _convertor->toval( static_cast<double>( reinterpret_cast<long long>(data) ) );
+                _convertor->setProperty( _global, (name + "_data_").c_str(), v );
                 code << field << "_" << " = { x : " << field << "_ , y: " << field << "_data_ }; ";
             } else {
                 code << field << "_" << " = { x : " << field << "_ }; ";

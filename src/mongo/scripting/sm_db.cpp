@@ -212,10 +212,10 @@ namespace mongo {
                 return JS_FALSE;
             }
 
-            try{
+            try {
                 ScriptEngine::runConnectCallback( *conn );
             }
-            catch( std::exception& e ){
+            catch ( const std::exception& e ){
                 // Can happen if connection goes down while we're starting up here
                 // Catch so that we don't get a hard-to-trace segfault from SM
                 JS_ReportError( cx, ((string)( str::stream() << "Error during mongo startup." << causedBy( e ) )).c_str() );
@@ -458,16 +458,16 @@ namespace mongo {
     JSBool db_collection_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
         try {
             smuassert( cx ,  "db_collection_constructor wrong args" , argc == 4 );
-            verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
-            verify( JS_SetProperty( cx , obj , "_db" , &(argv[1]) ) );
-            verify( JS_SetProperty( cx , obj , "_shortName" , &(argv[2]) ) );
-            verify( JS_SetProperty( cx , obj , "_fullName" , &(argv[3]) ) );
-
             Convertor c(cx);
             if ( haveLocalShardingInfo( c.toString( argv[3] ) ) ) {
                 JS_ReportError( cx , "can't use sharded collection from db.eval" );
                 return JS_FALSE;
             }
+
+            verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
+            verify( JS_SetProperty( cx , obj , "_db" , &(argv[1]) ) );
+            verify( JS_SetProperty( cx , obj , "_shortName" , &(argv[2]) ) );
+            verify( JS_SetProperty( cx , obj , "_fullName" , &(argv[3]) ) );
         }
         catch ( const std::exception& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
@@ -567,8 +567,7 @@ namespace mongo {
 
             Convertor convertor( cx );
             string dbName = convertor.toString( argv[1] );
-            string msg = str::stream() << "[" << dbName << "] is not a "
-                                       << "valid database name";
+            string msg = str::stream() << "[" << dbName << "] is not a valid database name";
             smuassert( cx, msg.c_str(), NamespaceString::validDBName( dbName ) );
 
             verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
@@ -672,28 +671,31 @@ namespace mongo {
     // dbpointer
 
     JSBool dbpointer_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &dbpointer_class , 0 ) ) {
-            obj = JS_NewObject( cx , &dbpointer_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "dbpointer_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
-
-            if ( ! JSVAL_IS_OID( argv[1] ) ) {
-                JS_ReportError( cx , "2nd arg to DBPointer needs to be oid" );
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx, "DBPointer takes 2 arguments -- DBPointer(namespace,objectId)" );
                 return JS_FALSE;
             }
-
+            if ( ! JSVAL_IS_OID( argv[1] ) ) {
+                JS_ReportError( cx , "2nd argument to DBPointer must be objectId" );
+                return JS_FALSE;
+            }
+            Convertor c( cx );
+            if ( ! JS_InstanceOf( cx , obj , &dbpointer_class , 0 ) ) {
+                obj = JS_NewObject( cx , &dbpointer_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "dbpointer_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             verify( JS_SetProperty( cx , obj , "ns" , &(argv[0]) ) );
             verify( JS_SetProperty( cx , obj , "id" , &(argv[1]) ) );
-            return JS_TRUE;
         }
-        else {
-            JS_ReportError( cx , "DBPointer needs 2 arguments" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSClass dbpointer_class = {
@@ -709,27 +711,32 @@ namespace mongo {
 
 
     JSBool dbref_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &dbref_class , 0 ) ) {
-            obj = JS_NewObject( cx , &dbref_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "dbref_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx , "DBRef takes 2 arguments -- DBRef($ref,$id)" );
+                verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( BSONObj().getOwned() ) ) ) );
+                return JS_FALSE;
+            }
+            Convertor c( cx );
+            if ( ! JS_InstanceOf( cx , obj , &dbref_class , 0 ) ) {
+                obj = JS_NewObject( cx , &dbref_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "dbref_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             JSObject * o = JS_NewObject( cx , NULL , NULL, NULL );
             CHECKNEWOBJECT( o, cx, "dbref_constructor" );
             verify( JS_SetProperty( cx, o , "$ref" , &argv[ 0 ] ) );
             verify( JS_SetProperty( cx, o , "$id" , &argv[ 1 ] ) );
             BSONObj bo = c.toObject( o );
             verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( bo.getOwned() ) ) ) );
-            return JS_TRUE;
         }
-        else {
-            JS_ReportError( cx , "DBRef needs 2 arguments" );
-            verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( BSONObj().getOwned() ) ) ) );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSClass dbref_class = bson_class; // name will be fixed later
@@ -813,40 +820,42 @@ zzz
     // BinData **************************
 
     JSBool bindata_constructor( JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval ) {
-        Convertor c( cx );
-        if ( ! JS_InstanceOf( cx , obj , &bindata_class , 0 ) ) {
-            obj = JS_NewObject( cx , &bindata_class , 0 , 0 );
-            CHECKNEWOBJECT( obj, cx, "bindata_constructor" );
-            *rval = OBJECT_TO_JSVAL( obj );
-        }
-
-        if ( argc == 2 ) {
-
-            int type = (int)c.toNumber( argv[ 0 ] );
-            if( type < 0 || type > 255 ) {
-                JS_ReportError( cx , "invalid BinData subtype -- range is 0..255 see bsonspec.org" );
+        try {
+            if ( argc != 2 ) {
+                JS_ReportError( cx , "BinData takes 2 arguments -- BinData(subtype,data)" );
                 return JS_FALSE;
             }
-            string encoded = c.toString( argv[ 1 ] );
+            Convertor c( cx );
+            int subtype = static_cast<int>( c.toNumber( argv[ 0 ] ) );
+            if ( subtype < 0 || subtype > 255 ) {
+                JS_ReportError( cx, "BinData subtype must be between 0 and 255" );
+                return JS_FALSE;
+            }
+            string encoded( c.toString( argv[ 1 ] ) );
             string decoded;
             try {
                 decoded = base64::decode( encoded );
             }
             catch(...) {
-                JS_ReportError(cx, "BinData could not decode base64 parameter");
+                JS_ReportError( cx, "BinData could not decode base64 parameter" );
                 return JS_FALSE;
             }
-
+            if ( ! JS_InstanceOf( cx , obj , &bindata_class , 0 ) ) {
+                obj = JS_NewObject( cx , &bindata_class , 0 , 0 );
+                CHECKNEWOBJECT( obj, cx, "bindata_constructor" );
+                *rval = OBJECT_TO_JSVAL( obj );
+            }
             verify( JS_SetPrivate( cx, obj, new BinDataHolder( decoded.data(), decoded.length() ) ) );
             c.setProperty( obj, "len", c.toval( (double)decoded.length() ) );
-            c.setProperty( obj, "type", c.toval( (double)type ) );
-
-            return JS_TRUE;
+            c.setProperty( obj, "type", c.toval( (double)subtype ) );
         }
-        else {
-            JS_ReportError( cx , "BinData needs 2 arguments -- BinData(subtype,data)" );
+        catch ( const std::exception& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) {
+                JS_ReportError( cx, e.what() );
+            }
             return JS_FALSE;
         }
+        return JS_TRUE;
     }
 
     JSBool bindata_tostring(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval) {
