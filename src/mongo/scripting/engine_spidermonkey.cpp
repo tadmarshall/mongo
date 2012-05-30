@@ -198,7 +198,7 @@ namespace mongo {
             boost::scoped_array<char> utf8Chars( new char[len] );
             jschar* utf16Chars = JS_GetStringChars( jsString );
             if ( !JS_EncodeCharacters( _context, utf16Chars, srclen, utf8Chars.get(), &len ) ) {
-                throw std::exception();
+                uasserted( 0, "error converting UTF-16 string to UTF-8" );
             }
             return string( utf8Chars.get(), len );
         }
@@ -297,9 +297,13 @@ namespace mongo {
                                 stack.dive( o ) );
                     }
                 }
-                catch ( const std::exception& ) {
+                catch ( const AssertionException& ) {
                     JS_DestroyIdArray( _context , properties );
                     throw;
+                }
+                catch ( const std::exception& e ) {
+                    log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+                    fassertFailed( 0 );
                 }
                 JS_DestroyIdArray( _context , properties );
             }
@@ -308,14 +312,10 @@ namespace mongo {
         }
 
         BSONObj toObject( jsval v ) {
-            if ( JSVAL_IS_NULL( v ) ||
-                    JSVAL_IS_VOID( v ) )
+            if ( JSVAL_IS_NULL( v ) || JSVAL_IS_VOID( v ) )
                 return BSONObj();
 
-            if ( ! JSVAL_IS_OBJECT( v ) ) {
-                JS_ReportError( _context, "10215 not an object" );
-                throw std::exception();
-            }
+            uassert( 10215, "not an object", JSVAL_IS_OBJECT( v ) );
             return toObject( JSVAL_TO_OBJECT( v ) );
         }
 
@@ -324,10 +324,7 @@ namespace mongo {
         }
 
         string getFunctionCode( jsval v ) {
-            if ( JS_TypeOfValue( _context, v ) != JSTYPE_FUNCTION ) {
-                JS_ReportError( _context, "10216 not a function" );
-                throw std::exception();
-            }
+            uassert( 10216, "not a function", JS_TypeOfValue( _context, v ) == JSTYPE_FUNCTION );
             return getFunctionCode( JS_ValueToFunction( _context , v ) );
         }
 
@@ -529,7 +526,7 @@ namespace mongo {
                 jsval v;
                 if ( JS_GetPendingException( _context , &v ) )
                     tlog() << "\t why: " << toString( v ) << endl;
-                throw std::exception();
+                uassert( 0, "conversion from string to JavaScript value failed", false );
             }
 
             CHECKJSALLOC( s );
@@ -797,10 +794,12 @@ namespace mongo {
                 verify( JS_SetPrivate( cx , obj , 0 ) );
             }
         }
+        catch ( const AssertionException& e ) {
+            if ( ! JS_IsExceptionPending( cx ) ) JS_ReportError( cx, e.what() );
+        }
         catch ( const std::exception& e ) {
-            if ( ! JS_IsExceptionPending( cx ) ) {
-                JS_ReportError( cx, e.what() );
-            }
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
     }
 
@@ -849,11 +848,15 @@ namespace mongo {
             uassert( 10220 ,  "don't know what to do with this op" , 0 );
             return JS_FALSE;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
     }
 
@@ -869,11 +872,15 @@ namespace mongo {
             JS_ReportError( cx , "doing write op on read only operation" );
             return JS_FALSE;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
     }
 
@@ -916,11 +923,15 @@ namespace mongo {
                 holder->_modified = true;
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -937,11 +948,15 @@ namespace mongo {
             holder->_modified = true;
             holder->_removed.erase( c.toString( idval ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -955,11 +970,15 @@ namespace mongo {
             holder->_modified = true;
             holder->_removed.insert( c.toString( idval ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1055,11 +1074,15 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, subtype, s);
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1082,11 +1105,15 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, 3, s);
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1109,11 +1136,15 @@ namespace mongo {
             }
             hexToBinData(cx, &c, rval, 5, s);
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1132,12 +1163,16 @@ namespace mongo {
             ss << "\n";
             Logstream::logLockless( ss.str() );
         }
-        catch ( const std::exception& ) {
+        catch ( const AssertionException& ) {
             if ( someWritten ) {
                 ss << "\n";
                 Logstream::logLockless( ss.str() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1168,11 +1203,15 @@ namespace mongo {
                 *rval = c.toval( out.firstElement() );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1227,11 +1266,15 @@ namespace mongo {
             }
             *rval = c.toval( size );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1247,9 +1290,13 @@ namespace mongo {
         try {
             verify( JS_EnterLocalRootScope( cx ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             JS_ReportError( cx, e.what() );
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
 
         try {
@@ -1291,12 +1338,16 @@ namespace mongo {
             *objp = obj;
             JS_LeaveLocalRootScope( cx );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             JS_LeaveLocalRootScope( cx );
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1740,11 +1791,15 @@ namespace mongo {
             try {
                 verify( JS_EnterLocalRootScope( _context ) );
             }
-            catch ( const std::exception& e ) {
+            catch ( const AssertionException& e ) {
                 if ( ! JS_IsExceptionPending( _context ) ) {
                     JS_ReportError( _context, e.what() );
                 }
                 return 0;
+            }
+            catch ( const std::exception& e ) {
+                log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+                fassertFailed( 0 );
             }
 
             int nargs = args ? args->nFields() : 0;
@@ -1764,12 +1819,16 @@ namespace mongo {
                     setObject( "args" , *args , true ); // this is for backwards compatability
                 }
             }
-            catch ( const std::exception& e ) {
+            catch ( const AssertionException& e ) {
                 JS_LeaveLocalRootScope( _context );
                 if ( ! JS_IsExceptionPending( _context ) ) {
                     JS_ReportError( _context, e.what() );
                 }
                 return 0;
+            }
+            catch ( const std::exception& e ) {
+                log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+                fassertFailed( 0 );
             }
             JS_LeaveLocalRootScope( _context );
 
@@ -1913,11 +1972,15 @@ namespace mongo {
                 }
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }

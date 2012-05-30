@@ -81,11 +81,14 @@ namespace mongo {
             uassert( 10236 ,  "no args to internal_cursor_constructor" , argc == 0 );
             verify( JS_SetPrivate( cx , obj , 0 ) ); // just for safety
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -98,10 +101,13 @@ namespace mongo {
                 verify( JS_SetPrivate( cx , obj , 0 ) );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
     }
 
@@ -110,11 +116,14 @@ namespace mongo {
             DBClientCursor *cursor = getCursor( cx, obj );
             *rval = cursor->more() ? JSVAL_TRUE : JSVAL_FALSE;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -125,11 +134,14 @@ namespace mongo {
             Convertor c(cx);
             *rval = c.toval((double) cursor->objsLeftInBatch() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -146,11 +158,14 @@ namespace mongo {
             Convertor c(cx);
             *rval = c.toval( &n );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -188,11 +203,14 @@ namespace mongo {
             jsval host = c.toval( "EMBEDDED" );
             verify( JS_SetProperty( cx , obj , "host" , &host ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -222,22 +240,28 @@ namespace mongo {
             try {
                 ScriptEngine::runConnectCallback( *conn );
             }
-            catch ( const std::exception& e ){
+            catch ( const AssertionException& e ){
                 // Can happen if connection goes down while we're starting up here
                 // Catch so that we don't get a hard-to-trace segfault from SM
                 JS_ReportError( cx, ((string)( str::stream() << "Error during mongo startup." << causedBy( e ) )).c_str() );
                 return JS_FALSE;
+            }
+            catch ( const std::exception& ) {
+                fassertFailed( 0 );
             }
 
             verify( JS_SetPrivate( cx , obj , (void*)( new shared_ptr< DBClientWithCommands >( conn ) ) ) );
             jsval host_val = c.toval( host.c_str() );
             verify( JS_SetProperty( cx , obj , "host" , &host_val ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -256,10 +280,13 @@ namespace mongo {
                 verify( JS_SetPrivate( cx , obj , 0 ) );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
     }
 
@@ -296,11 +323,14 @@ namespace mongo {
                 return JS_FALSE;
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -335,11 +365,14 @@ namespace mongo {
             verify( JS_SetPrivate( cx , mycursor , new CursorHolder( cursor, *connHolder ) ) );
             *rval = OBJECT_TO_JSVAL( mycursor );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -366,11 +399,14 @@ namespace mongo {
 
             conn->update( ns , c.toObject( argv[1] ) , c.toObject( argv[2] ) , upsert , multi );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -418,11 +454,14 @@ namespace mongo {
                 conn->insert( ns , o );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -449,11 +488,14 @@ namespace mongo {
 
             conn->remove( ns , o , justOne );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -483,11 +525,14 @@ namespace mongo {
             verify( JS_SetProperty( cx , obj , "_shortName" , &(argv[2]) ) );
             verify( JS_SetProperty( cx , obj , "_fullName" , &(argv[3]) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -524,11 +569,14 @@ namespace mongo {
             c.setProperty( obj , collname.c_str() , OBJECT_TO_JSVAL( coll ) );
             *objp = obj;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -587,11 +635,14 @@ namespace mongo {
             verify( JS_SetProperty( cx , obj , "_mongo" , &(argv[0]) ) );
             verify( JS_SetProperty( cx , obj , "_name" , &(argv[1]) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -622,11 +673,14 @@ namespace mongo {
 
             *objp = obj;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -666,11 +720,14 @@ namespace mongo {
             jsval v = c.toval( oid.str().c_str() );
             verify( JS_SetProperty( cx , obj , "str" , &v  ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -703,11 +760,14 @@ namespace mongo {
             verify( JS_SetProperty( cx , obj , "ns" , &(argv[0]) ) );
             verify( JS_SetProperty( cx , obj , "id" , &(argv[1]) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -744,11 +804,14 @@ namespace mongo {
             BSONObj bo = c.toObject( o );
             verify( JS_SetPrivate( cx , obj , (void*)(new BSONHolder( bo.getOwned() ) ) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -863,11 +926,14 @@ zzz
             c.setProperty( obj, "len", c.toval( (double)decoded.length() ) );
             c.setProperty( obj, "type", c.toval( (double)subtype ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -887,11 +953,14 @@ zzz
             string ret = ss.str();
             *rval = c.toval( ret.c_str() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -908,11 +977,14 @@ zzz
             string ret = ss.str();
             *rval = c.toval( ret.c_str() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -935,11 +1007,14 @@ zzz
             string ret = ss.str();
             *rval = c.toval( ret.c_str() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -952,10 +1027,13 @@ zzz
                 verify( JS_SetPrivate( cx , obj , 0 ) );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
     }
 
@@ -992,11 +1070,14 @@ zzz
             jsval a = OBJECT_TO_JSVAL( arrayObj );
             JS_SetProperty( cx , obj , "_data" , &a );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1011,11 +1092,14 @@ zzz
                 return JS_FALSE;
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1063,11 +1147,14 @@ zzz
                 c.setProperty( obj, "i", argv[ 1 ] );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1111,11 +1198,14 @@ zzz
                 c.makeLongObj( n, obj );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1125,11 +1215,14 @@ zzz
             Convertor c(cx);
             *rval = c.toval( static_cast<double>( c.toNumberLongUnsafe( obj ) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1153,11 +1246,14 @@ zzz
             string ret = ss.str();
             *rval = c.toval( ret.c_str() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1208,11 +1304,14 @@ zzz
                 c.makeIntObj( n, obj );
             }
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1222,11 +1321,14 @@ zzz
             Convertor c(cx);
             *rval = c.toval( static_cast<double>( c.toNumberInt( obj ) ) );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1242,11 +1344,14 @@ zzz
             string ret = str::stream() << "NumberInt(" << val << ")";
             *rval = c.toval( ret.c_str() );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1322,11 +1427,14 @@ zzz
             c.setProperty( obj , "_numReturned" , JSVAL_ZERO );
             c.setProperty( obj , "_special" , JSVAL_FALSE );
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
@@ -1345,11 +1453,14 @@ zzz
             c.setProperty( obj , c.toString( id ).c_str() , val );
             *objp = obj;
         }
-        catch ( const std::exception& e ) {
+        catch ( const AssertionException& e ) {
             if ( ! JS_IsExceptionPending( cx ) ) {
                 JS_ReportError( cx, e.what() );
             }
             return JS_FALSE;
+        }
+        catch ( const std::exception& ) {
+            fassertFailed( 0 );
         }
         return JS_TRUE;
     }
