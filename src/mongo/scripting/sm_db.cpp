@@ -87,7 +87,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -106,7 +107,8 @@ namespace mongo {
                 JS_ReportError( cx, e.what() );
             }
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
     }
@@ -122,7 +124,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -140,7 +143,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -164,7 +168,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -209,7 +214,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -246,7 +252,8 @@ namespace mongo {
                 JS_ReportError( cx, ((string)( str::stream() << "Error during mongo startup." << causedBy( e ) )).c_str() );
                 return JS_FALSE;
             }
-            catch ( const std::exception& ) {
+            catch ( const std::exception& e ) {
+                log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
                 fassertFailed( 0 );
             }
 
@@ -260,7 +267,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -285,7 +293,8 @@ namespace mongo {
                 JS_ReportError( cx, e.what() );
             }
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
     }
@@ -329,7 +338,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -371,7 +381,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -405,7 +416,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -460,7 +472,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -494,7 +507,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -531,7 +545,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -575,7 +590,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -641,7 +657,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -679,7 +696,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -726,7 +744,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -766,7 +785,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -810,7 +830,8 @@ namespace mongo {
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -932,7 +953,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -959,7 +981,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -983,7 +1006,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1013,7 +1037,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1032,7 +1057,8 @@ zzz
                 JS_ReportError( cx, e.what() );
             }
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
     }
@@ -1076,7 +1102,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1098,7 +1125,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1153,7 +1181,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1204,7 +1233,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1221,7 +1251,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1252,7 +1283,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1310,7 +1342,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1327,7 +1360,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1350,7 +1384,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1433,7 +1468,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
@@ -1459,7 +1495,8 @@ zzz
             }
             return JS_FALSE;
         }
-        catch ( const std::exception& ) {
+        catch ( const std::exception& e ) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed( 0 );
         }
         return JS_TRUE;
