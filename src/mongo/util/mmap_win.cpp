@@ -275,6 +275,9 @@ namespace mongo {
             fassertFailed( 16168 );
         }
 
+        // give the bug a chance to show up ...
+        Sleep( 1000 );
+
         void* newPrivateView = MapViewOfFileEx(
                 maphandle,          // file mapping handle
                 FILE_MAP_READ,      // access
@@ -288,6 +291,10 @@ namespace mongo {
                     << " (file size is " << len << ")"
                     << " in MemoryMappedFile::remapPrivateView"
                     << endl;
+            bool volatile keepLooping = true;
+            while ( keepLooping ) {
+                Sleep( 10 * 1000 );
+            }
         }
         fassert( 16148, newPrivateView == oldPrivateAddr );
         return newPrivateView;
