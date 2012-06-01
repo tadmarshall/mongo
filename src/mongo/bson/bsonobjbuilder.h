@@ -598,8 +598,10 @@ namespace mongo {
         void appendKeys( const BSONObj& keyPattern , const BSONObj& values );
 
         static std::string numStr( int i ) {
+#ifdef MONGO_EXPOSE_MACROS
             if (i>=0 && i<100 && numStrsReady)
                 return numStrs[i];
+#endif
             StringBuilder o;
             o << i;
             return o.str();
