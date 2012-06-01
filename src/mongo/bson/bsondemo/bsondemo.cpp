@@ -107,6 +107,57 @@ int main() {
     x.vals(strs);
     cout << strs.size() << " strings, first one: " << strs[0] << endl;
 
+    mongo::BSONObjBuilder topLevel;
+    {
+        topLevel.append("\"ip\"","10.0.22.163");
+        topLevel.append("\"~collection\"", "cloud_monitoring");
+        topLevel.append("\"fsedition\"", "SMONGO");
+
+        mongo::BSONArrayBuilder items (topLevel.subarrayStart("cloud_attribute_results"));
+        {
+            mongo::BSONObjBuilder item (items.subobjStart());
+            item.append("dly", 6);
+            item.append("er",  "error string in the event of an error collecting the attribute");
+            item.append("ere", 5);
+            item.append("lc", 4);
+            item.append("lv", "string representation of the collected value");
+            item.append("pt", 3);
+            item.append("op", "operation");
+            item.append("adesc", "attribute description");
+            item.append("atyp", 2);
+            item.append("vtyp", 1);
+            item.done();
+
+            mongo::BSONObjBuilder item2 (items.subobjStart());
+            item2.append("dly", 10);
+            item2.append("er",  "error string in the event of an error collecting the attribute");
+            item2.append("ere",  20);
+            item2.append("lc", 30);
+            item2.append("lv", "string representation of the collected value");
+            item2.append("pt", 40);
+            item2.append("op", "operation");
+            item2.append("adesc", "attribute description");
+            item2.append("atyp", 50);
+            item2.append("vtyp", 60);
+            item2.done();
+
+            mongo::BSONObjBuilder item20 (items.subobjStart());
+            item20.append("dly", 100);
+            item20.append("er",  "error string in the event of an error collecting the attribute");
+            item20.append("ere",  200);
+            item20.append("lc", 300);
+            item20.append("lv", "string representation of the collected value");
+            item20.append("pt", 400);
+            item20.append("op", "operation");
+            item20.append("adesc", "attribute description");
+            item20.append("atyp", 500);
+            item20.append("vtyp", 600);
+            item20.done();
+        }
+        items.done();
+    }
+    mongo::BSONObj finished (topLevel.obj());
+
     iter(y);
     return 0;
 }

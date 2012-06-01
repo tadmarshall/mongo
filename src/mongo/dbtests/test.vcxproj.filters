@@ -1501,6 +1501,9 @@
     <ClCompile Include="..\db\prefetch.cpp">
       <Filter>db\Source Files\o to z</Filter>
     </ClCompile>
+    <ClCompile Include="..\bson\numstrs.cpp">
+      <Filter>bson</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="btreetests.inl">

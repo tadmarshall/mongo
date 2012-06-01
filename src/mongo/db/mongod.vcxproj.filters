@@ -929,6 +929,9 @@
     <ClCompile Include="prefetch.cpp">
       <Filter>db\Source Files\o to z</Filter>
     </ClCompile>
+    <ClCompile Include="..\bson\numstrs.cpp">
+      <Filter>bson</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />

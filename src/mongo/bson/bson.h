@@ -44,6 +44,7 @@
 #include <memory>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include "mongo/platform/compiler.h"
 
@@ -72,6 +73,7 @@ namespace bson {
 }
 
 namespace mongo {
+
 #if !defined(verify)
     inline void verify(bool expr) {
         if(!expr) {
@@ -79,6 +81,7 @@ namespace mongo {
         }
     }
 #endif
+
 #if !defined(uassert)
     MONGO_COMPILER_NORETURN inline void uasserted(int msgid, const std::string &s) {
         throw bson::assertion( msgid , s );
@@ -101,6 +104,7 @@ namespace mongo {
         }
     }
 #endif
+
 }
 
 #include "mongo/bson/bsonelement.h"

@@ -512,6 +512,9 @@
     <ClCompile Include="..\client\connection_factory.cpp">
       <Filter>client</Filter>
     </ClCompile>
+    <ClCompile Include="..\bson\numstrs.cpp">
+      <Filter>bson</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="collection.js">

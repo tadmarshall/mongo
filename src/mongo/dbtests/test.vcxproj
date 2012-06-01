@@ -1164,6 +1164,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|x64'">4355;4800;4267;4244;4334</DisableSpecificWarnings>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|x64'">4355;4800;4267;4244;4334</DisableSpecificWarnings>
     </ClCompile>
+    <ClCompile Include="..\bson\numstrs.cpp" />
     <ClCompile Include="..\bson\oid.cpp" />
     <ClCompile Include="..\client\authentication_table.cpp" />
     <ClCompile Include="..\client\connection_factory.cpp" />
