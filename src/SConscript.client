@@ -6,6 +6,7 @@
 Import('env clientEnv')
 
 clientSource = [
+    'mongo/bson/numstrs.cpp',
     'mongo/bson/oid.cpp',
     'mongo/buildinfo.cpp',
     'mongo/client/clientAndShell.cpp',
