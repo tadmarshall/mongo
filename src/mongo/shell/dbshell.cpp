@@ -872,7 +872,13 @@ int _main( int argc, char* argv[] ) {
             }
             if ( code == "cls" ) {
                 free( line );
+#if 1
+                cout << "About to print stack trace" << endl;
+                printStackTrace();
+                cout << "Finished printing stack trace" << endl;
+#else
                 linenoiseClearScreen();
+#endif
                 continue;
             }
 

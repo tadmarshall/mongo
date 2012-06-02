@@ -34,9 +34,18 @@ namespace mongo {
     }
 }
 
+#elif defined(_WIN32)
+
+namespace mongo {
+    void printStackTrace( std::ostream &os ) {
+        os << "Start of Windows stack trace" << std::endl;
+        os << "End of Windows stack trace" << std::endl;
+    }
+}
+
 #else
 
-namespace mongo {   
+namespace mongo {
     void printStackTrace( std::ostream &os ) {}
 }
 
