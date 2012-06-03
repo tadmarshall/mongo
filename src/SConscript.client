@@ -104,7 +104,6 @@ clientTests = clientEnv.Install('#/', [
         clientEnv.Program(target, [source]) for (target, source) in exampleSourceMap])
 
 bsonDemoEnv = clientEnv.Clone()
-bsonDemoEnv['LIBS'].remove('mongoclient')
 clientTests.append(
     bsonDemoEnv.Install('#/', bsonDemoEnv.Program('bsondemo', 'mongo/bson/bsondemo/bsondemo.cpp')))
 
