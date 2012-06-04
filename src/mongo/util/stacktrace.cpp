@@ -11,8 +11,9 @@
 #ifdef _WIN32
 #include <boost/smart_ptr/scoped_array.hpp>
 #include "mongo/platform/windows_basic.h"
+#include "mongo/util/log.h"
 #include <DbgHelp.h>
-#pragma comment(lib, "dbghelp.lib")
+//#pragma comment(lib, "dbghelp.lib")
 #endif
 
 #ifdef MONGO_HAVE_EXECINFO_BACKTRACE
@@ -45,7 +46,7 @@ namespace mongo {
 
 namespace mongo {
 
-    struct trace {
+    struct TraceItem {
         std::string module;
         std::string sourceFile;
         std::string symbol;
@@ -57,18 +58,12 @@ namespace mongo {
     static const int maxBackTraceFrames = 20;
 
     void printStackTrace( std::ostream &os ) {
-        const size_t nameSize = 1024;
-        const size_t symbolRecordSize = sizeof(SYMBOL_INFO) + nameSize;
-        std::vector<trace> traceList;
-        trace thisTrace;
-        size_t moduleWidth = 0;
-        size_t fileWidth = 0;
-        size_t len;
-
         HANDLE process = GetCurrentProcess();
         BOOL ret = SymInitialize( process, NULL, TRUE );
         if ( ret == FALSE ) {
-            os << "Stack trace failed!" << std::endl;
+            DWORD dosError = GetLastError();
+            os << "Stack trace failed, SymInitialize returned " <<
+                    errnoWithDescription( dosError ) << std::endl;
             return;
         }
         DWORD options = SymGetOptions();
@@ -98,12 +93,18 @@ namespace mongo {
         frame64.AddrFrame.Mode = AddrModeFlat;
         frame64.AddrStack.Mode = AddrModeFlat;
 
+        const size_t nameSize = 1024;
+        const size_t symbolRecordSize = sizeof(SYMBOL_INFO) + nameSize;
         boost::scoped_array<char> symbolBuffer( new char[symbolRecordSize] );
         memset( symbolBuffer.get(), 0, symbolRecordSize );
         SYMBOL_INFO* symbol = reinterpret_cast<SYMBOL_INFO*>( symbolBuffer.get() );
         symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
         symbol->MaxNameLen = nameSize;
 
+        std::vector<TraceItem> traceList;
+        TraceItem traceItem;
+        size_t moduleWidth = 0;
+        size_t fileWidth = 0;
         size_t frameCount = 0;
         for ( size_t i = 0; i < maxBackTraceFrames; ++i ) {
             ret = StackWalk64( imageType,
@@ -130,8 +131,8 @@ namespace mongo {
             if ( backslash ) {
                 moduleName = backslash + 1;
             }
-            thisTrace.module = moduleName;
-            len = thisTrace.module.length();
+            traceItem.module = moduleName;
+            size_t len = traceItem.module.length();
             if ( len > moduleWidth ) {
                 moduleWidth = len;
             }
@@ -151,52 +152,52 @@ namespace mongo {
                 if ( start != std::string::npos ) {
                     std::string shorter( "..." );
                     shorter += filename.substr( start );
-                    thisTrace.sourceFile.swap( shorter );
+                    traceItem.sourceFile.swap( shorter );
                 }
                 else {
-                    thisTrace.sourceFile.swap( filename );
+                    traceItem.sourceFile.swap( filename );
                 }
-                len = thisTrace.sourceFile.length() + 3;
-                thisTrace.lineNumber = line.LineNumber;
-                if ( thisTrace.lineNumber < 10 ) {
+                len = traceItem.sourceFile.length() + 3;
+                traceItem.lineNumber = line.LineNumber;
+                if ( traceItem.lineNumber < 10 ) {
                     len += 1;
                 }
-                else if ( thisTrace.lineNumber < 100 ) {
+                else if ( traceItem.lineNumber < 100 ) {
                     len += 2;
                 }
-                else if ( thisTrace.lineNumber < 1000 ) {
+                else if ( traceItem.lineNumber < 1000 ) {
                     len += 3;
                 }
-                else if ( thisTrace.lineNumber < 10000 ) {
+                else if ( traceItem.lineNumber < 10000 ) {
                     len += 4;
                 }
                 else {
                     len += 5;
                 }
-                thisTrace.sourceLength = len;
+                traceItem.sourceLength = len;
                 if ( len > fileWidth ) {
                     fileWidth = len;
                 }
             }
             else {
-                thisTrace.sourceFile.clear();
-                thisTrace.sourceLength = 0;
+                traceItem.sourceFile.clear();
+                traceItem.sourceLength = 0;
             }
 
             // symbol name and offset from symbol
             DWORD64 displacement;
             ret = SymFromAddr( process, frame64.AddrPC.Offset, &displacement, symbol );
             if ( ret ) {
-                thisTrace.symbol = symbol->Name;
-                thisTrace.instructionOffset = displacement;
+                traceItem.symbol = symbol->Name;
+                traceItem.instructionOffset = displacement;
             }
             else {
-                thisTrace.symbol = "???";
-                thisTrace.instructionOffset = 0;
+                traceItem.symbol = "???";
+                traceItem.instructionOffset = 0;
             }
 
             // add to list
-            traceList.push_back( thisTrace );
+            traceList.push_back( traceItem );
         }
         SymCleanup( process );
 
@@ -230,5 +231,5 @@ namespace mongo {
     void printStackTrace( std::ostream &os ) {}
 }
 
-#endif  // defined(MONGO_HAVE_EXECINFO_BACKTRACE)
+#endif
 
