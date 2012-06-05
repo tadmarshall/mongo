@@ -285,6 +285,8 @@ namespace mongo {
             fassertFailed( 16168 );
         }
 
+        Sleep( 1000 );
+
         void* newPrivateView = MapViewOfFileEx(
                 maphandle,          // file mapping handle
                 FILE_MAP_READ,      // access
