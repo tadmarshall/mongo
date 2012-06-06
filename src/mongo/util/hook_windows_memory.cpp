@@ -109,6 +109,40 @@ namespace {
                                                            Protect );
     }
 
+#if 1
+
+    typedef LONG /* NTSTATUS */ ( WINAPI *NtDeviceIoControlFile_t )
+            ( HANDLE, HANDLE, void* /* PIO_APC_ROUTINE */, PVOID, void* /* PIO_STATUS_BLOCK */, ULONG, PVOID, ULONG, PVOID, ULONG );
+
+    NtDeviceIoControlFile_t originalNtDeviceIoControlFile_mswsock;
+
+    static LONG /* NTSTATUS */ WINAPI myNtDeviceIoControlFile_mswsock(
+        HANDLE FileHandle,
+        HANDLE Event,
+        void* /* PIO_APC_ROUTINE */ ApcRoutine,
+        PVOID ApcContext,
+        void* /* PIO_STATUS_BLOCK */ IoStatusBlock,
+        ULONG IoControlCode,
+        PVOID InputBuffer,
+        ULONG InputBufferLength,
+        PVOID OutputBuffer,
+        ULONG OutputBufferLength
+    ) {
+        mongo::RemapLock remapLock;
+        return originalNtDeviceIoControlFile_mswsock( FileHandle,
+                                                      Event,
+                                                      ApcRoutine,
+                                                      ApcContext,
+                                                      IoStatusBlock,
+                                                      IoControlCode,
+                                                      InputBuffer,
+                                                      InputBufferLength,
+                                                      OutputBuffer,
+                                                      OutputBufferLength );
+    }
+
+#endif
+
 } // namespace
 
 namespace mongo {
@@ -140,6 +174,17 @@ namespace mongo {
                            "ntdll.dll",
                            "NtAllocateVirtualMemory",
                            myNtAllocateVirtualMemory_kernelbase ) );
+
+        //hookModuleAddress = reinterpret_cast<char*>( GetModuleHandleA( "mswsock.dll" ) );
+        hookModuleAddress = reinterpret_cast<char*>( LoadLibraryA( "mswsock.dll" ) );
+
+        originalNtDeviceIoControlFile_mswsock = reinterpret_cast<NtDeviceIoControlFile_t>(
+                hookWin32( hookModuleAddress,
+                           "ntdll.dll",
+                           "NtDeviceIoControlFile",
+                           myNtDeviceIoControlFile_mswsock ) );
+
+
     }
 
 } //namespace mongo
