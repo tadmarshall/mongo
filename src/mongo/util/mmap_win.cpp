@@ -105,7 +105,6 @@ namespace mongo {
 
     unsigned long long mapped = 0; // getNextMemoryMappedFileLocation
 
-#if 1
     void* MemoryMappedFile::createReadOnlyMap() {
         verify( maphandle );
         scoped_lock lk(mapViewMutex);
@@ -129,29 +128,6 @@ namespace mongo {
         views.push_back( readOnlyMapAddress );
         return readOnlyMapAddress;
     }
-#else
-    void* MemoryMappedFile::createReadOnlyMap() {
-        verify( maphandle );
-        scoped_lock lk(mapViewMutex);
-        void* readOnlyMapAddress = MapViewOfFile(
-                maphandle,          // file mapping handle
-                FILE_MAP_READ,      // access
-                0, 0,               // file offset, high and low
-                0 );                // bytes to map, 0 == all
-        if ( 0 == readOnlyMapAddress ) {
-            DWORD dosError = GetLastError();
-            log() << "MapViewOfFile for " << filename()
-                    << " failed with error " << errnoWithDescription( dosError )
-                    << " (file size is " << len << ")"
-                    << " in MemoryMappedFile::createReadOnlyMap"
-                    << endl;
-            fassertFailed( 16165 );
-        }
-        memconcept::is( readOnlyMapAddress, memconcept::concept::other, filename() );
-        views.push_back( readOnlyMapAddress );
-        return readOnlyMapAddress;
-    }
-#endif
 
     void* MemoryMappedFile::map(const char *filenameIn, unsigned long long &length, int options) {
         verify( fd == 0 && len == 0 ); // can't open more than once
@@ -218,7 +194,6 @@ namespace mongo {
             }
         }
 
-#if 1
         void *view = 0;
         {
             scoped_lock lk(mapViewMutex);
@@ -241,28 +216,6 @@ namespace mongo {
                 fassertFailed( 16166 );
             }
         }
-#else
-        void *view = 0;
-        {
-            scoped_lock lk(mapViewMutex);
-            DWORD access = ( options & READONLY ) ? FILE_MAP_READ : FILE_MAP_ALL_ACCESS;
-            view = MapViewOfFile(
-                    maphandle,  // file mapping handle
-                    access,     // access
-                    0, 0,       // file offset, high and low
-                    0 );        // bytes to map, 0 == all
-            if ( view == 0 ) {
-                DWORD dosError = GetLastError();
-                log() << "MapViewOfFile for " << filename
-                        << " failed with " << errnoWithDescription( dosError )
-                        << " (file size is " << length << ")"
-                        << " in MemoryMappedFile::map"
-                        << endl;
-                close();
-                fassertFailed( 16166 );
-            }
-        }
-#endif
         views.push_back(view);
         memconcept::is(view, memconcept::concept::memorymappedfile, this->filename(), (unsigned) length);
         len = length;
@@ -313,7 +266,6 @@ namespace mongo {
         writable.set(chunkno);
     }
 
-#if 1
     void* MemoryMappedFile::createPrivateMap() {
         verify( maphandle );
         scoped_lock lk(mapViewMutex);
@@ -338,30 +290,6 @@ namespace mongo {
         memconcept::is( privateMapAddress, memconcept::concept::memorymappedfile, filename() );
         return privateMapAddress;
     }
-#else
-    void* MemoryMappedFile::createPrivateMap() {
-        verify( maphandle );
-        scoped_lock lk(mapViewMutex);
-        void* privateMapAddress = MapViewOfFile(
-                maphandle,          // file mapping handle
-                FILE_MAP_READ,      // access
-                0, 0,               // file offset, high and low
-                0 );                // bytes to map, 0 == all
-        if ( privateMapAddress == 0 ) {
-            DWORD dosError = GetLastError();
-            log() << "MapViewOfFile for " << filename()
-                    << " failed with error " << errnoWithDescription( dosError )
-                    << " (file size is " << len << ")"
-                    << " in MemoryMappedFile::createPrivateMap"
-                    << endl;
-            fassertFailed( 16167 );
-        }
-        clearWritableBits( privateMapAddress );
-        views.push_back( privateMapAddress );
-        memconcept::is( privateMapAddress, memconcept::concept::memorymappedfile, filename() );
-        return privateMapAddress;
-    }
-#endif
 
     void* MemoryMappedFile::remapPrivateView(void *oldPrivateAddr) {
         verify( Lock::isW() );
@@ -379,8 +307,6 @@ namespace mongo {
                     << endl;
             fassertFailed( 16168 );
         }
-
-        Sleep( 1000 );
 
         void* newPrivateView = MapViewOfFileEx(
                 maphandle,          // file mapping handle
