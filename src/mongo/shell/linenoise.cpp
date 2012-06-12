@@ -1804,9 +1804,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
                     }
                 }; // while
             }
-            if ( activeHistoryLine ) {
-                delete [] activeHistoryLine;
-            }
+            delete [] activeHistoryLine;
             bufferSize = historyLineLength + 1;
             activeHistoryLine = new UChar32[ bufferSize ];
             copyString8to32( activeHistoryLine, history[ historyIndex ], bufferSize, ucharCount, errorCode );
@@ -1834,9 +1832,7 @@ int InputBuffer::incrementalHistorySearch( PromptBase& pi, int startChar ) {
         len = historyLineLength;
         pos = historyLinePosition;
     }
-    if ( activeHistoryLine ) {
-        delete [] activeHistoryLine;
-    }
+    delete [] activeHistoryLine;
     dynamicRefresh( pb, buf32, len, pos );  // redraw the original prompt with current input
     pi.promptPreviousInputLen = len;
     pi.promptCursorRowOffset = pi.promptExtraLines + pb.promptCursorRowOffset;
