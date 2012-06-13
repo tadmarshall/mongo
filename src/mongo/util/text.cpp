@@ -204,6 +204,31 @@ namespace mongo {
         return std::wstring( tempBuffer.get() );
     }
 
+    bool writeUtf8ToWindowsConsole( const char* const utf8String, unsigned int utf8StringSize ) {
+        std::wstring utf16String( toWideString( utf8String ) );
+        const wchar_t* utf16Pointer = utf16String.c_str();
+        std::wstring::size_type numberOfCharactersToWrite = utf16String.length();
+        while ( numberOfCharactersToWrite > 0 ) {
+            static const DWORD MAXIMUM_CHARACTERS_PER_PASS = 8 * 1024;
+            DWORD numberOfCharactersToWriteThisPass = numberOfCharactersToWrite;
+            if ( numberOfCharactersToWriteThisPass > MAXIMUM_CHARACTERS_PER_PASS ) {
+                numberOfCharactersToWriteThisPass = MAXIMUM_CHARACTERS_PER_PASS;
+            }
+            DWORD numberOfCharactersWritten;
+            BOOL success = WriteConsoleW( GetStdHandle( STD_OUTPUT_HANDLE ),
+                                            utf16Pointer,
+                                            numberOfCharactersToWriteThisPass,
+                                            &numberOfCharactersWritten,
+                                            NULL );
+            if ( 0 == success ) {
+                return false;
+            }
+            numberOfCharactersToWrite -= numberOfCharactersWritten;
+            utf16Pointer += numberOfCharactersWritten;
+        }
+        return true;
+    }
+
     WindowsCommandLine::WindowsCommandLine( int argc, wchar_t* argvW[] ) {
         vector < string >   utf8args;
         vector < size_t >   utf8argLength;
