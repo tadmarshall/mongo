@@ -19,9 +19,7 @@
 
 #ifdef _WIN32
 #include <io.h>
-#include <iosfwd>
 #include "mongo/platform/windows_basic.h"
-//#include "mongo/util/assert_util.h"
 #include "mongo/util/text.h"
 #else
 #include <unistd.h>
