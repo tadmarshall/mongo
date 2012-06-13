@@ -271,12 +271,7 @@ namespace mongo {
             int fd = fileno( logfile );
             if ( _isatty( fd ) ) {
                 fflush( logfile );
-                bool success = writeUtf8ToWindowsConsole( s.data(), s.size() );
-                if ( ! success ) {
-                    DWORD dosError = GetLastError();
-                    cout << "Failed to write to console: "
-                            << errnoWithDescription( dosError ) << endl;
-                }
+                writeUtf8ToWindowsConsole( s.data(), s.size() );
                 return;
             }
 #else
@@ -364,12 +359,7 @@ namespace mongo {
             int fd = fileno( logfile );
             if ( _isatty( fd ) ) {
                 fflush( logfile );
-                bool success = writeUtf8ToWindowsConsole( out.data(), out.size() );
-                if ( ! success ) {
-                    DWORD dosError = GetLastError();
-                    cout << "Failed to write to console: "
-                            << errnoWithDescription( dosError ) << endl;
-                }
+                writeUtf8ToWindowsConsole( out.data(), out.size() );
             }
 #else
             if ( isSyslog ) {

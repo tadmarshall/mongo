@@ -22,7 +22,7 @@
 #include <iosfwd>
 #include "mongo/platform/windows_basic.h"
 #include "mongo/util/assert_util.h"
-#include "mongo/util/log.h"
+//#include "mongo/util/log.h"
 #include "mongo/util/text.h"
 #else
 #include <unistd.h>
@@ -336,9 +336,6 @@ int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthI
     if ( _isatty( fileHandle ) ) {
         bool success = mongo::writeUtf8ToWindowsConsole( tempCharString.get(), count );
         if ( ! success ) {
-            DWORD dosError = GetLastError();
-            std::cout << "Failed to write to console: "
-                    << mongo::errnoWithDescription( dosError ) << std::endl;
             return -1;
         }
         return count;
