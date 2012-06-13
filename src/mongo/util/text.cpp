@@ -204,22 +204,49 @@ namespace mongo {
         return std::wstring( tempBuffer.get() );
     }
 
-    bool writeUtf8ToWindowsConsole( const char* const utf8String, unsigned int utf8StringSize ) {
-        std::wstring utf16String( toWideString( utf8String ) );
-        const wchar_t* utf16Pointer = utf16String.c_str();
-        std::wstring::size_type numberOfCharactersToWrite = utf16String.length();
+    /**
+     * Write a UTF-8 string to the Windows console in Unicode (UTF-16)
+     *
+     * @param utf8String        UTF-8 input string
+     * @param utf8StringSize    Number of bytes in UTF-8 string, no NUL terminator assumed
+     * @return                  true if all characters were displayed (including zero characters)
+     */
+    bool writeUtf8ToWindowsConsole( const char* utf8String, unsigned int utf8StringSize ) {
+        int bufferSize = MultiByteToWideChar(
+                CP_UTF8,            // Code page
+                0,                  // Flags
+                utf8String,         // Input string
+                utf8StringSize,     // Input string length
+                NULL,               // No output buffer
+                0                   // Zero means "compute required size"
+        );
+        if ( bufferSize == 0 ) {
+            return true;
+        }
+        boost::scoped_array<wchar_t> utf16String( new wchar_t[ bufferSize ] );
+        MultiByteToWideChar(
+                CP_UTF8,            // Code page
+                0,                  // Flags
+                utf8String,         // Input string
+                utf8StringSize,     // Input string length
+                utf16String.get(),  // UTF-16 output buffer
+                bufferSize          // Buffer size in wide characters
+        );
+        const wchar_t* utf16Pointer = utf16String.get();
+        size_t numberOfCharactersToWrite = bufferSize;
+        HANDLE consoleHandle = GetStdHandle( STD_OUTPUT_HANDLE );
         while ( numberOfCharactersToWrite > 0 ) {
             static const DWORD MAXIMUM_CHARACTERS_PER_PASS = 8 * 1024;
-            DWORD numberOfCharactersToWriteThisPass = numberOfCharactersToWrite;
-            if ( numberOfCharactersToWriteThisPass > MAXIMUM_CHARACTERS_PER_PASS ) {
-                numberOfCharactersToWriteThisPass = MAXIMUM_CHARACTERS_PER_PASS;
+            DWORD numberOfCharactersThisPass = static_cast<DWORD>( numberOfCharactersToWrite );
+            if ( numberOfCharactersThisPass > MAXIMUM_CHARACTERS_PER_PASS ) {
+                numberOfCharactersThisPass = MAXIMUM_CHARACTERS_PER_PASS;
             }
             DWORD numberOfCharactersWritten;
-            BOOL success = WriteConsoleW( GetStdHandle( STD_OUTPUT_HANDLE ),
-                                            utf16Pointer,
-                                            numberOfCharactersToWriteThisPass,
-                                            &numberOfCharactersWritten,
-                                            NULL );
+            BOOL success = WriteConsoleW( consoleHandle,
+                                          utf16Pointer,
+                                          numberOfCharactersThisPass,
+                                          &numberOfCharactersWritten,
+                                          NULL );
             if ( 0 == success ) {
                 return false;
             }

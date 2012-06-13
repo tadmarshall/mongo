@@ -268,57 +268,17 @@ namespace mongo {
         if ( doneSetup == 1717 ) {
 
 #if defined(_WIN32)
-
-#if 1
             int fd = fileno( logfile );
             if ( _isatty( fd ) ) {
                 fflush( logfile );
-#if 1
                 bool success = writeUtf8ToWindowsConsole( s.data(), s.size() );
-                return;
-#else
-                std::wstring utf16String( toWideString( s.data() ) );
-                const wchar_t* utf16Pointer = utf16String.c_str();
-                std::wstring::size_type numberOfCharactersToWrite = utf16String.length();
-                while ( numberOfCharactersToWrite > 0 ) {
-                    static const DWORD MAXIMUM_CHARACTERS_PER_PASS = 32 * 1024;
-                    DWORD numberOfCharactersToWriteThisPass = numberOfCharactersToWrite;
-                    if ( numberOfCharactersToWriteThisPass > MAXIMUM_CHARACTERS_PER_PASS ) {
-                        numberOfCharactersToWriteThisPass = MAXIMUM_CHARACTERS_PER_PASS;
-                    }
-                    DWORD numberOfCharactersWritten;
-                    BOOL success = WriteConsoleW( GetStdHandle( STD_OUTPUT_HANDLE ),
-                                                  utf16Pointer,
-                                                  numberOfCharactersToWriteThisPass,
-                                                  &numberOfCharactersWritten,
-                                                  NULL );
-                    numberOfCharactersToWrite -= numberOfCharactersWritten;
-                    utf16Pointer += numberOfCharactersWritten;
-                }
-                return;
-#endif
-            }
-#else
-            // fwrite() has a behavior problem in Windows when writing to the console
-            //  when the console is in the UTF-8 code page: fwrite() sends a single
-            //  byte and then the rest of the string.  If the first character is
-            //  non-ASCII, the console then displays two UTF-8 replacement characters
-            //  instead of the single UTF-8 character we want.  write() doesn't have
-            //  this problem.
-            int fd = fileno( logfile );
-            if ( _isatty( fd ) ) {
-                fflush( logfile );
-                unsigned int bytesToWrite = s.size();
-                const char* bytePtr = s.data();
-                while ( bytesToWrite > 0 ) {
-                    int bytesWritten = _write( fd, bytePtr, bytesToWrite );
-                    bytePtr += bytesWritten;
-                    bytesToWrite -= bytesWritten;
+                if ( ! success ) {
+                    DWORD dosError = GetLastError();
+                    cout << "Failed to write to console: "
+                            << errnoWithDescription( dosError ) << endl;
                 }
                 return;
             }
-#endif
-
 #else
             if ( isSyslog ) {
                 syslog( LOG_INFO , "%s" , s.data() );
@@ -401,50 +361,16 @@ namespace mongo {
                     (*globalTees)[i]->write(logLevel,out);
             }
 #if defined(_WIN32)
-
-#if 1
             int fd = fileno( logfile );
             if ( _isatty( fd ) ) {
                 fflush( logfile );
-                std::wstring utf16String( toWideString( out.data() ) );
-                const wchar_t* utf16Pointer = utf16String.c_str();
-                std::wstring::size_type numberOfCharactersToWrite = utf16String.length();
-                while ( numberOfCharactersToWrite > 0 ) {
-                    static const DWORD MAXIMUM_CHARACTERS_PER_PASS = 32 * 1024;
-                    DWORD numberOfCharactersToWriteThisPass = numberOfCharactersToWrite;
-                    if ( numberOfCharactersToWriteThisPass > MAXIMUM_CHARACTERS_PER_PASS ) {
-                        numberOfCharactersToWriteThisPass = MAXIMUM_CHARACTERS_PER_PASS;
-                    }
-                    DWORD numberOfCharactersWritten;
-                    BOOL success = WriteConsoleW( GetStdHandle( STD_OUTPUT_HANDLE ),
-                                                  utf16Pointer,
-                                                  numberOfCharactersToWriteThisPass,
-                                                  &numberOfCharactersWritten,
-                                                  NULL );
-                    numberOfCharactersToWrite -= numberOfCharactersWritten;
-                    utf16Pointer += numberOfCharactersWritten;
+                bool success = writeUtf8ToWindowsConsole( out.data(), out.size() );
+                if ( ! success ) {
+                    DWORD dosError = GetLastError();
+                    cout << "Failed to write to console: "
+                            << errnoWithDescription( dosError ) << endl;
                 }
             }
-#else
-            // fwrite() has a behavior problem in Windows when writing to the console
-            //  when the console is in the UTF-8 code page: fwrite() sends a single
-            //  byte and then the rest of the string.  If the first character is
-            //  non-ASCII, the console then displays two UTF-8 replacement characters
-            //  instead of the single UTF-8 character we want.  write() doesn't have
-            //  this problem.
-            int fd = fileno( logfile );
-            if ( _isatty( fd ) ) {
-                fflush( logfile );
-                unsigned int bytesToWrite = out.size();
-                const char* bytePtr = out.data();
-                while ( bytesToWrite > 0 ) {
-                    int bytesWritten = _write( fd, bytePtr, bytesToWrite );
-                    bytePtr += bytesWritten;
-                    bytesToWrite -= bytesWritten;
-                }
-            }
-#endif
-
 #else
             if ( isSyslog ) {
                 syslog( logLevelToSysLogLevel(logLevel) , "%s" , out.data() );
