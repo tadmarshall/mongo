@@ -175,4 +175,6 @@ conn.getDB('test2').foo.insert({a:1});
 assert.eq( 1, conn.getDB('test2').foo.find().itcount() );
 
 jsTestLog( "finishing!" )
-st.stop()
+if ( ! _isWindows() ) { // see SERVER-6094 for problem, SERVER-6082 for symptom
+    st.stop() // tries to delete files before the server shuts down (bug), stops test on Windows
+}
