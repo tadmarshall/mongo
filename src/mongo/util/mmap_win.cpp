@@ -259,6 +259,7 @@ namespace mongo {
             size_t protectSize = protectEnd - protectStart;
             dassert(protectSize>0&&protectSize<=MemoryMappedFile::ChunkSize);
 
+#if 1
             DWORD old;
             bool ok = VirtualProtect((void*)protectStart, protectSize, PAGE_WRITECOPY, &old);
             if( !ok ) {
@@ -266,6 +267,15 @@ namespace mongo {
                 log() << "VirtualProtect failed (mcw) " << mmf->filename() << ' ' << chunkno << hex << protectStart << ' ' << protectSize << ' ' << errnoWithDescription(e) << endl;
                 verify(false);
             }
+#else
+            DWORD old;
+            bool ok = VirtualProtect((void*)protectStart, protectSize, PAGE_WRITECOPY, &old);
+            if( !ok ) {
+                DWORD e = GetLastError();
+                log() << "VirtualProtect failed (mcw) " << mmf->filename() << ' ' << chunkno << hex << protectStart << ' ' << protectSize << ' ' << errnoWithDescription(e) << endl;
+                verify(false);
+            }
+#endif
         }
 
         writable.set(chunkno);
