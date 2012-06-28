@@ -1,5 +1,6 @@
 // mostly for testing mongos w/replica sets
 
+print("DEBUG -- before anything")
 
 s = new ShardingTest( "rs2" , 2 , 1 , 1 , { rs : true , chunksize : 1 } )
 
@@ -109,6 +110,176 @@ assert.eq( 100 , db.foo.count() , "C1" )
 
 s.adminCommand( { enablesharding : "test" } );
 s.adminCommand( { shardcollection : "test.foo" , key : { x : 1 } } );
+
+print("DEBUG -- about to test sh.waitForPingChange")
+if ( ! sh.waitForPingChange ) {
+    print("DEBUG -- adding sh.waitForPingChange")
+
+    sh.waitForPingChange = function( activePings, timeout, interval ){
+    
+        var isPingChanged = function( activePing ){
+            var newPing = db.getSisterDB( "config" ).mongos.findOne({ _id : activePing._id })
+            return ! newPing || newPing.ping + "" != activePing.ping + ""
+        }
+    
+        // First wait for all active pings to change, so we're sure a settings reload
+        // happened
+    
+        // Timeout all pings on the same clock
+        var start = new Date()
+    
+        var remainingPings = []
+        for( var i = 0; i < activePings.length; i++ ){
+        
+            var activePing = activePings[ i ]
+            print( "Waiting for active host " + activePing._id + " to recognize new settings... (ping : " + activePing.ping + ")" )
+       
+            // Do a manual timeout here, avoid scary assert.soon errors
+            var timeout = timeout || 30000;
+            var interval = interval || 200;
+            while( isPingChanged( activePing ) != true ){
+                if( ( new Date() ).getTime() - start.getTime() > timeout ){
+                    print( "Waited for active ping to change for host " + activePing._id + 
+                           ", a migration may be in progress or the host may be down." )
+                    remainingPings.push( activePing )
+                    break
+                }
+                sleep( interval )   
+            }
+    
+        }
+    
+        return remainingPings
+    }
+} else {
+    print("DEBUG -- sh.waitForPingChange already exists")
+}
+
+print("DEBUG -- about to test sh.waitForBalancerOff")
+if ( ! sh.waitForBalancerOff ) {
+    print("DEBUG -- adding sh.waitForBalancerOff")
+
+    sh.waitForBalancerOff = function( timeout, interval ){
+    
+        var pings = db.getSisterDB( "config" ).mongos.find().toArray()
+        var activePings = []
+        for( var i = 0; i < pings.length; i++ ){
+            if( ! pings[i].waiting ) activePings.push( pings[i] )
+        }
+    
+        print( "Waiting for active hosts..." )
+    
+        activePings = sh.waitForPingChange( activePings, 60 * 1000 )
+    
+        // After 1min, we assume that all hosts with unchanged pings are either 
+        // offline (this is enough time for a full errored balance round, if a network
+        // issue, which would reload settings) or balancing, which we wait for next
+        // Legacy hosts we always have to wait for
+    
+        print( "Waiting for the balancer lock..." )
+    
+        // Wait for the balancer lock to become inactive
+        // We can guess this is stale after 15 mins, but need to double-check manually
+        try{ 
+            sh.waitForDLock( "balancer", false, 15 * 60 * 1000 )
+        }
+        catch( e ){
+            print( "Balancer still may be active, you must manually verify this is not the case using the config.changelog collection." )
+            throw e
+        }
+        
+        print( "Waiting again for active hosts after balancer is off..." )
+    
+        // Wait a short time afterwards, to catch the host which was balancing earlier
+        activePings = sh.waitForPingChange( activePings, 5 * 1000 )
+    
+        // Warn about all the stale host pings remaining
+        for( var i = 0; i < activePings.length; i++ ){
+            print( "Warning : host " + activePings[i]._id + " seems to have been offline since " + activePings[i].ping )
+        }
+    
+    }
+} else {
+    print("DEBUG -- sh.waitForBalancerOff already exists")
+}
+
+print("DEBUG -- about to test sh.waitForDLock")
+if ( ! sh.waitForDLock ) {
+    print("DEBUG -- adding sh.waitForDLock")
+
+    sh.waitForDLock = function( lockId, onOrNot, timeout, interval ){
+    
+        // Wait for balancer to be on or off
+        // Can also wait for particular balancer state
+        var state = onOrNot
+    
+        var beginTS = undefined
+        if( state == undefined ){
+            var currLock = db.getSisterDB( "config" ).locks.findOne({ _id : lockId })
+            if( currLock != null ) beginTS = currLock.ts
+        }
+        
+        var lockStateOk = function(){
+            var lock = db.getSisterDB( "config" ).locks.findOne({ _id : lockId })
+
+            if( state == false ) return ! lock || lock.state == 0
+            if( state == true ) return lock && lock.state == 2
+            if( state == undefined ) return (beginTS == undefined && lock) || 
+                                            (beginTS != undefined && ( !lock || lock.ts + "" != beginTS + "" ) )
+            else return lock && lock.state == state
+        }
+    
+        assert.soon( lockStateOk,
+                     "Waited too long for lock " + lockId + " to " + 
+                          (state == true ? "lock" : ( state == false ? "unlock" : 
+                                           "change to state " + state ) ),
+                     timeout,
+                     interval
+        )
+    }
+} else {
+    print("DEBUG -- sh.waitForDLock already exists")
+}
+
+print("DEBUG -- about to test sh.waitForBalancer")
+if ( ! sh.waitForBalancer ) {
+    print("DEBUG -- adding sh.waitForBalancer")
+
+    sh.waitForBalancer = function( onOrNot, timeout, interval ){
+    
+        // If we're waiting for the balancer to turn on or switch state or
+        // go to a particular state
+        if( onOrNot ){
+            // Just wait for the balancer lock to change, can't ensure we'll ever see it
+            // actually locked
+            sh.waitForDLock( "balancer", undefined, timeout, interval )
+        }
+        else {
+            // Otherwise we need to wait until we're sure balancing stops
+            sh.waitForBalancerOff( timeout, interval )
+        }
+    
+    }
+} else {
+    print("DEBUG -- sh.waitForBalancer already exists")
+}
+
+print("DEBUG -- about to test s.stopBalancer")
+if ( ! s.stopBalancer ) {
+    print("DEBUG -- adding s.stopBalancer")
+    s.stopBalancer = function( timeout, interval ) {
+        this.setBalancer( false )
+    
+        if( typeof db == "undefined" ) db = undefined
+        var oldDB = db
+    
+        db = this.config
+        sh.waitForBalancer( false, timeout, interval )
+        db = oldDB
+    }
+} else {
+    print("DEBUG -- s.stopBalancer already exists")
+}
 
 // We're doing some manual chunk stuff, so stop the balancer first
 s.stopBalancer()
