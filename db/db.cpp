@@ -47,6 +47,7 @@
 
 #if defined(_WIN32)
 # include "../util/ntservice.h"
+# include <DbgHelp.h>
 #else
 # include <sys/file.h>
 #endif
@@ -1195,29 +1196,93 @@ namespace mongo {
     }
 
     LPTOP_LEVEL_EXCEPTION_FILTER filtLast = 0;
-    ::HANDLE standardOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    LONG WINAPI exceptionFilter(struct _EXCEPTION_POINTERS *ExceptionInfo) { 
-        {
-            // given the severity of the event we write to console in addition to the --logFile
-            // (rawOut writes to the logfile, if a special one were specified)
-            DWORD written;
-            WriteFile(standardOut, "unhandled windows exception\n", 20, &written, 0);
-            FlushFileBuffers(standardOut);
+
+    /* create a process dump.
+        To use, load up windbg.  Set your symbol and source path.
+        Open the crash dump file.  To see the crashing context, use .ecxr
+        */
+    void doMinidump(struct _EXCEPTION_POINTERS* exceptionInfo) {
+        LPCWSTR dumpFilename = L"mongo.dmp";
+        HANDLE hFile = CreateFileW(dumpFilename,
+            GENERIC_WRITE,
+            0,
+            NULL,
+            CREATE_ALWAYS,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL);
+        if ( INVALID_HANDLE_VALUE == hFile ) {
+            DWORD lasterr = GetLastError();
+            log() << "failed to open minidump file " << toUtf8String(dumpFilename) << " : "
+                  << errnoWithDescription( lasterr ) << endl;
+            return;
         }
 
-        DWORD ec = ExceptionInfo->ExceptionRecord->ExceptionCode;
-        if( ec == EXCEPTION_ACCESS_VIOLATION ) {
-            rawOut("access violation");
-        } 
-        else {
-            rawOut("unhandled windows exception");
-            char buf[64];
-            strcpy(buf, "ec=0x");
-            _ui64toa(ec, buf+5, 16);
-            rawOut(buf);
+        MINIDUMP_EXCEPTION_INFORMATION aMiniDumpInfo;
+        aMiniDumpInfo.ThreadId = GetCurrentThreadId();
+        aMiniDumpInfo.ExceptionPointers = exceptionInfo;
+        aMiniDumpInfo.ClientPointers = TRUE;
+
+        log() << "writing minidump diagnostic file " << toUtf8String(dumpFilename) << endl;
+        BOOL bstatus = MiniDumpWriteDump(GetCurrentProcess(),
+            GetCurrentProcessId(),
+            hFile,
+            MiniDumpNormal,
+            &aMiniDumpInfo,
+            NULL,
+            NULL);
+        if ( FALSE == bstatus ) {
+            DWORD lasterr = GetLastError();
+            log() << "failed to create minidump : "
+                  << errnoWithDescription( lasterr ) << endl;
         }
-        if( filtLast ) 
-            return filtLast(ExceptionInfo);
+
+        CloseHandle(hFile);
+    }
+
+    LONG WINAPI exceptionFilter( struct _EXCEPTION_POINTERS *excPointers ) {
+        char exceptionString[128];
+        sprintf_s( exceptionString, sizeof( exceptionString ),
+                ( excPointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) ?
+                "(access violation)" : "0x%08X", excPointers->ExceptionRecord->ExceptionCode );
+        char addressString[32];
+        sprintf_s( addressString, sizeof( addressString ), "0x%p",
+                 excPointers->ExceptionRecord->ExceptionAddress );
+        log() << "*** unhandled exception " << exceptionString <<
+                " at " << addressString << ", terminating" << endl;
+        if ( excPointers->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ) {
+            ULONG acType = excPointers->ExceptionRecord->ExceptionInformation[0];
+            const char* acTypeString;
+            switch ( acType ) {
+            case 0:
+                acTypeString = "read from";
+                break;
+            case 1:
+                acTypeString = "write to";
+                break;
+            case 8:
+                acTypeString = "DEP violation at";
+                break;
+            default:
+                acTypeString = "unknown violation at";
+                break;
+            }
+            sprintf_s( addressString, sizeof( addressString ), " 0x%p",
+                     excPointers->ExceptionRecord->ExceptionInformation[1] );
+            log() << "*** access violation was a " << acTypeString << addressString << endl;
+        }
+
+        doMinidump(excPointers);
+        extern void printWindowsStackTrace( CONTEXT& context );   // util/util.cpp
+        printWindowsStackTrace( *excPointers->ContextRecord );
+
+        // In release builds, let dbexit() try to shut down cleanly
+#if !defined(_DEBUG)
+        dbexit( EXIT_UNCAUGHT, "unhandled exception" );
+#endif
+
+        // In debug builds, give debugger a chance to run
+        if( filtLast )
+            return filtLast( excPointers );
         return EXCEPTION_EXECUTE_HANDLER;
     }
 

@@ -636,6 +636,8 @@ elif "win32" == os.sys.platform:
         # /LTCG link time code generation
         env.Append( CPPFLAGS= " /GL " ) 
         env.Append( LINKFLAGS=" /LTCG " )
+        # this enables PDB creation
+        env.Append( LINKFLAGS=" /debug " )
     else:
         # /Od disable optimization
         # /ZI debug info w/edit & continue 
@@ -669,7 +671,7 @@ elif "win32" == os.sys.platform:
     else:
         env.Append( LINKFLAGS=" /NODEFAULTLIB:MSVCPRT  /NODEFAULTLIB:MSVCRT  " )
 
-    winLibString = "ws2_32.lib kernel32.lib advapi32.lib Psapi.lib"
+    winLibString = "ws2_32.lib kernel32.lib advapi32.lib Psapi.lib dbghelp.lib"
 
     if force64:
         

@@ -70,6 +70,15 @@ namespace mongo {
         o.flush();
         free (strings);
     }
+#elif defined(_WIN32)
+    inline void printStackTrace( ostream &o = cout ) {
+        CONTEXT context;
+        memset( &context, 0, sizeof(context) );
+        context.ContextFlags = CONTEXT_CONTROL;
+        RtlCaptureContext( &context );
+        extern void printWindowsStackTrace( CONTEXT& context ); // util/util.cpp
+        printWindowsStackTrace( context );
+    }
 #else
     inline void printStackTrace( ostream &o = cout ) { }
 #endif
