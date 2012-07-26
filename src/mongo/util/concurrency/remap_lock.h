@@ -23,9 +23,9 @@
 
 namespace mongo {
 
-    struct RemapLock {
-        RemapLock();
-        ~RemapLock();
-    };
+    //struct RemapLock {
+    //    RemapLock();
+    //    ~RemapLock();
+    //};
 
 }
