@@ -69,14 +69,6 @@ namespace mongo {
     static bool noHttpInterface = false;
     static vector<string> configdbs;
 
-#if 0
-    // SERVER-2942 -- We do it this way because RemapLock is used in both mongod and mongos but
-    // we need different effects.  When called in mongod it needs to be a mutex and in mongos it
-    // needs to be a no-op.  This is the mongos version, the mongod version is in mmap_win.cpp.
-    RemapLock::RemapLock() {}
-    RemapLock::~RemapLock() {}
-#endif
-
     bool inShutdown() {
         return dbexitCalled;
     }

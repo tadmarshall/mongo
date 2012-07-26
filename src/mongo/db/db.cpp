@@ -1028,17 +1028,6 @@ static int mongoDbMain(int argc, char* argv[]) {
         if( repairpath.empty() )
             repairpath = dbpath;
 
-#if 0
-#if defined(_WIN32)
-        if ( cmdLine.dur ) {
-            // Hook Windows APIs that can allocate memory so that we can RemapLock them out while
-            //  remapPrivateView() has a data file unmapped (so only needed when journaling)
-            // This is the last point where we are still single-threaded, makes hooking simpler
-            hookWindowsMemory();
-        }
-#endif
-#endif
-
         Module::configAll( params );
         dataFileSync.go();
 
