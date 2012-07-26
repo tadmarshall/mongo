@@ -16,6 +16,7 @@
 *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#if 0
 #if defined(_WIN32)
 
 #include "mongo/util/hook_windows_memory.h"
@@ -145,3 +146,4 @@ namespace mongo {
 } //namespace mongo
 
 #endif // #if defined(_WIN32)
+#endif
