@@ -233,6 +233,7 @@ namespace mongo {
                 log() << "****************" << endl;
             }
 
+#if 0
 #if defined(_WIN32)
             if ( cmdLine.dur ) {
                 // Hook Windows APIs that allocate memory so that we can RemapLock them out while
@@ -240,6 +241,7 @@ namespace mongo {
                 // This is the last point where we are still single-threaded, makes hooking simpler
                 hookWindowsMemory();
             }
+#endif
 #endif
 
             FileAllocator::get()->start();

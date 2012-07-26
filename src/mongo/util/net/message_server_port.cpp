@@ -143,7 +143,7 @@ namespace mongo {
                     //  it unmaps and remaps the private map and needs to get the previous address,
                     //  and if we let a new thread get created between those calls, its thread
                     //  stack could be created within that block, leading to an fassert ...
-                    RemapLock lk;
+                    //RemapLock lk;
 #endif
                     boost::thread thr( boost::bind( &pms::threadRun , p ) );
                 }
