@@ -38,10 +38,6 @@
 #include "mongo/util/file_allocator.h"
 #include "mongo/util/version.h"
 
-#if defined(_WIN32)
-#include "mongo/util/hook_windows_memory.h"
-#endif
-
 namespace po = boost::program_options;
 
 namespace mongo {
