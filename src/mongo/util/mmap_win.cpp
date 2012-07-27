@@ -22,7 +22,6 @@
 #include "../db/d_concurrency.h"
 #include "../db/memconcept.h"
 #include "mongo/util/timer.h"
-#include "mongo/util/concurrency/remap_lock.h"
 #include "mongo/util/file_allocator.h"
 
 namespace mongo {

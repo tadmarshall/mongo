@@ -29,7 +29,6 @@
 #include "../../db/cmdline.h"
 #include "../../db/lasterror.h"
 #include "../../db/stats/counters.h"
-#include "mongo/util/concurrency/remap_lock.h"
 #include "mongo/util/concurrency/ticketholder.h"
 
 #ifdef __linux__  // TODO: consider making this ifndef _WIN32

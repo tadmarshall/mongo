@@ -55,7 +55,6 @@
 #include "mongo/util/version.h"
 
 #if defined(_WIN32)
-# include "mongo/util/hook_windows_memory.h"
 # include "mongo/util/ntservice.h"
 # include <DbgHelp.h>
 #else
