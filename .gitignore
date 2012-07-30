@@ -49,6 +49,7 @@
 /src/mongo/db/_ReSharper.db
 /src/third_party/*/*.tlog
 /src/third_party/*/*.lastbuildstate
+/src/third_party/*/BuildLog.htm
 config.log
 settings.py
 log_config.py
