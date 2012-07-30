@@ -1376,6 +1376,8 @@ namespace mongo {
         }
 
         doMinidump(excPointers);
+        log() << "*** stack trace for unhandled exception:" << endl;
+        printWindowsStackTrace( *excPointers->ContextRecord );
 
         // In release builds, let dbexit() try to shut down cleanly
 #if !defined(_DEBUG)
