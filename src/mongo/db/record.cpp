@@ -289,10 +289,12 @@ namespace mongo {
 
 
     Record* Record::accessed() {
+#if 0
         const size_t page = (size_t)_data >> 12;
         const size_t region = page >> 6;
         const size_t offset = page & 0x3f;        
         ps::rolling[ps::bigHash(region)].access( region , offset , true );
+#endif
         return this;
     }
     
@@ -303,6 +305,7 @@ namespace mongo {
     }
 
     void Record::_accessing() const {
+#if 0
         if ( likelyInPhysicalMemory() )
             return;
 
@@ -328,6 +331,7 @@ namespace mongo {
 
         DEV fassert( 16236 , ! inConstructorChain(true) );
         throw PageFaultException(this);
+#endif
     }
 
     void DeletedRecord::_accessing() const {
