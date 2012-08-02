@@ -31,6 +31,8 @@
 #include "shard.h"
 #include "shardkey.h"
 
+#include <string>
+
 namespace mongo {
 
     struct ShardNS {
@@ -164,7 +166,7 @@ namespace mongo {
             return _primary;
         }
 
-        void setPrimary( string s );
+        void setPrimary( const std::string& s );
 
         bool load();
         bool reload();
@@ -226,7 +228,7 @@ namespace mongo {
         */
         bool init( vector<string> configHosts );
 
-        bool init( string s );
+        bool init( const std::string& s );
 
         bool allUp();
         bool allUp( string& errmsg );
@@ -268,7 +270,7 @@ namespace mongo {
         bool checkConfigServersConsistent( string& errmsg , int tries = 4 ) const;
 
     private:
-        string getHost( string name , bool withPort );
+        string getHost( const std::string& name , bool withPort );
         vector<string> _config;
     };
 

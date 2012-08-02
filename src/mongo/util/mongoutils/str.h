@@ -67,13 +67,15 @@ namespace mongoutils {
             }
             return true;
         }
-        inline bool startsWith(string s, string p) { return startsWith(s.c_str(), p.c_str()); }
+        inline bool startsWith(const std::string& s, const std::string& p) {
+            return startsWith(s.c_str(), p.c_str());
+        }
 
         // while these are trivial today use in case we do different wide char things later
         inline bool startsWith(const char *p, char ch) { return *p == ch; }
-        inline bool startsWith(string s, char ch) { return startsWith(s.c_str(), ch); }
+        inline bool startsWith(const std::string& s, char ch) { return startsWith(s.c_str(), ch); }
 
-        inline bool endsWith(string s, string p) {
+        inline bool endsWith(const std::string& s, const std::string& p) {
             int l = p.size();
             int x = s.size();
             if( x < l ) return false;
@@ -101,7 +103,7 @@ namespace mongoutils {
             const char *p = strstr(s, x);
             return (p != 0) ? p+strlen(x) : "";
         }
-        inline string after(string s, string x) {
+        inline string after(const std::string& s, const std::string& x) {
             const char *p = strstr(s.c_str(), x.c_str());
             return (p != 0) ? string(p+x.size()) : "";
         }
@@ -109,10 +111,10 @@ namespace mongoutils {
         /** @return true if s contains x
          *  These should not be used with strings containing NUL bytes
          */
-        inline bool contains(string s, string x) {
+        inline bool contains(const std::string& s, const std::string& x) {
             return strstr(s.c_str(), x.c_str()) != 0;
         }
-        inline bool contains(string s, char x) {
+        inline bool contains(const std::string& s, char x) {
             verify(x != '\0'); // this expects c-strings so don't use when looking for NUL bytes
             return strchr(s.c_str(), x) != 0;
         }

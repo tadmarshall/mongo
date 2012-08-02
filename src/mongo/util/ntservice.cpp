@@ -177,7 +177,7 @@ namespace mongo {
             const wstring& serviceDesc,
             const wstring& serviceUser,
             const wstring& servicePassword,
-            const std::string dbpath,
+            const std::string& dbpath,
             int argc,
             char* argv[]
     ) {

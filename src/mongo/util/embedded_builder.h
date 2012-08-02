@@ -43,7 +43,7 @@ namespace mongo {
                 addBuilder( next );
             }
         }
-        void appendAs( const BSONElement &e, string name ) {
+        void appendAs( const BSONElement &e, const std::string& name ) {
             if ( e.type() == Object && e.valuesize() == 5 ) { // empty object -- this way we can add to it later
                 string dummyName = name + ".foo";
                 prepareContext( dummyName );
@@ -52,7 +52,7 @@ namespace mongo {
             prepareContext( name );
             back()->appendAs( e, name );
         }
-        BufBuilder &subarrayStartAs( string name ) {
+        BufBuilder &subarrayStartAs( const std::string& name ) {
             prepareContext( name );
             return back()->subarrayStart( name );
         }

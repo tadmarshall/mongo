@@ -37,8 +37,8 @@ namespace mongo {
     }
 
     void Accumulator::opToBson(
-        BSONObjBuilder *pBuilder, string opName,
-        string fieldName) const {
+        BSONObjBuilder *pBuilder, const std::string& opName,
+        const std::string& fieldName) const {
         verify(vpOperand.size() == 1);
         BSONObjBuilder builder;
         vpOperand[0]->addToBsonObj(&builder, opName, false);
@@ -46,7 +46,7 @@ namespace mongo {
     }
 
     void Accumulator::addToBsonObj(
-        BSONObjBuilder *pBuilder, string fieldName,
+        BSONObjBuilder *pBuilder, const std::string& fieldName,
         bool requireExpression) const {
         opToBson(pBuilder, getOpName(), fieldName);
     }
