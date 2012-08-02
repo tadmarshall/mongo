@@ -24,7 +24,7 @@ namespace mongo {
     
         int maxBackTraceFrames = 25;
 
-        bool isNameAConstructorOrDesctructor( string name ) {
+        bool isNameAConstructorOrDesctructor( const std::string& name ) {
             //cout << "XX : " << name << endl;
             
             size_t x = name.rfind( '(' );
