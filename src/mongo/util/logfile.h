@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <string>
+
 namespace mongo {
 
     class LogFile {
@@ -25,7 +27,7 @@ namespace mongo {
         /** create the file and open.  must not already exist.
             throws UserAssertion on i/o error
         */
-        LogFile(string name, bool readwrite = false);
+        LogFile(const std::string& name, bool readwrite = false);
 
         /** closes */
         ~LogFile();
