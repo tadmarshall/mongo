@@ -42,7 +42,7 @@ namespace mongo {
             _connect( i->toString() );
     }
 
-    SyncClusterConnection::SyncClusterConnection( string commaSeperated, double socketTimeout)  : _mutex("SyncClusterConnection"), _socketTimeout( socketTimeout ) {
+    SyncClusterConnection::SyncClusterConnection( std::string commaSeperated, double socketTimeout)  : _mutex("SyncClusterConnection"), _socketTimeout( socketTimeout ) {
         _address = commaSeperated;
         string::size_type idx;
         while ( ( idx = commaSeperated.find( ',' ) ) != string::npos ) {
@@ -54,7 +54,7 @@ namespace mongo {
         uassert( 8004 ,  "SyncClusterConnection needs 3 servers" , _conns.size() == 3 );
     }
 
-    SyncClusterConnection::SyncClusterConnection( string a , string b , string c, double socketTimeout)  : _mutex("SyncClusterConnection"), _socketTimeout( socketTimeout ) {
+    SyncClusterConnection::SyncClusterConnection( const std::string& a , const std::string& b , const std::string& c, double socketTimeout)  : _mutex("SyncClusterConnection"), _socketTimeout( socketTimeout ) {
         _address = a + "," + b + "," + c;
         // connect to all even if not working
         _connect( a );
@@ -72,12 +72,12 @@ namespace mongo {
         _conns.clear();
     }
 
-    bool SyncClusterConnection::prepare( string& errmsg ) {
+    bool SyncClusterConnection::prepare( std::string& errmsg ) {
         _lastErrors.clear();
         return fsync( errmsg );
     }
 
-    bool SyncClusterConnection::fsync( string& errmsg ) {
+    bool SyncClusterConnection::fsync( std::string& errmsg ) {
         bool ok = true;
         errmsg = "";
         for ( size_t i=0; i<_conns.size(); i++ ) {
@@ -146,7 +146,7 @@ namespace mongo {
         return DBClientBase::getLastErrorDetailed(fsync,j,w,wtimeout);
     }
 
-    void SyncClusterConnection::_connect( string host ) {
+    void SyncClusterConnection::_connect( const std::string& host ) {
         log() << "SyncClusterConnection connecting to [" << host << "]" << endl;
         DBClientConnection * c = new DBClientConnection( true );
         c->setSoTimeout( _socketTimeout );

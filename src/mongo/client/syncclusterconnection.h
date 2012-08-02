@@ -50,19 +50,22 @@ namespace mongo {
          * @param commaSeparated should be 3 hosts comma separated
          */
         SyncClusterConnection( const list<HostAndPort> &, double socketTimeout = 0);
-        SyncClusterConnection( string commaSeparated, double socketTimeout = 0);
-        SyncClusterConnection( string a , string b , string c, double socketTimeout = 0 );
+        SyncClusterConnection( std::string commaSeparated, double socketTimeout = 0);
+        SyncClusterConnection( const std::string& a,
+                               const std::string& b,
+                               const std::string& c,
+                               double socketTimeout = 0 );
         ~SyncClusterConnection();
 
         /**
          * @return true if all servers are up and ready for writes
          */
-        bool prepare( string& errmsg );
+        bool prepare( std::string& errmsg );
 
         /**
          * runs fsync on all servers
          */
-        bool fsync( string& errmsg );
+        bool fsync(std::string& errmsg );
 
         // --- from DBClientInterface
 
@@ -114,7 +117,7 @@ namespace mongo {
                                                 const BSONObj *fieldsToReturn, int queryOptions, int batchSize );
         int _lockType( const string& name );
         void _checkLast();
-        void _connect( string host );
+        void _connect( const std::string& host );
 
         string _address;
         vector<string> _connAddresses;
