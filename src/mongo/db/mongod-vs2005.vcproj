@@ -538,10 +538,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\third_party\boost\libs\program_options\src\utf8_codecvt_facet.cpp"
-				>
-			</File>
-			<File
 				RelativePath="..\..\third_party\boost\libs\filesystem\v3\src\utf8_codecvt_facet.cpp"
 				>
 				<FileConfiguration
@@ -580,6 +576,10 @@
 						XMLDocumentationFileName="$(IntDir)\filesystem_utf8_codecvt_facet.xml"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\..\third_party\boost\libs\program_options\src\utf8_codecvt_facet.cpp"
+				>
 			</File>
 			<File
 				RelativePath="..\..\third_party\boost\libs\filesystem\v2\src\v2_operations.cpp"
@@ -3881,10 +3881,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\util\concurrency\remap_lock.h"
-					>
-				</File>
-				<File
 					RelativePath="..\util\concurrency\rwlock.h"
 					>
 				</File>
@@ -4029,14 +4025,6 @@
 					>
 				</File>
 				<File
-					RelativePath="..\util\hook_win32.h"
-					>
-				</File>
-				<File
-					RelativePath="..\util\hook_windows_memory.h"
-					>
-				</File>
-				<File
 					RelativePath="..\util\intrusive_counter.h"
 					>
 				</File>
@@ -4154,14 +4142,6 @@
 				</File>
 				<File
 					RelativePath="..\util\histogram.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\util\hook_win32.cpp"
-					>
-				</File>
-				<File
-					RelativePath="..\util\hook_windows_memory.cpp"
 					>
 				</File>
 				<File
