@@ -150,6 +150,7 @@ namespace mongo {
      * 
      * @param os    ostream& to receive printed stack backtrace
      */
+#pragma optimize( "y", off )
     void printStackTrace( std::ostream& os ) {
         CONTEXT context;
         memset( &context, 0, sizeof(context) );
@@ -157,6 +158,7 @@ namespace mongo {
         RtlCaptureContext( &context );
         printWindowsStackTrace( context, os );
     }
+#pragma optimize( "", on )
 
     /**
      * Print stack trace (using a specified stack context) to "os"

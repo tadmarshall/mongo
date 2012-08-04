@@ -427,11 +427,13 @@ namespace mongo {
         Logstream::logLockless("\n");
     }
 
+#pragma optimize( "y", off )
     void logContext(const char *errmsg) {
         if ( errmsg ) {
             problem() << errmsg << endl;
         }
         printStackTrace();
     }
+#pragma optimize( "", on )
 
 }

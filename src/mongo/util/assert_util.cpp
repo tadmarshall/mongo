@@ -145,14 +145,16 @@ namespace mongo {
         msgasserted(msgid, msg.c_str());
     }
 
+#pragma optimize( "y", off )
     NOINLINE_DECL void msgasserted(int msgid, const char *msg) {
         assertionCount.condrollover( ++assertionCount.warning );
-        tlog() << "Assertion: " << msgid << ":" << msg << endl;
+        log() << "Assertion: " << msgid << ":" << msg << endl;
         setLastError(msgid,msg && *msg ? msg : "massert failure");
         //breakpoint();
         logContext();
         throw MsgAssertionException(msgid, msg);
     }
+#pragma optimize( "", on )
 
     NOINLINE_DECL void msgassertedNoTrace(int msgid, const char *msg) {
         assertionCount.condrollover( ++assertionCount.warning );
