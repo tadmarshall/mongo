@@ -610,6 +610,8 @@ elif "win32" == os.sys.platform:
         # symbols if you want to debug a release-mode image.
         # Note that this means we can't do parallel links in the build.
         env.Append( LINKFLAGS=" /DEBUG " )
+        # This gives 32-bit programs 4 GB of user address space in WOW64, ignored in 64-bit builds
+        env.Append( LINKFLAGS=" /LARGEADDRESSAWARE " )
     else:
         # /RTC1: - Enable Stack Frame Run-Time Error Checking; Reports when a variable is used without having been initialized
         #        (implies /Od: no optimizations)
@@ -624,6 +626,8 @@ elif "win32" == os.sys.platform:
             # This is already implicit from /MDd...
             #env.Append( CPPDEFINES=[ "_DEBUG" ] )
             # This means --dd is always on unless you say --release
+        # This gives 32-bit programs 4 GB of user address space in WOW64, ignored in 64-bit builds
+        env.Append( LINKFLAGS=" /LARGEADDRESSAWARE " )
 
     if force64:
         env.Append( EXTRALIBPATH=[ winSDKHome + "/Lib/x64" ] )
