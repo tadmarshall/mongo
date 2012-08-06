@@ -178,11 +178,11 @@ namespace mongo {
                     seen.insert( mmf );
                     break;
                 }
-            }
-            if ( ! f.get() )
-                break;
+                if ( ! f.get() )
+                    break;
 
-            f->flush();
+                f->flush();
+            }
         }
         return seen.size();
     }
