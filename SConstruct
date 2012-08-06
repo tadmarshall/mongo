@@ -541,113 +541,99 @@ elif os.sys.platform.startswith( "openbsd" ):
 
 elif "win32" == os.sys.platform:
     windows = True
-
     env['DIST_ARCHIVE_SUFFIX'] = '.zip'
 
     if has_option( "win2008plus" ):
         env.Append( CPPDEFINES=[ "MONGO_USE_SRW_ON_WINDOWS" ] )
 
     for pathdir in env['ENV']['PATH'].split(os.pathsep):
-	if os.path.exists(os.path.join(pathdir, 'cl.exe')):
-            print( "found visual studio at " + pathdir )
-	    break
+        if os.path.exists(os.path.join(pathdir, 'cl.exe')):
+            print( "Found Visual Studio: '" + pathdir + "'" )
+            break
     else:
-	#use current environment
-	env['ENV'] = dict(os.environ)
+        #use current environment
+        print("Can't find Visual Studio in env['PATH'], using system environment")
+        env['ENV'] = dict(os.environ)
 
-    env.Append( CPPDEFINES=[ "_UNICODE" ] )
-    env.Append( CPPDEFINES=[ "UNICODE" ] )
+    try:
+        winSDKHome = dict(os.environ)['WINDOWSSDKDIR']
+        print( "Using WindowsSDKDir environment variable: '" + winSDKHome + "'" )
+    except KeyError:
+        print( "WindowsSDKDir environment variable is not defined, searching ...")
+        winSDKHome = findVersion( [ "C:\\Program Files\\Microsoft SDKs\\Windows\\",
+                                    "C:\\Program Files (x86)\\Microsoft SDKs\\Windows\\" ] ,
+                                  [ "v7.1", "v7.0A", "v7.0", "v6.1", "v6.0a", "v6.0" ] )
+        winSDKHome += "\\"
+        print( "Found Windows SDK: '" + winSDKHome + "'" )
+        pass
 
-    winSDKHome = findVersion( [ "C:/Program Files/Microsoft SDKs/Windows/", "C:/Program Files (x86)/Microsoft SDKs/Windows/" ] ,
-                              [ "v7.1", "v7.0A", "v7.0", "v6.1", "v6.0a", "v6.0" ] )
-    print( "Windows SDK Root '" + winSDKHome + "'" )
+    env.Append( EXTRACPPPATH=[ winSDKHome + "Include" ] )
 
-    env.Append( EXTRACPPPATH=[ winSDKHome + "/Include" ] )
+    if force64:
+        env.Append( EXTRALIBPATH=[ winSDKHome + "Lib\\x64" ] )
+    else:
+        env.Append( EXTRALIBPATH=[ winSDKHome + "Lib" ] )
 
-    # /EHsc exception handling style for visual studio
-    # /W3 warning level
-    # /WX abort build on compiler warnings
-    env.Append(CCFLAGS=["/EHsc","/W3"])
+    env.Append( CPPDEFINES=[ "UNICODE", "_UNICODE" ] )
 
-    # some warnings we don't like:
+    # PSAPI_VERSION relates to process api dll Psapi.dll.
+    env.Append( CPPDEFINES=["_CONSOLE","_CRT_SECURE_NO_WARNINGS","PSAPI_VERSION=1" ] )
+
+    # Compiler switches used for all builds
+    env.Append( CCFLAGS=[
+            "/EHsc",                # enable C++ exceptions
+            "/W3",                  # warning level
+            #"/WX",                 # abort build on compiler warnings (not set currently)
+            #'/Yu"pch.h"',          # pre-compiled headers (not set currently)
+            "/Z7",                  # debug info goes into .obj files, no .pdb created
+            "/errorReport:none",    # internal compiler error reporting disabled
+            ] )
+
+    # Disable these warnings:
     # c4355
     # 'this' : used in base member initializer list
-    #    The this pointer is valid only within nonstatic member functions. It cannot be used in the initializer list for a base class.
+    #   The 'this' pointer is valid only within nonstatic member functions.
+    #   It cannot be used in the initializer list for a base class.
     # c4800
     # 'type' : forcing value to bool 'true' or 'false' (performance warning)
     #    This warning is generated when a value that is not bool is assigned or coerced into type bool. 
     # c4267
     # 'var' : conversion from 'size_t' to 'type', possible loss of data
-    # When compiling with /Wp64, or when compiling on a 64-bit operating system, type is 32 bits but size_t is 64 bits when compiling for 64-bit targets. To fix this warning, use size_t instead of a type.
+    #   When compiling with /Wp64, or when compiling on a 64-bit operating system, type is 32 bits
+    #   but size_t is 64 bits when compiling for 64-bit targets.
+    #   To fix this warning, use size_t instead of a type.
     # c4244
     # 'conversion' conversion from 'type1' to 'type2', possible loss of data
-    #  An integer type is converted to a smaller integer type.
+    #   An integer type is converted to a smaller integer type.
     env.Append( CCFLAGS=["/wd4355", "/wd4800", "/wd4267", "/wd4244"] )
-    
-    # PSAPI_VERSION relates to process api dll Psapi.dll.
-    env.Append( CPPDEFINES=["_CONSOLE","_CRT_SECURE_NO_WARNINGS","PSAPI_VERSION=1" ] )
 
-    # this would be for pre-compiled headers, could play with it later  
-    #env.Append( CCFLAGS=['/Yu"pch.h"'] )
-
-    # docs say don't use /FD from command line (minimal rebuild)
-    # /Gy function level linking (implicit when using /Z7)
-    # /Z7 debug info goes into each individual .obj file -- no .pdb created 
-    env.Append( CCFLAGS= ["/Z7", "/errorReport:none"] )
-    if release:
-        # /O2:  optimize for speed (as opposed to size)
-        # /Oy-: disable frame pointer optimization (overrides /O2, only affects 32-bit)
-        # /MT:  use the multithreaded, static version of the run-time library (LIBCMT.lib)
-        env.Append( CCFLAGS= ["/O2", "/Oy-", "/MT"] )
-
-        # TODO: this has caused some linking problems :
-        # /GL whole program optimization
-        # /LTCG link time code generation
-        env.Append( CCFLAGS= ["/GL"] )
-        env.Append( LINKFLAGS=" /LTCG " )
-        env.Append( ARFLAGS=" /LTCG " ) # for the Library Manager
-        # /DEBUG will tell the linker to create a .pdb file
-        # which WinDbg and Visual Studio will use to resolve
-        # symbols if you want to debug a release-mode image.
-        # Note that this means we can't do parallel links in the build.
-        env.Append( LINKFLAGS=" /DEBUG " )
-    else:
-        # /RTC1: - Enable Stack Frame Run-Time Error Checking; Reports when a variable is used without having been initialized
-        #        (implies /Od: no optimizations)
-        # /MTd: Defines _DEBUG, _MT, and causes your application to use the
-        #       debug multithread version of the run-time library (LIBCMTD.lib)
-        env.Append( CCFLAGS=["/RTC1", "/Od", "/MTd"] )
-        if debugBuild:
-            # If you build without --d, no debug PDB will be generated, and 
-            # linking will be faster. However, you won't be able to debug your code with the debugger.
-            env.Append( LINKFLAGS=" /debug " )
-        #if debugLogging:
-            # This is already implicit from /MDd...
-            #env.Append( CPPDEFINES=[ "_DEBUG" ] )
-            # This means --dd is always on unless you say --release
+    # We statically link with the C/C++ runtime, so don't search libraries for externs
+    env.Append( LINKFLAGS=" /NODEFAULTLIB:MSVCPRT /NODEFAULTLIB:MSVCRT " )
 
     # This gives 32-bit programs 4 GB of user address space in WOW64, ignored in 64-bit builds
     env.Append( LINKFLAGS=" /LARGEADDRESSAWARE " )
 
-    if force64:
-        env.Append( EXTRALIBPATH=[ winSDKHome + "/Lib/x64" ] )
-    else:
-        env.Append( EXTRALIBPATH=[ winSDKHome + "/Lib" ] )
+    # This enables creation of a .pdb (program database, symbol) file
+    env.Append( LINKFLAGS=" /debug " )
 
-    if release:
-        env.Append( LINKFLAGS=" /NODEFAULTLIB:MSVCPRT  " )
-    else:
-        env.Append( LINKFLAGS=" /NODEFAULTLIB:MSVCPRT  /NODEFAULTLIB:MSVCRT  " )
-
+    # Libraries for DLLs we use: WinSock, Kernel, NT service, process, stack trace
     winLibString = "ws2_32.lib kernel32.lib advapi32.lib Psapi.lib DbgHelp.lib"
 
-    if force64:
-
-        winLibString += ""
-
+    if release:
+        env.Append( CCFLAGS= [
+                "/O2",  # optimize for speed (as opposed to size)
+                "/Oy-", # disable frame pointer optimization (overrides /O2, only affects 32-bit)
+                "/MT",  # use the multithreaded, static version of the C/C++ run-time library
+                "/GL"   # whole program optimization
+                ] )
+        env.Append( LINKFLAGS=" /LTCG " )   # link time code generation
+        env.Append( ARFLAGS=" /LTCG " )     # also for the Library Manager
     else:
-        winLibString += " user32.lib gdi32.lib winspool.lib comdlg32.lib  shell32.lib ole32.lib oleaut32.lib "
-        winLibString += " odbc32.lib odbccp32.lib uuid.lib "
+        env.Append( CCFLAGS=[
+                "/RTC1",    # runtime error checking, e.g. uninitialized variables
+                "/Od",      # disable optimization
+                "/MTd"      # debug, multithreaded, static version of the C/C++ run-time library
+                ] )
 
     # v8 calls timeGetTime()
     if usev8:
