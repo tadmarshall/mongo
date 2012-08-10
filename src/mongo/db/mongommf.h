@@ -101,7 +101,7 @@ namespace mongo {
         RelativePath _p;   // e.g. "somepath/dbname"
         int _fileSuffixNo;  // e.g. 3.  -1="ns"
 
-        void setPath(string pathAndFileName);
+        void setPath(const std::string& pathAndFileName);
         bool finishOpening();
     };
 

@@ -847,7 +847,7 @@ namespace mongo {
     string simpleRegex(const char* regex, const char* flags, bool* purePrefix=NULL);
 
     /** returns the upper bound of a query that matches prefix */
-    string simpleRegexEnd( string prefix );
+    string simpleRegexEnd( const std::string& prefix );
 
     long long applySkipLimit( long long num , const BSONObj& cmd );
     

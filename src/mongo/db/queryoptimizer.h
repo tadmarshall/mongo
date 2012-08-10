@@ -120,7 +120,7 @@ namespace mongo {
                   const BSONObj &originalQuery,
                   const BSONObj &order,
                   const shared_ptr<const ParsedQuery> &parsedQuery,
-                  string special );
+                  const std::string& special );
         void init( const FieldRangeSetPair *originalFrsp,
                   const BSONObj &startKey,
                   const BSONObj &endKey );
