@@ -437,9 +437,10 @@ int _main(int argc, char* argv[]) {
     vector<string> disallowedOptions;
     disallowedOptions.push_back( "upgrade" );
     if ( serviceParamsCheck( params, "", defaultServiceStrings, disallowedOptions, argc, argv ) ) {
-        return 0;   // this means that we are running as a service, and we won't
-                    // reach this statement until initService() has run and returned,
-                    // but it usually exits directly so we never actually get here
+        ::_exit( EXIT_CLEAN );  // when we get here, it means that we have run as a Windows
+                                // Service and we have been shut down.  we have already done
+                                // everything we need to do to shut down the server, and this
+                                // is a clean exit.
     }
     // if we reach here, then we are not running as a service.  service installation
     // exits directly and so never reaches here either.
@@ -452,11 +453,10 @@ int _main(int argc, char* argv[]) {
 #if defined(_WIN32)
 namespace mongo {
 
-    bool initService() {
+    void initService( void ) {
         ServiceController::reportStatus( SERVICE_RUNNING );
         log() << "Service running" << endl;
         runMongosServer( false );
-        return true;
     }
 
 } // namespace mongo

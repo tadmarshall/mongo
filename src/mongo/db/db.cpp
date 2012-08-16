@@ -563,8 +563,14 @@ namespace mongo {
 
         listen(listenPort);
 
-        // listen() will return when exit code closes its socket.
-        exitCleanly(EXIT_NET_ERROR);
+        if ( ! inShutdown() ) {
+            // listen() will return when exit code closes its socket.
+            exitCleanly(EXIT_NET_ERROR);
+        }
+        else {
+            Client * c = currentClient.get();
+            if ( c ) c->shutdown();
+        }
     }
 
     void testPretouch();
@@ -592,11 +598,10 @@ namespace mongo {
     }
 
 #if defined(_WIN32)
-    bool initService() {
+    void initService( void ) {
         ServiceController::reportStatus( SERVICE_RUNNING );
         log() << "Service running" << endl;
         initAndListen( cmdLine.port );
-        return true;
     }
 #endif
 
@@ -1126,10 +1131,16 @@ static int mongoDbMain(int argc, char* argv[]) {
 
 #if defined(_WIN32)
         vector<string> disallowedOptions;
-        if (serviceParamsCheck( params, dbpath, defaultServiceStrings, disallowedOptions, argc, argv )) {
-            return 0;   // this means that we are running as a service, and we won't
-                        // reach this statement until initService() has run and returned,
-                        // but it usually exits directly so we never actually get here
+        if (serviceParamsCheck( params,
+                                dbpath,
+                                defaultServiceStrings,
+                                disallowedOptions,
+                                argc,
+                                argv )) {
+            dbexit( EXIT_CLEAN );   // when we get here, it means that we have run as a Windows
+                                    // Service and we have been shut down.  we have already done
+                                    // everything we need to do to shut down the server, and this
+                                    // is a clean exit.
         }
         // if we reach here, then we are not running as a service.  service installation
         // exits directly and so never reaches here either.
