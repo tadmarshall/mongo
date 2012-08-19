@@ -479,6 +479,31 @@ namespace PerfTests {
 
     unsigned long long aaa;
 
+#if 1
+    class QueryPerformanceCounter : public B {
+    public:
+        string name() { return "QueryPerformanceCounter"; }
+        virtual int howLongMillis() { return 1000; }
+        virtual bool showDurStats() { return false; }
+        void timed() {
+            LARGE_INTEGER i;
+            fassert(16429, ::QueryPerformanceCounter(&i));
+            aaa += i.QuadPart / 3263;
+        }
+    };
+    class QueryPerformanceCounterNoFassertOrDivide : public B {
+    public:
+        string name() { return "QueryPerformanceCounterNoFassertOrDivide"; }
+        virtual int howLongMillis() { return 1000; }
+        virtual bool showDurStats() { return false; }
+        void timed() {
+            LARGE_INTEGER i;
+            ::QueryPerformanceCounter(&i);
+            aaa += i.QuadPart;
+        }
+    };
+#endif
+
     class Timer : public B {
     public:
         string name() { return "Timer"; }
@@ -1127,6 +1152,8 @@ namespace PerfTests {
                 add< Throw< thr2 > >();
                 add< Throw< thr3 > >();
                 add< Throw< thr4 > >();
+                add< QueryPerformanceCounter >();
+                add< QueryPerformanceCounterNoFassertOrDivide >();
                 add< Timer >();
                 add< Sleep0Ms >();
 #if defined(__USE_XOPEN2K)

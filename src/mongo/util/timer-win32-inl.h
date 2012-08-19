@@ -33,9 +33,15 @@
 namespace mongo {
 
     unsigned long long Timer::now() const {
+#if 1
+        LARGE_INTEGER i;
+        QueryPerformanceCounter(&i);
+        return i.QuadPart;
+#else
         LARGE_INTEGER i;
         fassert(16161, QueryPerformanceCounter(&i));
         return i.QuadPart;
+#endif
     }
 
 }  // namespace mongo
