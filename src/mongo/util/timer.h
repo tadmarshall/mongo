@@ -38,7 +38,13 @@ namespace mongo {
 
         Timer() { reset(); }
         int seconds() const { return (int)(micros() / 1000000); }
+#if 1
+        int millis() const {
+            return static_cast<int>((now() - _old) / _countsPerMilliSecond);
+        }
+#else
         int millis() const { return (int)(micros() / 1000); }
+#endif
         int minutes() const { return seconds() / 60; }
 
 
@@ -54,9 +60,15 @@ namespace mongo {
             return static_cast<int>(deltaMicros / 1000);
         }
 
+#if 1
+        inline unsigned long long micros() const {
+            return (now() - _old) / _countsPerMicroSecond;
+        }
+#else
         inline unsigned long long micros() const {
             return ((now() - _old) * microsPerSecond) / _countsPerSecond;
         }
+#endif
 
         inline void reset() { _old = now(); }
 
@@ -69,6 +81,10 @@ namespace mongo {
          * It should be treated as private.
          */
         static unsigned long long _countsPerSecond;
+#if 1
+        static unsigned long long _countsPerMilliSecond;
+        static unsigned long long _countsPerMicroSecond;
+#endif
 
     private:
         inline unsigned long long now() const;

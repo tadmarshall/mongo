@@ -24,6 +24,10 @@
 namespace mongo {
 
     unsigned long long Timer::_countsPerSecond;
+#if 1
+    unsigned long long Timer::_countsPerMilliSecond;
+    unsigned long long Timer::_countsPerMicroSecond;
+#endif
 
     namespace {
 
@@ -39,6 +43,10 @@ namespace mongo {
             bool ok = QueryPerformanceFrequency(&x);
             verify(ok);
             Timer::_countsPerSecond = x.QuadPart;
+#if 1
+            Timer::_countsPerMilliSecond = x.QuadPart / Timer::millisPerSecond;
+            Timer::_countsPerMicroSecond = x.QuadPart / Timer::microsPerSecond;
+#endif
         }
 
 #elif defined(MONGO_TIMER_IMPL_POSIX_MONOTONIC_CLOCK)
