@@ -648,6 +648,7 @@ namespace mongo {
                 result.append("dur", dur::stats.asObj());
             }
             
+#if !defined(_WIN32)
             {
                 BSONObjBuilder record( result.subobjStart( "recordStats" ) );
                 Record::appendStats( record );
@@ -668,6 +669,7 @@ namespace mongo {
 
                 record.done();
             }
+#endif
 
             timeBuilder.appendNumber( "after dur" , Listener::getElapsedTimeMillis() - start );
 

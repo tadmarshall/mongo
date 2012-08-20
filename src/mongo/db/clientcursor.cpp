@@ -209,7 +209,9 @@ namespace mongo {
 
     /* must call this on a delete so we clean up the cursors. */
     void ClientCursor::aboutToDelete(const DiskLoc& dl) {
+#if !defined(_WIN32)
         NoPageFaultsAllowed npfa;
+#endif
 
         recursive_scoped_lock lock(ccmutex);
 
@@ -471,6 +473,9 @@ namespace mongo {
     
     Record* ClientCursor::_recordForYield( ClientCursor::RecordNeeds need ) {
         
+#if defined(_WIN32)
+        return 0;
+#else
         if ( ! ok() )
             return 0;
 
@@ -498,12 +503,14 @@ namespace mongo {
             return 0;
         
         return rec;
+#endif
     }
 
     bool ClientCursor::yieldSometimes( RecordNeeds need, bool *yielded ) {
         if ( yielded ) {
             *yielded = false;   
         }
+#if !defined(_WIN32)
         if ( ! _yieldSometimesTracker.intervalHasElapsed() ) {
             Record* rec = _recordForYield( need );
             if ( rec ) {
@@ -529,6 +536,7 @@ namespace mongo {
                 _yieldSometimesTracker.resetLastTime();
             return res;
         }
+#endif
         return true;
     }
 
@@ -569,8 +577,10 @@ namespace mongo {
                           << endl;
             }
 
+#if !defined(_WIN32)
             if ( rec )
                 rec->touch();
+#endif
 
             lk.reset(0); // need to release this before dbtempreleasecond
         }

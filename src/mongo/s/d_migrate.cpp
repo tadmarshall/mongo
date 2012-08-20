@@ -526,7 +526,9 @@ namespace mongo {
                 bool filledBuffer = false;
                 
                 auto_ptr<LockMongoFilesShared> fileLock;
+#if !defined(_WIN32)
                 Record* recordToTouch = 0;
+#endif
 
                 {
                     Client::ReadContext ctx( _ns );
@@ -538,12 +540,14 @@ namespace mongo {
                         
                         DiskLoc dl = *i;
                         
+#if !defined(_WIN32)
                         Record* r = dl.rec();
                         if ( ! r->likelyInPhysicalMemory() ) {
                             fileLock.reset( new LockMongoFilesShared() );
                             recordToTouch = r;
                             break;
                         }
+#endif
                         
                         BSONObj o = dl.obj();
                         
@@ -563,6 +567,7 @@ namespace mongo {
                         break;
                 }
                 
+#if !defined(_WIN32)
                 if ( recordToTouch ) {
                     // its safe to touch here bceause we have a LockMongoFilesShared
                     // we can't do where we get the lock because we would have to unlock the main readlock and tne _trackerLocks
@@ -570,6 +575,7 @@ namespace mongo {
                     recordToTouch->touch();
                     recordToTouch = 0;
                 }
+#endif
                 
             }
 
@@ -1493,16 +1499,22 @@ namespace mongo {
                     while( i.more() ) {
                         BSONObj o = i.next().Obj();
                         {
+#if !defined(_WIN32)
                             PageFaultRetryableSection pgrs;
+#endif
                             while ( 1 ) {
+#if !defined(_WIN32)
                                 try {
+#endif
                                     Lock::DBWrite lk( ns );
                                     Helpers::upsert( ns, o, true );
                                     break;
+#if !defined(_WIN32)
                                 }
                                 catch ( PageFaultException& e ) {
                                     e.touch();
                                 }
+#endif
                             }
                         }
                         thisTime++;

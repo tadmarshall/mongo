@@ -16,6 +16,7 @@
 *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#if !defined(_WIN32)
 #pragma once
 
 #include "mongo/platform/atomic_word.h"
@@ -32,3 +33,4 @@ namespace mongo {
 
 
 }
+#endif // !defined(_WIN32)

@@ -645,8 +645,10 @@ namespace mongo {
                                     const shared_ptr<ParsedQuery> &pq_shared,
                                     const BSONObj &oldPlan,
                                     const ConfigVersion &shardingVersionAtStart,
+#if !defined(_WIN32)
                                     scoped_ptr<PageFaultRetryableSection>& parentPageFaultSection,
                                     scoped_ptr<NoPageFaultsAllowed>& noPageFault,
+#endif
                                     Message &result ) {
 
         const ParsedQuery &pq( *pq_shared );
@@ -745,8 +747,10 @@ namespace mongo {
             throw SendStaleConfigException( ns , "version changed during initial query", shardingVersionAtStart, shardingState.getVersion( ns ) );
         }
         
+#if !defined(_WIN32)
         parentPageFaultSection.reset(0);
         noPageFault.reset( new NoPageFaultsAllowed() );
+#endif
 
         int nReturned = queryResponseBuilder->handoff( result );
 
@@ -819,11 +823,15 @@ namespace mongo {
             // this extra bracing is not strictly needed
             // but makes it clear what the rules are in different spots
  
+#if !defined(_WIN32)
             scoped_ptr<PageFaultRetryableSection> pgfs;
             if ( ! currentClient.getPageFaultRetryableSection() )
                 pgfs.reset( new PageFaultRetryableSection() );
+#endif
             while ( 1 ) {
+#if !defined(_WIN32)
                 try {
+#endif
                     
                     int n = 0;
                     bool nsFound = false;
@@ -872,10 +880,12 @@ namespace mongo {
                     qr->nReturned = n;
                     
                     break;
+#if !defined(_WIN32)
                 }
                 catch ( PageFaultException& e ) {
                     e.touch();
                 }
+#endif
             }
         }
 
@@ -973,14 +983,18 @@ namespace mongo {
         order = order.getOwned();
 
         bool hasRetried = false;
+#if !defined(_WIN32)
         scoped_ptr<PageFaultRetryableSection> pgfs;
         scoped_ptr<NoPageFaultsAllowed> npfe;
+#endif
         while ( 1 ) {
 
+#if !defined(_WIN32)
             if ( ! cc().getPageFaultRetryableSection() ) {
                 verify( ! pgfs );
                 pgfs.reset( new PageFaultRetryableSection() );
             }
+#endif
                 
             try {
                 Client::ReadContext ctx( ns , dbpath ); // read locks
@@ -1012,11 +1026,17 @@ namespace mongo {
    
                 return queryWithQueryOptimizer( queryOptions, ns, jsobj, curop, query, order,
                                                 pq_shared, oldPlan, shardingVersionAtStart, 
+#if defined(_WIN32)
+                                                result );
+#else
                                                 pgfs, npfe, result );
+#endif
             }
+#if !defined(_WIN32)
             catch ( PageFaultException& e ) {
                 e.touch();
             }
+#endif
             catch ( const QueryRetryException & ) {
                 // In some cases the query may be retried if there is an in memory sort size assertion.
                 verify( ! hasRetried );

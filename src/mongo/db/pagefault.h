@@ -2,6 +2,7 @@
 
 #pragma once
 
+#if !defined(_WIN32)
 namespace mongo {
 
     class Record;
@@ -57,3 +58,4 @@ namespace mongo {
     }
 #endif
 }
+#endif // !defined(_WIN32)

@@ -909,13 +909,17 @@ static int mongoDbMain(int argc, char* argv[]) {
                 return EXIT_BADOPTIONS;
             }
 
+#if !defined(_WIN32)
             Record::MemoryTrackingEnabled = false;
+#endif
             shouldRepairDatabases = 1;
             forceRepair = 1;
             cmdLine.dur = false;
         }
         if (params.count("upgrade")) {
+#if !defined(_WIN32)
             Record::MemoryTrackingEnabled = false;
+#endif
             shouldRepairDatabases = 1;
         }
         if (params.count("notablescan")) {

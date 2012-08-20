@@ -72,17 +72,23 @@ namespace mongo {
                 return false;
             }
             
+#if !defined(_WIN32)
             PageFaultRetryableSection s;
+#endif
             while ( 1 ) {
+#if !defined(_WIN32)
                 try {
+#endif
                     return runNoDirectClient( ns , 
                                               query , fields , update , 
                                               upsert , returnNew , remove , 
                                               result );
+#if !defined(_WIN32)
                 }
                 catch ( PageFaultException& e ) {
                     e.touch();
                 }
+#endif
             }
 
                     

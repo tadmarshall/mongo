@@ -75,6 +75,16 @@ namespace mongo {
     public:
         IndexCounters();
 
+#if defined(_WIN32)
+        // used without a mutex intentionally (can race)
+        void btree( char * node ) {
+            btree();
+        }
+
+        void btree( void ) {
+            _btreeAccesses++;
+        }
+#else
         // used without a mutex intentionally (can race)
         void btree( char * node ) {
             if ( ! _memSupported )
@@ -89,6 +99,7 @@ namespace mongo {
                 _btreeMemMisses++;
             _btreeAccesses++;
         }
+#endif
         void btreeHit() { _btreeMemHits++; _btreeAccesses++; }
         void btreeMiss() { _btreeMemMisses++; _btreeAccesses++; }
 

@@ -77,9 +77,11 @@ namespace mongo {
         }
         Record* r = loc.rec();
 
+#if !defined(_WIN32)
         if ( cc().allowedToThrowPageFaultException() && ! r->likelyInPhysicalMemory() ) {
             throw PageFaultException( r );
         }
+#endif
 
         /* look for $inc etc.  note as listed here, all fields to inc must be this type, you can't set some
            regular ones at the moment. */
@@ -223,12 +225,14 @@ namespace mongo {
             auto_ptr<ClientCursor> cc;
             do {
 
+#if !defined(_WIN32)
                 if ( cc.get() == 0 &&
                      client.allowedToThrowPageFaultException() &&
                      ! c->currLoc().isNull() &&
                      ! c->currLoc().rec()->likelyInPhysicalMemory() ) {
                     throw PageFaultException( c->currLoc().rec() );
                 }
+#endif
 
                 bool atomic = c->matcher() && c->matcher()->docMatcher().atomic();
 

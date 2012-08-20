@@ -272,12 +272,18 @@ namespace mongo {
         Client& c = cc();
 
         long long numDeleted = 0;
+#if !defined(_WIN32)
         PageFaultRetryableSection pgrs;
+#endif
         
         long long millisWaitingForReplication = 0;
 
         while ( 1 ) {
+#if defined(_WIN32)
+            {
+#else
             try {
+#endif
 
                 Client::WriteContext ctx(ns);
                 
@@ -317,10 +323,12 @@ namespace mongo {
                 theDataFileMgr.deleteRecord(ns.c_str() , rloc.rec(), rloc);
                 numDeleted++;
             }
+#if !defined(_WIN32)
             catch( PageFaultException& e ) {
                 e.touch();
                 continue;
             }
+#endif
 
             Timer secondaryThrottleTime;
 

@@ -1,5 +1,6 @@
 // @file pagefault.cpp
 
+#if !defined(_WIN32)
 #include "pch.h"
 #include "diskloc.h"
 #include "pagefault.h"
@@ -60,3 +61,4 @@ namespace mongo {
         cc()._pageFaultRetryableSection = _saved;
     }
 }
+#endif // !defined(_WIN32)

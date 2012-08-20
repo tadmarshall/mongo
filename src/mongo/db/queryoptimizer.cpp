@@ -1114,6 +1114,21 @@ doneCheckOrder:
         return holder._op;
     }
     
+#if defined(_WIN32)
+#define GUARD_OP_EXCEPTION( op, expression ) \
+    try { \
+        expression; \
+    } \
+    catch ( DBException& e ) { \
+        op.setException( e.getInfo() ); \
+    } \
+    catch ( const std::exception &e ) { \
+        op.setException( ExceptionInfo( e.what() , 0 ) ); \
+    } \
+    catch ( ... ) { \
+        op.setException( ExceptionInfo( "Caught unknown exception" , 0 ) ); \
+    }
+#else
 #define GUARD_OP_EXCEPTION( op, expression ) \
     try { \
         expression; \
@@ -1130,6 +1145,7 @@ doneCheckOrder:
     catch ( ... ) { \
         op.setException( ExceptionInfo( "Caught unknown exception" , 0 ) ); \
     }
+#endif
 
 
     void QueryPlanSet::Runner::initOp( QueryOp &op ) {

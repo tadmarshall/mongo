@@ -170,6 +170,16 @@ namespace mongo {
     class DeletedRecord {
     public:
 
+#if defined(_WIN32)
+        int lengthWithHeaders() const { return _lengthWithHeaders; }
+        int& lengthWithHeaders() { return _lengthWithHeaders; }
+        
+        int extentOfs() const { return _extentOfs; }
+        int& extentOfs() { return _extentOfs; }
+
+        // TODO: we need to not const_cast here but problem is DiskLoc::writing
+        DiskLoc& nextDeleted() const { return const_cast<DiskLoc&>(_nextDeleted); }
+#else
         int lengthWithHeaders() const { _accessing(); return _lengthWithHeaders; }
         int& lengthWithHeaders() { _accessing(); return _lengthWithHeaders; }
         
@@ -178,18 +188,25 @@ namespace mongo {
 
         // TODO: we need to not const_cast here but problem is DiskLoc::writing
         DiskLoc& nextDeleted() const { _accessing(); return const_cast<DiskLoc&>(_nextDeleted); }
+#endif
 
         DiskLoc myExtentLoc(const DiskLoc& myLoc) const {
+#if !defined(_WIN32)
             _accessing();
+#endif
             return DiskLoc(myLoc.a(), _extentOfs);
         }
         Extent* myExtent(const DiskLoc& myLoc) {
+#if !defined(_WIN32)
             _accessing();
+#endif
             return DataFileMgr::getExtent(DiskLoc(myLoc.a(), _extentOfs));
         }
     private:
 
+#if !defined(_WIN32)
         void _accessing() const;
+#endif
 
         int _lengthWithHeaders;
         int _extentOfs;
@@ -211,6 +228,24 @@ namespace mongo {
     public:
         enum HeaderSizeValue { HeaderSize = 16 };
 
+#if defined(_WIN32)
+        int lengthWithHeaders() const { return _lengthWithHeaders; }
+        int& lengthWithHeaders() { return _lengthWithHeaders; }
+
+        int extentOfs() const { return _extentOfs; }
+        int& extentOfs() { return _extentOfs; }
+        
+        int nextOfs() const { return _nextOfs; }
+        int& nextOfs() { return _nextOfs; }
+
+        int prevOfs() const { return _prevOfs; }
+        int& prevOfs() { return _prevOfs; }
+
+        const char * data() const { return _data; }
+        char * data() { return _data; }
+
+        int netLength() const { return _netLength(); }
+#else
         int lengthWithHeaders() const {  _accessing(); return _lengthWithHeaders; }
         int& lengthWithHeaders() {  _accessing(); return _lengthWithHeaders; }
 
@@ -227,6 +262,7 @@ namespace mongo {
         char * data() { _accessing(); return _data; }
 
         int netLength() const { _accessing(); return _netLength(); }
+#endif
 
         /* use this when a record is deleted. basically a union with next/prev fields */
         DeletedRecord& asDeleted() { return *((DeletedRecord*) this); }
@@ -238,7 +274,9 @@ namespace mongo {
         DiskLoc getPrev(const DiskLoc& myLoc);
 
         DiskLoc nextInExtent(const DiskLoc& myLoc) { 
+#if !defined(_WIN32)
             _accessing();
+#endif
             if ( _nextOfs == DiskLoc::NullOfs )
                 return DiskLoc();
             verify( _nextOfs );
@@ -251,6 +289,7 @@ namespace mongo {
         };
         NP* np() { return (NP*) &_nextOfs; }
 
+#if !defined(_WIN32)
         // ---------------------
         // memory cache
         // ---------------------
@@ -284,14 +323,17 @@ namespace mongo {
          * and how many times we throw a PageFaultException
          */
         static void appendStats( BSONObjBuilder& b );
+#endif
     private:
         
         int _netLength() const { return _lengthWithHeaders - HeaderSize; }
 
+#if !defined(_WIN32)
         /**
          * call this when accessing a field which could hit disk
          */
         void _accessing() const;
+#endif
 
         int _lengthWithHeaders;
         int _extentOfs;
@@ -303,7 +345,9 @@ namespace mongo {
 
     public:
 
+#if !defined(_WIN32)
         static bool MemoryTrackingEnabled;
+#endif
     };
 
     /* extents are datafile regions where all the records within the region
@@ -503,7 +547,9 @@ namespace mongo {
     }
 
     inline DiskLoc Record::getNext(const DiskLoc& myLoc) {
+#if !defined(_WIN32)
         _accessing();
+#endif
         if ( _nextOfs != DiskLoc::NullOfs ) {
             /* defensive */
             if ( _nextOfs >= 0 && _nextOfs < 10 ) {
@@ -525,7 +571,9 @@ namespace mongo {
         return e->firstRecord;
     }
     inline DiskLoc Record::getPrev(const DiskLoc& myLoc) {
+#if !defined(_WIN32)
         _accessing();
+#endif
         if ( _prevOfs != DiskLoc::NullOfs )
             return DiskLoc(myLoc.a(), _prevOfs);
         Extent *e = myExtent(myLoc);
@@ -534,9 +582,15 @@ namespace mongo {
         return e->xprev.ext()->lastRecord;
     }
 
+#if defined(_WIN32)
+    inline BSONObj DiskLoc::obj() const {
+        return BSONObj::make(rec());
+    }
+#else
     inline BSONObj DiskLoc::obj() const {
         return BSONObj::make(rec()->accessed());
     }
+#endif
     inline DeletedRecord* DiskLoc::drec() const {
         verify( _a != -1 );
         DeletedRecord* dr = (DeletedRecord*) rec();

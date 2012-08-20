@@ -111,8 +111,10 @@ namespace mongo {
             return ns[name.size()] == '.';
         }
 
+#if !defined(_WIN32)
         const RecordStats& recordStats() const { return _recordStats; }
         RecordStats& recordStats() { return _recordStats; }
+#endif
 
     private:
         /**
@@ -147,7 +149,9 @@ namespace mongo {
         int magic; // used for making sure the object is still loaded in memory
 
     private:
+#if !defined(_WIN32)
         RecordStats _recordStats;
+#endif
         
     };
 

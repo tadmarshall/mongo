@@ -47,7 +47,9 @@ namespace mongo {
     class Client;
     class AbstractMessagingPort;
     class LockCollectionForReading;
+#if !defined(_WIN32)
     class PageFaultRetryableSection;
+#endif
 
     TSP_DECLARE(Client, currentClient)
 
@@ -117,14 +119,18 @@ namespace mongo {
         AbstractMessagingPort * port() const { return _mp; }
         ConnectionId getConnectionId() const { return _connectionId; }
 
+#if !defined(_WIN32)
         bool inPageFaultRetryableSection() const { return _pageFaultRetryableSection != 0; }
         PageFaultRetryableSection* getPageFaultRetryableSection() const { return _pageFaultRetryableSection; }
+#endif
         
         bool hasWrittenThisPass() const { return _hasWrittenThisPass; }
         void writeHappened() { _hasWrittenThisPass = true; }
         void newTopLevelRequest() { _hasWrittenThisPass = false; }
         
+#if !defined(_WIN32)
         bool allowedToThrowPageFaultException() const;
+#endif
 
         LockState& lockState() { return _ls; }
 
@@ -145,12 +151,16 @@ namespace mongo {
         AbstractMessagingPort * const _mp;
 
         bool _hasWrittenThisPass;
+#if !defined(_WIN32)
         PageFaultRetryableSection *_pageFaultRetryableSection;
+#endif
 
         LockState _ls;
         
+#if !defined(_WIN32)
         friend class PageFaultRetryableSection; // TEMP
         friend class NoPageFaultsAllowed; // TEMP
+#endif
     public:
 
         /* set _god=true temporarily, safely */

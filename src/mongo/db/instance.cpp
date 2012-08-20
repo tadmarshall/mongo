@@ -562,9 +562,13 @@ namespace mongo {
         op.debug().query = query;
         op.setQuery(query);
 
+#if !defined(_WIN32)
         PageFaultRetryableSection s;
+#endif
         while ( 1 ) {
+#if !defined(_WIN32)
             try {
+#endif
                 Lock::DBWrite lk(ns);
                 
                 // void ReplSetImpl::relinquish() uses big write lock so 
@@ -580,10 +584,12 @@ namespace mongo {
                 UpdateResult res = updateObjects(ns, toupdate, query, upsert, multi, true, op.debug() );
                 lastError.getSafe()->recordUpdate( res.existing , res.num , res.upserted ); // for getlasterror
                 break;
+#if !defined(_WIN32)
             }
             catch ( PageFaultException& e ) {
                 e.touch();
             }
+#endif
         }
     }
 
@@ -600,9 +606,13 @@ namespace mongo {
         op.debug().query = pattern;
         op.setQuery(pattern);
 
+#if !defined(_WIN32)
         PageFaultRetryableSection s;
+#endif
         while ( 1 ) {
+#if !defined(_WIN32)
             try {
+#endif
                 Lock::DBWrite lk(ns);
                 
                 // writelock is used to synchronize stepdowns w/ writes
@@ -617,11 +627,13 @@ namespace mongo {
                 long long n = deleteObjects(ns, pattern, justOne, true);
                 lastError.getSafe()->recordDelete( n );
                 break;
+#if !defined(_WIN32)
             }
             catch ( PageFaultException& e ) {
                 LOG(2) << "recordDelete got a PageFaultException" << endl;
                 e.touch();
             }
+#endif
         }
     }
 
@@ -797,9 +809,13 @@ namespace mongo {
             multi.push_back( d.nextJsObj() );
         }
 
+#if !defined(_WIN32)
         PageFaultRetryableSection s;
+#endif
         while ( true ) {
+#if !defined(_WIN32)
             try {
+#endif
                 Lock::DBWrite lk(ns);
                 
                 // CONCURRENCY TODO: is being read locked in big log sufficient here?
@@ -820,10 +836,12 @@ namespace mongo {
                 checkAndInsert(ns, first);
                 globalOpCounters.incInsertInWriteLock(1);
                 return;
+#if !defined(_WIN32)
             }
             catch ( PageFaultException& e ) {
                 e.touch();
             }
+#endif
         }
     }
 

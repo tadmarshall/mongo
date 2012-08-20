@@ -11,6 +11,7 @@
 
 namespace mongo {
 
+#if !defined(_WIN32)
     RecordStats recordStats;
 
     void RecordStats::record( BSONObjBuilder& b ) {
@@ -411,6 +412,7 @@ namespace mongo {
 
         return this;
     }
+#endif // !defined(_WIN32)
     
     Record* DiskLoc::rec() const {
         Record *r = DataFileMgr::getRecord(*this);
@@ -418,6 +420,7 @@ namespace mongo {
         return r;
     }
 
+#if !defined(_WIN32)
     void Record::_accessing() const {
         if ( likelyInPhysicalMemory() )
             return;
@@ -449,5 +452,6 @@ namespace mongo {
     void DeletedRecord::_accessing() const {
 
     }
+#endif // !defined(_WIN32)
 
 }

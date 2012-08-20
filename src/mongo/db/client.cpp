@@ -128,7 +128,9 @@ namespace mongo {
         _mp(p)
     {
         _hasWrittenThisPass = false;
+#if !defined(_WIN32)
         _pageFaultRetryableSection = 0;
+#endif
         _connectionId = p ? p->connectionId() : 0;
         
         if ( str::equals( "conn" , desc ) && _connectionId > 0 )
@@ -580,6 +582,7 @@ namespace mongo {
         return writers + readers;
     }
 
+#if !defined(_WIN32)
     bool Client::allowedToThrowPageFaultException() const {
         if ( _hasWrittenThisPass )
             return false;
@@ -597,6 +600,7 @@ namespace mongo {
 
         return true;
     }
+#endif // !defined(_WIN32)
 
     void OpDebug::reset() {
         extra.reset();
