@@ -40,10 +40,16 @@ namespace mongo {
         int seconds() const { return (int)(micros() / 1000000); }
 #if 1
         int millis() const {
+            return static_cast<int>(static_cast<double>(now() - _old) * _millisPerCount);
+        }
+#else
+#if 1
+        int millis() const {
             return static_cast<int>((now() - _old) / _countsPerMilliSecond);
         }
 #else
         int millis() const { return (int)(micros() / 1000); }
+#endif
 #endif
         int minutes() const { return seconds() / 60; }
 
@@ -51,6 +57,14 @@ namespace mongo {
         /** Get the time interval and reset at the same time.
          *  @return time in milliseconds.
          */
+#if 1
+        inline int millisReset() {
+            unsigned long long nextNow = now();
+            int delta = static_cast<int>(static_cast<double>(nextNow - _old) * _millisPerCount);
+            _old = nextNow;
+            return delta;
+        }
+#else
         inline int millisReset() {
             unsigned long long nextNow = now();
             unsigned long long deltaMicros =
@@ -59,10 +73,12 @@ namespace mongo {
             _old = nextNow;
             return static_cast<int>(deltaMicros / 1000);
         }
+#endif
 
 #if 1
         inline unsigned long long micros() const {
-            return (now() - _old) / _countsPerMicroSecond;
+            return static_cast<unsigned long long>(static_cast<double>(now() - _old) *
+                                                   _microsPerCount);
         }
 #else
         inline unsigned long long micros() const {
@@ -82,8 +98,9 @@ namespace mongo {
          */
         static unsigned long long _countsPerSecond;
 #if 1
-        static unsigned long long _countsPerMilliSecond;
-        static unsigned long long _countsPerMicroSecond;
+        //static unsigned long long _countsPerMilliSecond;
+        static double _millisPerCount;
+        static double _microsPerCount;
 #endif
 
     private:

@@ -25,8 +25,9 @@ namespace mongo {
 
     unsigned long long Timer::_countsPerSecond;
 #if 1
-    unsigned long long Timer::_countsPerMilliSecond;
-    unsigned long long Timer::_countsPerMicroSecond;
+    //unsigned long long Timer::_countsPerMilliSecond;
+    double Timer::_millisPerCount;
+    double Timer::_microsPerCount;
 #endif
 
     namespace {
@@ -44,8 +45,9 @@ namespace mongo {
             verify(ok);
             Timer::_countsPerSecond = x.QuadPart;
 #if 1
-            Timer::_countsPerMilliSecond = x.QuadPart / Timer::millisPerSecond;
-            Timer::_countsPerMicroSecond = x.QuadPart / Timer::microsPerSecond;
+            //Timer::_countsPerMilliSecond = x.QuadPart / Timer::millisPerSecond;
+            Timer::_millisPerCount = 1000.0 / static_cast<double>(x.QuadPart);
+            Timer::_microsPerCount = 1000000.0 / static_cast<double>(x.QuadPart);
 #endif
         }
 
