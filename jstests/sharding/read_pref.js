@@ -117,7 +117,13 @@ for ( var x = 0; x < NODES - 1; x++ ){
 }
 
 // Wait for ReplicaSetMonitor to realize nodes are down
-ReplSetTest.awaitRSClientHosts( conn, replTest.nodes[0], { ok: false }, replTest.name );
+ReplSetTest.awaitRSClientHosts( conn,
+                                [ replTest.nodes[0],
+                                  replTest.nodes[1],
+                                  replTest.nodes[2],
+                                  replTest.nodes[3] ],
+                                { ok: false },
+                                replTest.name );
 
 // Wait for the last node to be in steady state -> secondary (not recovering)
 var lastNode = replTest.nodes[NODES - 1];
