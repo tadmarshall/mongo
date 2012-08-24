@@ -483,7 +483,7 @@ namespace PerfTests {
 
     unsigned long long aaa;
 
-#if 1
+#if 1 && defined(_WIN32)
     class QueryPerformanceCounter : public B {
     public:
         string name() { return "QueryPerformanceCounter"; }
@@ -491,7 +491,7 @@ namespace PerfTests {
         virtual bool showDurStats() { return false; }
         void timed() {
             LARGE_INTEGER i;
-            fassert(16429, ::QueryPerformanceCounter(&i));
+            fassert(16430, ::QueryPerformanceCounter(&i));
             aaa += i.QuadPart / 3263;
         }
     };
