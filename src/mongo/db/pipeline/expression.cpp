@@ -405,6 +405,8 @@ namespace mongo {
           we can do.
         */
         const size_t n = pAnd->vpOperand.size();
+        // ExpressionNary::optimize() generates an ExpressionConstant for {$and:[]}.
+        verify(n > 0);
         intrusive_ptr<Expression> pLast(pAnd->vpOperand[n - 1]);
         const ExpressionConstant *pConst =
             dynamic_cast<ExpressionConstant *>(pLast.get());
@@ -526,14 +528,24 @@ namespace mongo {
     }
 
     void ExpressionCoerceToBool::addToBsonObj(
-        BSONObjBuilder *pBuilder, const std::string& fieldName,
-        bool requireExpression) const {
-        verify(false && "not possible"); // no equivalent of this
+            BSONObjBuilder *pBuilder, const std::string& fieldName,
+            bool requireExpression) const {
+        // Serializing as an $and expression which will become a CoerceToBool
+        BSONObjBuilder sub (pBuilder->subobjStart(fieldName));
+        BSONArrayBuilder arr (sub.subarrayStart("$and"));
+        pExpression->addToBsonArray(&arr);
+        arr.doneFast();
+        sub.doneFast();
     }
 
     void ExpressionCoerceToBool::addToBsonArray(
-        BSONArrayBuilder *pBuilder) const {
-        verify(false && "not possible"); // no equivalent of this
+            BSONArrayBuilder *pBuilder) const {
+        // Serializing as an $and expression which will become a CoerceToBool
+        BSONObjBuilder sub (pBuilder->subobjStart());
+        BSONArrayBuilder arr (sub.subarrayStart("$and"));
+        pExpression->addToBsonArray(&arr);
+        arr.doneFast();
+        sub.doneFast();
     }
 
     /* ----------------------- ExpressionCompare --------------------------- */
@@ -606,10 +618,10 @@ namespace mongo {
         /*             -1      0      1      reverse          name   */
         /* EQ  */ { { false, true,  false }, Expression::EQ,  "$eq"  },
         /* NE  */ { { true,  false, true },  Expression::NE,  "$ne"  },
-        /* GT  */ { { false, false, true },  Expression::LTE, "$gt"  },
-        /* GTE */ { { false, true,  true },  Expression::LT,  "$gte" },
-        /* LT  */ { { true,  false, false }, Expression::GTE, "$lt"  },
-        /* LTE */ { { true,  true,  false }, Expression::GT,  "$lte" },
+        /* GT  */ { { false, false, true },  Expression::LT,  "$gt"  },
+        /* GTE */ { { false, true,  true },  Expression::LTE, "$gte" },
+        /* LT  */ { { true,  false, false }, Expression::GT,  "$lt"  },
+        /* LTE */ { { true,  true,  false }, Expression::GTE, "$lte" },
         /* CMP */ { { false, false, false }, Expression::CMP, "$cmp" },
     };
 
@@ -981,6 +993,7 @@ namespace mongo {
 
         return intrusive_ptr<Expression>(this);
     }
+
     bool ExpressionObject::isSimple() {
         for (ExpressionMap::iterator it(_expressions.begin()); it!=_expressions.end(); ++it) {
             if (it->second && !it->second->isSimple())
@@ -993,7 +1006,7 @@ namespace mongo {
         string pathStr;
         if (path) {
             if (path->empty()) {
-                // we are in the top-level so _id is implicit
+                // we are in the top level of a projection so _id is implicit
                 if (!_excludeId)
                     deps.insert("_id");
             }
@@ -1003,6 +1016,10 @@ namespace mongo {
                 pathStr += '.';
             }
         }
+        else {
+            verify(!_excludeId);
+        }
+        
 
         for (ExpressionMap::const_iterator it(_expressions.begin()); it!=_expressions.end(); ++it) {
             if (it->second) {
@@ -1040,7 +1057,7 @@ namespace mongo {
 
             // This field is not supposed to be in the output (unless it is _id)
             if (exprIter == end) {
-                if (!_excludeId && atRoot && field.first == "_id") {
+                if (!_excludeId && atRoot && field.first == Document::idName) {
                     // _id from the root doc is always included (until exclusion is supported)
                     // not updating doneFields since "_id" isn't in _expressions
                     pResult->addField(field.first, field.second);
@@ -1120,6 +1137,9 @@ namespace mongo {
                 pResult->addField(field.first,
                                     Value::createArray(result));
             }
+            else {
+                verify( false );
+            }
         }
 
         if (doneFields.size() == _expressions.size())
@@ -1168,7 +1188,10 @@ namespace mongo {
         /* create and populate the result */
         intrusive_ptr<Document> pResult(
             Document::create(getSizeHint()));
-        addToDocument(pResult, Document::create(), pDocument);
+        
+        addToDocument(pResult,
+                      Document::create(), // No inclusion field matching.
+                      pDocument);
         return pResult;
     }
 
@@ -1220,6 +1243,7 @@ namespace mongo {
         }
 
         if (fieldPath.getPathLength() == 1) {
+            verify(!haveExpr); // haveExpr case handled above.
             expr = pExpression;
             return;
         }
@@ -1436,6 +1460,9 @@ namespace mongo {
             return;
         }
 
+        // FIXME Append constant values using the $const operator.  SERVER-6769
+
+        // FIXME This checks pointer equality not value equality.
         if (pRange->pTop.get() == pRange->pBottom.get()) {
             BSONArrayBuilder operands;
             pFieldPath->addToBsonArray(&operands);
@@ -1566,9 +1593,7 @@ namespace mongo {
         pBottom(),
         pTop() {
         switch(cmpOp) {
-        case NE:
-            bottomOpen = topOpen = true;
-            /* FALLTHROUGH */
+
         case EQ:
             pBottom = pTop = pValue;
             break;
@@ -1589,6 +1614,7 @@ namespace mongo {
             pTop = pValue;
             break;
 
+        case NE:
         case CMP:
             verify(false); // not allowed
             break;
@@ -1610,7 +1636,7 @@ namespace mongo {
         pBottom(pTheBottom),
         pTop(pTheTop) {
     }
-        
+
     ExpressionFieldRange::Range *ExpressionFieldRange::Range::intersect(
         const Range *pRange) const {
         /*
@@ -2219,7 +2245,7 @@ namespace mongo {
         /* optimize the disjunction as much as possible */
         intrusive_ptr<Expression> pE(ExpressionNary::optimize());
 
-        /* if the result isn't a conjunction, we can't do anything */
+        /* if the result isn't a disjunction, we can't do anything */
         ExpressionOr *pOr = dynamic_cast<ExpressionOr *>(pE.get());
         if (!pOr)
             return pE;
@@ -2230,6 +2256,8 @@ namespace mongo {
           we can do.
         */
         const size_t n = pOr->vpOperand.size();
+        // ExpressionNary::optimize() generates an ExpressionConstant for {$or:[]}.
+        verify(n > 0);
         intrusive_ptr<Expression> pLast(pOr->vpOperand[n - 1]);
         const ExpressionConstant *pConst =
             dynamic_cast<ExpressionConstant *>(pLast.get());

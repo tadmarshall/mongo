@@ -56,7 +56,8 @@ namespace mongo {
           @param opName the operator name
          */
         void opToBson(
-            BSONObjBuilder *pBuilder, const std::string& fieldName, const std::string& opName) const;
+            BSONObjBuilder *pBuilder, const std::string& fieldName, const std::string& opName,
+            bool requireExpression) const;
     };
 
 
