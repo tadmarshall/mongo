@@ -1076,6 +1076,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClCompile Include="..\util\concurrency\synchronization.cpp" />
     <ClCompile Include="..\util\concurrency\task.cpp" />
     <ClCompile Include="..\util\concurrency\thread_pool.cpp" />
+    <ClCompile Include="..\util\counter_framework.cpp" />
     <ClCompile Include="..\util\debug_util.cpp" />
     <ClCompile Include="..\util\file_allocator.cpp" />
     <ClCompile Include="..\util\histogram.cpp" />
@@ -1242,6 +1243,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClInclude Include="..\s\d_writeback.h" />
     <ClInclude Include="..\util\concurrency\mutexdebugger.h" />
     <ClInclude Include="..\util\concurrency\simplerwlock.h" />
+    <ClInclude Include="..\util\counter_framework.h" />
     <ClInclude Include="..\util\histogram.h" />
     <ClInclude Include="..\util\progress_meter.h" />
     <ClInclude Include="..\util\signal_handlers.h" />

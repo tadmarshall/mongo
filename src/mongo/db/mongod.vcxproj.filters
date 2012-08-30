@@ -914,6 +914,9 @@
     <ClCompile Include="pipeline\pipeline_d.cpp">
       <Filter>db\pipeline\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\counter_framework.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />
@@ -1664,6 +1667,9 @@
     </ClInclude>
     <ClInclude Include="pipeline\pipeline_d.h">
       <Filter>db\pipeline\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\counter_framework.h">
+      <Filter>util\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
