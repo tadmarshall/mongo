@@ -330,23 +330,26 @@ namespace mongo {
         GeoHash _hash( const BSONObj& o, const BSONObj* src ) const {
             BSONObjIterator i(o);
             uassert( 13067 , 
-                    str::stream() << "geo field is empty\n" 
+                    str::stream() << "geo field is empty" 
                     << ( src ? (*src).toString() : "" ) , 
                     i.more() );
             BSONElement x = i.next();
             uassert( 13068 , 
-                    str::stream() << "geo field only has 1 element\n" 
+                    str::stream() << "geo field only has 1 element" 
                     << ( src ? (*src).toString() : "" ) , 
                     i.more() );
             BSONElement y = i.next();
             uassert( 13026 , 
-                    str::stream() << "geo values have to be numbers\n" 
+                    str::stream() << "geo values have to be numbers" 
                     << ( src ? (*src).toString() : "" ) , 
                     x.isNumber() && y.isNumber() );
             uassert( 13027 , 
-                    str::stream() << "point not in interval of [ " << _min << ", " << _max << " ]\n" 
-                    << ( src ? (*src).toString() : "" ), 
-                    x.number() <= _max && x.number() >= _min && y.number() <= _max && y.number() >= _min ); 
+                     str::stream() << "point ( "
+                                   << x.number() << ", " << y.number()
+                                   << " ) not in interval of [ "
+                                   << _min << ", " << _max << " ]" 
+                                   << ( src ? (*src).toString() : "" ), 
+                     x.number() <= _max && x.number() >= _min && y.number() <= _max && y.number() >= _min ); 
             return hash( x.number(), y.number() );
         }
 
