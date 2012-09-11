@@ -1,0 +1,223 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F23865DB-8CA3-46F1-9C4B-BF74BDFDA4BD}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>mongoimport</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)$(Platform)\$(Configuration)\</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;HAVE_CONFIG_H;MONGO_EXPOSE_MACROS;BOOST_ALL_NO_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..;..\..\..;..\..\..\third_party\pcre-8.30;..\..\..\third_party\boost</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4800;4996</DisableSpecificWarnings>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>ws2_32.lib;DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;HAVE_CONFIG_H;MONGO_EXPOSE_MACROS;BOOST_ALL_NO_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..;..\..\..;..\..\..\third_party\pcre-8.30;..\..\..\third_party\boost</AdditionalIncludeDirectories>
+      <DisableSpecificWarnings>4800;4996</DisableSpecificWarnings>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>ws2_32.lib;DbgHelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\codecvt_error_category.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\operations.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\path.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\path_traits.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\portability.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\unique_path.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\utf8_codecvt_facet.cpp">
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)filesystem_utf8_codecvt_facet.obj</ObjectFileName>
+      <ObjectFileName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)filesystem_utf8_codecvt_facet.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\windows_file_codecvt.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\cmdline.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\config_file.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\convert.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\options_description.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\parsers.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\positional_options.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\split.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\utf8_codecvt_facet.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\value_semantic.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\variables_map.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\winmain.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\system\src\error_code.cpp" />
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\thread.cpp">
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">WIN32;_DEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">WIN32;NDEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\tss_dll.cpp">
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">WIN32;_DEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">WIN32;NDEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\tss_pe.cpp">
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">WIN32;_DEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">WIN32;NDEBUG;_CONSOLE;BOOST_ALL_NO_LIB;BOOST_THREAD_BUILD_LIB;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcrecpp.cc" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcreposix.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_chartables.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_compile.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_config.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_dfa_exec.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_exec.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_fullinfo.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_get.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_globals.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_maketables.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_newline.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ord2utf8.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_refcount.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_scanner.cc" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_stringpiece.cc" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_study.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_tables.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ucd.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_valid_utf8.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_version.c" />
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_xclass.c" />
+    <ClCompile Include="..\..\bson\oid.cpp" />
+    <ClCompile Include="..\..\client\authentication_table.cpp" />
+    <ClCompile Include="..\..\client\dbclient.cpp" />
+    <ClCompile Include="..\..\client\dbclientcursor.cpp" />
+    <ClCompile Include="..\..\client\dbclient_rs.cpp" />
+    <ClCompile Include="..\..\client\syncclusterconnection.cpp" />
+    <ClCompile Include="..\..\db\client.cpp" />
+    <ClCompile Include="..\..\db\curop.cpp" />
+    <ClCompile Include="..\..\db\dbmessage.cpp" />
+    <ClCompile Include="..\..\db\instance.cpp" />
+    <ClCompile Include="..\..\db\jsobj.cpp" />
+    <ClCompile Include="..\..\db\json.cpp" />
+    <ClCompile Include="..\..\db\matcher.cpp" />
+    <ClCompile Include="..\..\db\nonce.cpp" />
+    <ClCompile Include="..\..\db\queryutil.cpp" />
+    <ClCompile Include="..\..\scripting\engine.cpp" />
+    <ClCompile Include="..\..\util\assert_util.cpp" />
+    <ClCompile Include="..\..\util\base64.cpp" />
+    <ClCompile Include="..\..\util\concurrency\mutexdebugger.cpp" />
+    <ClCompile Include="..\..\util\log.cpp" />
+    <ClCompile Include="..\..\util\md5.cpp" />
+    <ClCompile Include="..\..\util\net\message.cpp" />
+    <ClCompile Include="..\..\util\net\message_port.cpp" />
+    <ClCompile Include="..\..\util\net\sock.cpp" />
+    <ClCompile Include="..\..\util\progress_meter.cpp" />
+    <ClCompile Include="..\..\util\signal_handlers.cpp" />
+    <ClCompile Include="..\..\util\stacktrace.cpp" />
+    <ClCompile Include="..\..\util\startup_test.cpp" />
+    <ClCompile Include="..\..\util\stringutils.cpp" />
+    <ClCompile Include="..\..\util\text.cpp" />
+    <ClCompile Include="..\..\util\time_support.cpp" />
+    <ClCompile Include="..\..\util\util.cpp" />
+    <ClCompile Include="..\import.cpp" />
+    <ClCompile Include="..\tool.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\third_party\boost\libs\filesystem\v3\src\windows_file_codecvt.hpp" />
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\config.h" />
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre.h" />
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcrecpp.h" />
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcreposix.h" />
+    <ClInclude Include="..\..\bson\oid.h" />
+    <ClInclude Include="..\..\client\authentication_table.h" />
+    <ClInclude Include="..\..\client\dbclient.h" />
+    <ClInclude Include="..\..\client\dbclientcursor.h" />
+    <ClInclude Include="..\..\client\dbclient_rs.h" />
+    <ClInclude Include="..\..\client\syncclusterconnection.h" />
+    <ClInclude Include="..\..\db\client.h" />
+    <ClInclude Include="..\..\db\curop.h" />
+    <ClInclude Include="..\..\db\dbmessage.h" />
+    <ClInclude Include="..\..\db\instance.h" />
+    <ClInclude Include="..\..\db\jsobj.h" />
+    <ClInclude Include="..\..\db\json.h" />
+    <ClInclude Include="..\..\db\matcher.h" />
+    <ClInclude Include="..\..\db\nonce.h" />
+    <ClInclude Include="..\..\db\queryutil.h" />
+    <ClInclude Include="..\..\scripting\engine.h" />
+    <ClInclude Include="..\..\util\assert_util.h" />
+    <ClInclude Include="..\..\util\base64.h" />
+    <ClInclude Include="..\..\util\concurrency\mutexdebugger.h" />
+    <ClInclude Include="..\..\util\log.h" />
+    <ClInclude Include="..\..\util\md5.h" />
+    <ClInclude Include="..\..\util\net\message.h" />
+    <ClInclude Include="..\..\util\net\message_port.h" />
+    <ClInclude Include="..\..\util\net\sock.h" />
+    <ClInclude Include="..\..\util\progress_meter.h" />
+    <ClInclude Include="..\..\util\signal_handlers.h" />
+    <ClInclude Include="..\..\util\stacktrace.h" />
+    <ClInclude Include="..\..\util\startup_test.h" />
+    <ClInclude Include="..\..\util\stringutils.h" />
+    <ClInclude Include="..\..\util\text.h" />
+    <ClInclude Include="..\..\util\time_support.h" />
+    <ClInclude Include="..\tool.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

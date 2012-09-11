@@ -1,0 +1,396 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Boost">
+      <UniqueIdentifier>{4ace83ac-965e-444f-a554-0cb43b7aa91a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{b551b3f2-fc96-485f-a46c-4290e52df2ee}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="db">
+      <UniqueIdentifier>{9c0043d2-3447-4514-81be-66771b021dca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bson">
+      <UniqueIdentifier>{fe5f2e30-eabc-41d0-bc18-82c51fe3bc8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="pcre">
+      <UniqueIdentifier>{e802345d-294e-4d3b-bf5a-74807b95f444}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="scripting">
+      <UniqueIdentifier>{6ab690d1-81bc-465b-8709-a814eeba91ac}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="client">
+      <UniqueIdentifier>{d6bc5a73-7f58-43c6-a5f4-32f370cb6b33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\concurrency">
+      <UniqueIdentifier>{1f4dd809-cbe4-4760-a8fe-e85339c7646e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\net">
+      <UniqueIdentifier>{30bb48a1-691c-45dc-a7e8-ccfbbee0677f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\import.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\cmdline.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\config_file.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\convert.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\options_description.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\parsers.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\positional_options.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\split.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\utf8_codecvt_facet.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\value_semantic.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\variables_map.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\program_options\src\winmain.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\codecvt_error_category.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\operations.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\path.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\path_traits.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\portability.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\unique_path.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\utf8_codecvt_facet.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\filesystem\v3\src\windows_file_codecvt.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\system\src\error_code.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\tool.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\progress_meter.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\log.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\assert_util.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\stacktrace.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\text.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\matcher.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\jsobj.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\stringutils.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\md5.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\base64.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\bson\oid.cpp">
+      <Filter>bson</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\nonce.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\signal_handlers.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\json.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\thread.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\tss_dll.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\boost\libs\thread\src\win32\tss_pe.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\time_support.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_chartables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_compile.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_config.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_dfa_exec.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_exec.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_fullinfo.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_get.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_globals.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_maketables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_newline.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ord2utf8.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_refcount.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_scanner.cc">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_stringpiece.cc">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_study.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_tables.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_ucd.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_valid_utf8.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_version.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcre_xclass.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcrecpp.cc">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\third_party\pcre-8.30\pcreposix.c">
+      <Filter>pcre</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\startup_test.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\queryutil.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\scripting\engine.cpp">
+      <Filter>scripting</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\client.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\curop.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\dbclient.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\dbclient_rs.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\concurrency\mutexdebugger.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\syncclusterconnection.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\authentication_table.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\client\dbclientcursor.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\message_port.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\dbmessage.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\sock.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\util.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\util\net\message.cpp">
+      <Filter>util\net</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\db\instance.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\third_party\boost\libs\filesystem\v3\src\windows_file_codecvt.hpp">
+      <Filter>Boost</Filter>
+    </ClInclude>
+    <ClInclude Include="..\tool.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\progress_meter.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\log.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\assert_util.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\stacktrace.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\text.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\matcher.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\jsobj.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\stringutils.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\md5.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\base64.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\bson\oid.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\nonce.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\signal_handlers.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\json.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\time_support.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\config.h">
+      <Filter>pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcre.h">
+      <Filter>pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcrecpp.h">
+      <Filter>pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\third_party\pcre-8.30\pcreposix.h">
+      <Filter>pcre</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\startup_test.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\queryutil.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\scripting\engine.h">
+      <Filter>scripting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\client.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\curop.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\dbclient.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\dbclient_rs.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\concurrency\mutexdebugger.h">
+      <Filter>util\concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\syncclusterconnection.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\authentication_table.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\client\dbclientcursor.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\net\message_port.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\dbmessage.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\net\sock.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\util\net\message.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\db\instance.h">
+      <Filter>db</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
