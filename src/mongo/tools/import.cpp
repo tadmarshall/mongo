@@ -477,6 +477,6 @@ public:
 
 int main( int argc , char ** argv ) {
     Import import;
-    return import.main( argc , argv );
+    ::_exit( import.main( argc , argv ) );
 }
 const int Import::BUF_SIZE(1024 * 1024 * 16);
