@@ -659,8 +659,11 @@ namespace mongo {
     }
 
     DiskLoc Extent::_reuse(const char *nsname, bool capped) {
-        LOG(3) << "reset extent was:" << nsDiagnostic.toString() << " now:" << nsname << '\n';
-        massert( 10360 ,  "Extent::reset bad magic value", magic == 0x41424344 );
+        LOG(3) << "_reuse extent was:" << nsDiagnostic.toString() << " now:" << nsname << endl;
+        massert( 10360, 
+                 str::stream() << "bad extent signature " << toHex(&magic, 4)
+                               << " found in Extent::_reuse",
+                 magic == extentSignature );
         nsDiagnostic = nsname;
         markEmpty();
 
@@ -680,7 +683,7 @@ namespace mongo {
 
     /* assumes already zeroed -- insufficient for block 'reuse' perhaps */
     DiskLoc Extent::init(const char *nsname, int _length, int _fileNo, int _offset, bool capped) {
-        magic = 0x41424344;
+        magic = extentSignature;
         myLoc.set(_fileNo, _offset);
         xnext.Null();
         xprev.Null();
@@ -699,6 +702,53 @@ namespace mongo {
 
         return emptyLoc;
     }
+
+        bool Extent::validates(BSONArrayBuilder* errors) {
+            bool extentOk = true;
+            if (magic != extentSignature) {
+                if (errors) {
+                    StringBuilder sb;
+                    sb << "bad extent signature " << toHex(&magic, 4)
+                       << " in extent " << myLoc.toString();
+                    *errors << sb.str();
+                }
+                extentOk = false;
+            }
+            if (myLoc.isNull()) {
+                if (errors) {
+                    *errors << "extent's self-pointer is null";
+                }
+                extentOk = false;
+            }
+            if (firstRecord.isNull() != lastRecord.isNull()) {
+                if (errors) {
+                    StringBuilder sb;
+                    if (firstRecord.isNull()) {
+                        sb << "in extent " << myLoc.toString()
+                           << ", firstRecord is null but lastRecord is "
+                           << lastRecord.toString();
+                    }
+                    else {
+                        sb << "in extent " << myLoc.toString()
+                           << ", firstRecord is " << firstRecord.toString()
+                           << " but lastRecord is null";
+                    }
+                    *errors << sb.str();
+                }
+                extentOk = false;
+            }
+            if (length < minSize()) {
+                if (errors) {
+                    StringBuilder sb;
+                    sb << "length of extent " << myLoc.toString()
+                       << " is " << length
+                       << ", which is less than minimum length of " << minSize();
+                    *errors << sb.str();
+                }
+                extentOk = false;
+            }
+            return extentOk;
+        }
 
     /*
       Record* Extent::newRecord(int len) {
