@@ -1767,6 +1767,9 @@
     <ClInclude Include="..\platform\unordered_set.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="..\util\concurrency\shared_mutex_win.hpp">
+      <Filter>util\concurrency</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="mongo.ico">

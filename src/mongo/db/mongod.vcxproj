@@ -1274,6 +1274,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClInclude Include="..\s\chunk.h" />
     <ClInclude Include="..\s\d_writeback.h" />
     <ClInclude Include="..\util\concurrency\mutexdebugger.h" />
+    <ClInclude Include="..\util\concurrency\shared_mutex_win.hpp" />
     <ClInclude Include="..\util\concurrency\simplerwlock.h" />
     <ClInclude Include="..\util\histogram.h" />
     <ClInclude Include="..\util\progress_meter.h" />
