@@ -194,55 +194,97 @@ namespace mongo {
             
             BSONArrayBuilder extentData;
 
+            int ne = 0;
             try {
                 d->firstExtent.ext()->assertOk();
                 d->lastExtent.ext()->assertOk();
 
                 DiskLoc el = d->firstExtent;
-                int ne = 0;
                 while( !el.isNull() ) {
                     Extent *e = el.ext();
-                    e->assertOk();
                     if ( full )
                         extentData << e->dump();
                     if (!e->validates(el, &errors)) {
                         valid = false;
                     }
-                    el = e->xnext;
+                    DiskLoc next = e->xnext;
+                    if (ne > 0 && !next.isNull() && next.ext()->xprev != el) {
+                        StringBuilder sb;
+                        sb << "'xprev' pointer " << next.ext()->xprev.toString()
+                           << " in extent " << next.toString()
+                           << " does not point to extent " << el.toString();
+                        errors << sb.str();
+                        valid = false;
+                    }
+                    if (next.isNull() && el != d->lastExtent) {
+                        StringBuilder sb;
+                        sb << "'lastExtent' pointer " << d->lastExtent.toString()
+                           << " does not point to last extent in list " << el.toString();
+                        errors << sb.str();
+                        valid = false;
+                    }
+                    el = next;
                     ne++;
                     killCurrentOp.checkForInterrupt();
                 }
-                result.append("extentCount", ne);
             }
             catch (...) {
-                valid=false;
-                errors << "extent asserted";
+                StringBuilder sb;
+                sb << "exception validating extent " << ne;
+                errors << sb.str();
+                valid = false;
             }
+            result.append("extentCount", ne);
 
             if ( full )
                 result.appendArray( "extents" , extentData.arr() );
 
-            
             result.appendNumber("datasize", d->stats.datasize);
             result.appendNumber("nrecords", d->stats.nrecords);
             result.appendNumber("lastExtentSize", d->lastExtentSize);
             result.appendNumber("padding", d->paddingFactor());
-            
 
             try {
 
+                bool testingLastExtent = false;
                 try {
-                    result.append("firstExtentDetails", d->firstExtent.ext()->dump());
-                    if (!d->firstExtent.ext()->xprev.isNull()) {
-                        StringBuilder sb;
-                        sb << "'xprev' pointer in first extent " << d->firstExtent.toString()
-                           << " is not null";
-                        errors << sb.str();
+                    if (d->firstExtent.isNull()) {
+                        errors << "'firstExtent' pointer is null";
                         valid=false;
+                    }
+                    else {
+                        result.append("firstExtentDetails", d->firstExtent.ext()->dump());
+                        if (!d->firstExtent.ext()->xprev.isNull()) {
+                            StringBuilder sb;
+                            sb << "'xprev' pointer in 'firstExtent' " << d->firstExtent.toString()
+                               << " is " << d->firstExtent.ext()->xprev.toString()
+                               << ", should be null";
+                            errors << sb.str();
+                            valid=false;
+                        }
+                    }
+                    if (d->lastExtent.isNull()) {
+                        errors << "'lastExtent' pointer is null";
+                        valid=false;
+                    }
+                    else {
+                        if (d->firstExtent != d->lastExtent) {
+                            testingLastExtent = true;
+                            result.append("lastExtentDetails", d->lastExtent.ext()->dump());
+                            if (!d->lastExtent.ext()->xnext.isNull()) {
+                                StringBuilder sb;
+                                sb << "'xnext' pointer in 'lastExtent' " << d->lastExtent.toString()
+                                   << " is " << d->lastExtent.ext()->xnext.toString()
+                                   << ", should be null";
+                                errors << sb.str();
+                                valid = false;
+                            }
+                        }
                     }
                 }
                 catch (...) {
-                    errors << "exception firstextent";
+                    errors << (testingLastExtent ? "exception processing 'lastExtent'"
+                                                 : "exception processing 'firstExtent'" );
                     valid = false;
                 }
 
