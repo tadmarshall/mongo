@@ -18,7 +18,7 @@
 #pragma once
 
 #include <cstdlib>
-#include <inttypes.h>
+#include <cstdint>
 
 namespace mongo {
     
