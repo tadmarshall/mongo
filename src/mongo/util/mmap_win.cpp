@@ -341,6 +341,16 @@ namespace mongo {
 
             scoped_lock lk(*_flushMutex);
 
+#define WRITE_PROTECT_DURING_FLUSH 1
+#ifdef WRITE_PROTECT_DURING_FLUSH
+            MEMORY_BASIC_INFORMATION mbi;
+            VirtualQuery( _view, &mbi, sizeof(mbi) );
+            fassert( 16449, VirtualProtect( mbi.BaseAddress,
+                                            mbi.RegionSize,
+                                            PAGE_READONLY,
+                                            &mbi.Protect ) );
+#endif
+
             int loopCount = 0;
             bool success = false;
             bool timeout = false;
@@ -379,6 +389,13 @@ namespace mongo {
                 int err = GetLastError();
                 out() << "FlushFileBuffers failed " << err << " file: " << _filename << endl;
             }
+#ifdef WRITE_PROTECT_DURING_FLUSH
+            DWORD unused;
+            fassert( 16450, VirtualProtect( mbi.BaseAddress,
+                                            mbi.RegionSize,
+                                            mbi.Protect,
+                                            &unused ) );
+#endif
         }
 
         void * _view;
