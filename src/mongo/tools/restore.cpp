@@ -250,10 +250,34 @@ public:
         }
         else {
             string dir = root.branch_path().string();
+#ifdef _WIN32
+            // we want to find the last "/" or "\\", if any
+            size_t position = dir.find( "/" );
+            if (position == string::npos) {
+                position = dir.find( "\\" );
+            }
+            if (position == string::npos) {
+                ns += dir;
+            }
+            else {
+                position = dir.find_last_of( "/" );
+                size_t position2 = dir.find_last_of( "\\" );
+                if (position == string::npos) {
+                    position = position2;
+                }
+                else {
+                    if (position2 != string::npos && position2 > position) {
+                        position = position2;
+                    }
+                }
+            }
+            ns += dir.substr( position + 1 );
+#else
             if ( dir.find( "/" ) == string::npos )
                 ns += dir;
             else
                 ns += dir.substr( dir.find_last_of( "/" ) + 1 );
+#endif
 
             if ( ns.size() == 0 )
                 ns = "test";
