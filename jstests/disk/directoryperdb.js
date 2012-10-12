@@ -1,7 +1,10 @@
 var baseDir = "jstests_disk_directoryper";
 var baseName = "directoryperdb"
 port = allocatePorts( 1 )[ 0 ];
-dbpath = "/data/db/" + baseDir + "/";
+var directorySeparator = _isWindows() ? "\\" : "/";
+dbpath = directorySeparator + "data" +
+         directorySeparator + "db" +
+         directorySeparator + baseDir + directorySeparator;
 
 var m = startMongodTest(port, baseDir, false, {directoryperdb : "", nohttpinterface : "", bind_ip : "127.0.0.1"});
 db = m.getDB( baseName );
@@ -24,7 +27,8 @@ checkDir = function( dir ) {
     for( f in files ) {
         if ( files[f].isDirectory )
             continue;
-        assert( new RegExp( baseName + "/" + baseName + "." ).test( files[ f ].name ) , "B dir:" + dir + " f: " + f );
+        var baseNameSlashBaseNameDot = baseName + directorySeparator + baseName + ".";
+        assert(files[f].name.indexOf(baseNameSlashBaseNameDot) != -1, "B dir:" + dir + " f: " + f);
     }
 }
 checkDir( dbpath );
@@ -37,8 +41,8 @@ db.runCommand( {repairDatabase:1, backupOriginalFiles:true} );
 checkDir( dbpath );
 files = listFiles( dbpath );
 for( f in files ) {
-    if ( new RegExp( "^" + dbpath + "backup_" ).test( files[ f ].name ) ) {
-        backupDir = files[ f ].name + "/";
+    if (files[f].name.indexOf(dbpath + "backup_") == 0) {
+        backupDir = files[ f ].name + directorySeparator;
     }
 }
 checkDir( backupDir );
@@ -47,7 +51,10 @@ assert.eq( 1, db[ baseName ].count() , "C" );
 // tool test
 stopMongod( port );
 
-externalPath = "/data/db/" + baseDir + "_external/";
+externalPath = directorySeparator + "data" +
+               directorySeparator + "db" +
+               directorySeparator + baseDir +
+               "_external" + directorySeparator;
 
 runMongoProgram( "mongodump", "--dbpath", dbpath, "--directoryperdb", "--out", externalPath );
 resetDbpath( dbpath );
