@@ -1124,7 +1124,8 @@ namespace mongo {
                 {
                     BSONObj res;
                     scoped_ptr<ScopedDbConnection> connTo(
-                            ScopedDbConnection::getScopedDbConnection( toShard.getConnString() ) );
+                            ScopedDbConnection::getScopedDbConnection( toShard.getConnString(),
+                                                                       10.0 ) );
 
                     bool ok;
 
@@ -1272,7 +1273,8 @@ namespace mongo {
                 try {
                     scoped_ptr<ScopedDbConnection> conn(
                             ScopedDbConnection::getInternalScopedDbConnection(
-                                    shardingState.getConfigServer() ) );
+                                    shardingState.getConfigServer(),
+                                    10.0 ) );
                     ok = conn->get()->runCommand( "config" , cmd , cmdResult );
                     conn->done();
                 }
@@ -1299,7 +1301,8 @@ namespace mongo {
                     try {
                         scoped_ptr<ScopedDbConnection> conn(
                                 ScopedDbConnection::getInternalScopedDbConnection(
-                                        shardingState.getConfigServer() ) );
+                                        shardingState.getConfigServer(),
+                                        10.0 ) );
 
                         // look for the chunk in this shard whose version got bumped
                         // we assume that if that mod made it to the config, the applyOps was successful
