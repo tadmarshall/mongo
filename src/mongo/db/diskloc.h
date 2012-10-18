@@ -22,15 +22,16 @@
 
 #pragma once
 
-#include "jsobj.h"
+#include <sstream>
+#include <string>
+
+#include "mongo/db/jsobj.h"
 
 namespace mongo {
 
     class Record;
     class DeletedRecord;
     class Extent;
-    class MongoDataFile;
-    class DiskLoc;
 
     template< class Version > class BtreeBucket;
 
@@ -76,11 +77,11 @@ namespace mongo {
         }
         bool isValid() const { return _a != -2; }
 
-        string toString() const {
-            if ( isNull() )
+        std::string toString() const {
+            if (isNull())
                 return "null";
-            stringstream ss;
-            ss << hex << _a << ':' << ofs;
+            std::stringstream ss;
+            ss << _a << ':' << std::hex << ofs;
             return ss.str();
         }
 
@@ -149,8 +150,6 @@ namespace mongo {
         // Explicitly signals we are writing and casts away const
         template< class V >
         BtreeBucket<V> * btreemod() const;
-
-        /*MongoDataFile& pdf() const;*/
     };
 #pragma pack()
 
