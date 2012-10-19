@@ -1122,6 +1122,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClCompile Include="btreebuilder.cpp" />
     <ClCompile Include="cap.cpp" />
     <ClCompile Include="commands\distinct.cpp" />
+    <ClCompile Include="commands\storage_details.cpp" />
     <ClCompile Include="fail_point_service.cpp" />
     <ClCompile Include="initialize_server_global_state.cpp" />
     <ClCompile Include="keypattern.cpp" />
