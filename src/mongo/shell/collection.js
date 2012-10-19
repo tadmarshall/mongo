@@ -60,6 +60,7 @@ DBCollection.prototype.help = function () {
     print("\tdb." + shortName + ".save(obj)");
     print("\tdb." + shortName + ".stats()");
     print("\tdb." + shortName + ".storageSize() - includes free space allocated to this collection");
+    print("\tdb." + shortName + ".storageDetails({analyze: 'diskStorage' | 'memInCore', [extent: <num>], granularity: <bytes>}) - diskStorage: analyze record layout; memInCore: analyze resident memory pages");
     print("\tdb." + shortName + ".totalIndexSize() - size in bytes of all the indexes");
     print("\tdb." + shortName + ".totalSize() - storage allocated for all data and indexes");
     print("\tdb." + shortName + ".update(query, object[, upsert_bool, multi_bool]) - instead of two flags, you can pass an object with fields: upsert, multi");
@@ -424,6 +425,16 @@ DBCollection.prototype.validate = function(full) {
     }
 
     return res;
+}
+
+DBCollection.prototype.storageDetails = function(opt) {
+    var cmd = { storageDetails: this.getName() };
+
+    if (typeof(opt) == 'object') // support arbitrary options here
+        Object.extend(cmd, opt);
+
+    var result = this._db.runCommand(cmd);
+    return result;
 }
 
 DBCollection.prototype.getShardVersion = function(){
