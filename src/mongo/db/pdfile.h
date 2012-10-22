@@ -100,8 +100,7 @@ namespace mongo {
 
         Extent* getExtent(DiskLoc loc) const;
         Extent* _getExtent(DiskLoc loc) const;
-        Record* recordAt(DiskLoc dl);
-        Record* makeRecord(DiskLoc dl, int size);
+        Record* recordAt(DiskLoc dl) const;
         void grow(DiskLoc dl, int size);
 
         char* p() const { return (char *) _mb; }
@@ -152,7 +151,7 @@ namespace mongo {
 
         static Extent* getExtent(const DiskLoc& dl);
         static Record* getRecord(const DiskLoc& dl);
-        static DeletedRecord* makeDeletedRecord(const DiskLoc& dl, int len);
+        static DeletedRecord* makeDeletedRecord(const DiskLoc& dl);
 
         void deleteRecord(const char *ns, Record *todelete, const DiskLoc& dl, bool cappedOK = false, bool noWarn = false, bool logOp=false);
 
@@ -492,16 +491,12 @@ namespace mongo {
 
 namespace mongo {
 
-    inline Record* MongoDataFile::recordAt(DiskLoc dl) {
+    inline Record* MongoDataFile::recordAt(DiskLoc dl) const {
         int ofs = dl.getOfs();
-        if( ofs < DataFileHeader::HeaderSize ) badOfs(ofs); // will uassert - external call to keep out of the normal code path
-        return (Record*) (p()+ofs);
-    }
-
-    inline Record* MongoDataFile::makeRecord(DiskLoc dl, int size) {
-        int ofs = dl.getOfs();
-        if( ofs < DataFileHeader::HeaderSize ) badOfs(ofs); // will uassert - external call to keep out of the normal code path
-        return (Record*) (p()+ofs);
+        if (ofs < DataFileHeader::HeaderSize) {
+            badOfs(ofs); // will uassert - external call to keep out of the normal code path
+        }
+        return reinterpret_cast<Record*>(p() + ofs);
     }
 
     inline DiskLoc Record::getNext(const DiskLoc& myLoc) {
@@ -606,9 +601,9 @@ namespace mongo {
 
     BOOST_STATIC_ASSERT( 16 == sizeof(DeletedRecord) );
 
-    inline DeletedRecord* DataFileMgr::makeDeletedRecord(const DiskLoc& dl, int len) {
-        verify( dl.a() != -1 );
-        return (DeletedRecord*) cc().database()->getFile(dl.a())->makeRecord(dl, sizeof(DeletedRecord));
+    inline DeletedRecord* DataFileMgr::makeDeletedRecord(const DiskLoc& dl) {
+        verify(dl.a() != -1);
+        return reinterpret_cast<DeletedRecord*>(cc().database()->getFile(dl.a())->recordAt(dl));
     }
 
     void ensureHaveIdIndex(const char *ns);
