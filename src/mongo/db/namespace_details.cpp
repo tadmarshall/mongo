@@ -263,54 +263,37 @@ namespace mongo {
 
     /** allocate space for a new record from deleted lists.
         @param lenToAlloc is WITH header
-        @param extentLoc OUT returns the extent location
         @return null diskloc if no room - allocate a new extent then
     */
-    DiskLoc NamespaceDetails::alloc(const char *ns, int lenToAlloc, DiskLoc& extentLoc) {
-        {
-            // align very slightly.  
-            // note that if doing more coarse-grained quantization (really just if it isn't always
-            //   a constant amount but if it varied by record size) then that quantization should 
-            //   NOT be done here but rather in __stdAlloc so that we can grab a deletedrecord that 
-            //   is just big enough if we happen to run into one.
-            lenToAlloc = (lenToAlloc + 3) & 0xfffffffc;
+    DiskLoc NamespaceDetails::alloc(const char* ns, int lenToAlloc) {
+        // round up to 4 byte granularity to preserve alignment
+        lenToAlloc = (lenToAlloc + 3) & ~3;
+        DiskLoc loc = _alloc(ns, lenToAlloc);
+        if (loc.isNull()) {
+            return loc;
         }
 
-        DiskLoc loc = _alloc(ns, lenToAlloc);
-        if ( loc.isNull() )
-            return loc;
-
-        DeletedRecord *r = loc.drec();
-        //r = getDur().writing(r);
-
-        /* note we want to grab from the front so our next pointers on disk tend
-        to go in a forward direction which is important for performance. */
-        int regionlen = r->lengthWithHeaders();
-        extentLoc.set(loc.a(), r->extentOfs());
-        verify( r->extentOfs() < loc.getOfs() );
-
-        DEBUGGING out() << "TEMP: alloc() returns " << loc.toString() << ' ' << ns << " lentoalloc:" << lenToAlloc << " ext:" << extentLoc.toString() << endl;
-
-        int left = regionlen - lenToAlloc;
-        if ( ! isCapped() ) {
-            if ( left < 24 || left < (lenToAlloc >> 3) ) {
-                // you get the whole thing.
-                return loc;
+        DeletedRecord* record = loc.drec();
+        verify(loc.getOfs() >= record->extentOfs() + Extent::HeaderSize());
+        int remainingSpace = record->lengthWithHeaders() - lenToAlloc;
+        if (!isCapped()) {
+            // we'd like to avoid creating deleted records that are too small to be usable, so if
+            // the remaining space is small or small relative to the record we'll just use the
+            // entire deleted record as our allocated record.  these constants are arbitrary.
+            if (remainingSpace < Record::HeaderSize + 32 || remainingSpace < lenToAlloc / 8) {
+                return loc;     // use entire record
             }
         }
 
-        /* split off some for further use. */
-        getDur().writingInt(r->lengthWithHeaders()) = lenToAlloc;
+        // create a deleted record from unused space
+        getDur().writingInt(record->lengthWithHeaders()) = lenToAlloc;
         DiskLoc newDelLoc = loc;
         newDelLoc.inc(lenToAlloc);
-        DeletedRecord* newDel = DataFileMgr::getDeletedRecord(newDelLoc);
-        DeletedRecord* newDelW = getDur().writing(newDel);
-        newDelW->extentOfs() = r->extentOfs();
-        newDelW->lengthWithHeaders() = left;
-        newDelW->nextDeleted().Null();
-
+        DeletedRecord* newDel = getDur().writing(DataFileMgr::getDeletedRecord(newDelLoc));
+        newDel->lengthWithHeaders() = remainingSpace;
+        newDel->extentOfs() = record->extentOfs();
+        newDel->nextDeleted().Null();
         addDeletedRec(newDel, newDelLoc);
-
         return loc;
     }
 
