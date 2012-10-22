@@ -266,28 +266,32 @@ namespace mongo {
         @return null diskloc if no room - allocate a new extent then
     */
     DiskLoc NamespaceDetails::alloc(const char* ns, int lenToAlloc) {
+        // round up to 4 byte granularity to preserve alignment
         lenToAlloc = (lenToAlloc + 3) & ~3;
         DiskLoc loc = _alloc(ns, lenToAlloc);
         if (loc.isNull()) {
             return loc;
         }
 
-        DeletedRecord* r = loc.drec();
-        verify(loc.getOfs() >= r->extentOfs() + Extent::HeaderSize());
-        int remainingSpace = r->lengthWithHeaders() - lenToAlloc;
+        DeletedRecord* record = loc.drec();
+        verify(loc.getOfs() >= record->extentOfs() + Extent::HeaderSize());
+        int remainingSpace = record->lengthWithHeaders() - lenToAlloc;
         if (!isCapped()) {
-            if (remainingSpace < sizeof(DeletedRecord) + 32 || remainingSpace < lenToAlloc / 8) {
+            // we'd like to avoid creating deleted records that are too small to be usable, so if
+            // the remaining space is small or small relative to the record we'll just use the
+            // entire deleted record as our allocated record.  these constants are arbitrary.
+            if (remainingSpace < Record::HeaderSize + 32 || remainingSpace < lenToAlloc / 8) {
                 return loc;     // use entire record
             }
         }
 
         // create a deleted record from unused space
-        getDur().writingInt(r->lengthWithHeaders()) = lenToAlloc;
+        getDur().writingInt(record->lengthWithHeaders()) = lenToAlloc;
         DiskLoc newDelLoc = loc;
         newDelLoc.inc(lenToAlloc);
         DeletedRecord* newDel = getDur().writing(DataFileMgr::makeDeletedRecord(newDelLoc, remainingSpace));
         newDel->lengthWithHeaders() = remainingSpace;
-        newDel->extentOfs() = r->extentOfs();
+        newDel->extentOfs() = record->extentOfs();
         newDel->nextDeleted().Null();
         addDeletedRec(newDel, newDelLoc);
         return loc;
