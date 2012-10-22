@@ -303,7 +303,7 @@ namespace mongo {
         getDur().writingInt(r->lengthWithHeaders()) = lenToAlloc;
         DiskLoc newDelLoc = loc;
         newDelLoc.inc(lenToAlloc);
-        DeletedRecord *newDel = DataFileMgr::makeDeletedRecord(newDelLoc, left);
+        DeletedRecord* newDel = DataFileMgr::makeDeletedRecord(newDelLoc);
         DeletedRecord *newDelW = getDur().writing(newDel);
         newDelW->extentOfs() = r->extentOfs();
         newDelW->lengthWithHeaders() = left;
