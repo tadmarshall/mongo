@@ -566,6 +566,9 @@
     <ClCompile Include="..\util\net\ssl_manager.cpp">
       <Filter>util\net</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\file.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="collection.js">
