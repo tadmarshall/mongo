@@ -255,11 +255,8 @@ namespace mongo {
             std::cout << "using syslog ident: " << name << std::endl;
             
             // openlog requires heap allocated non changing pointer
-            // this should only be called once per pragram execution
-
-            char * newName = (char *) malloc( strlen(name) + 1 );
-            strcpy( newName , name);
-            openlog( newName , LOG_PID | LOG_CONS | LOG_ODELAY , LOG_USER );
+            // this should only be called once per program execution
+            openlog(strdup(name), LOG_PID | LOG_CONS | LOG_ODELAY, LOG_USER);
             isSyslog = true;
         }
 #endif
