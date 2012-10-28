@@ -183,7 +183,7 @@ namespace mongo {
             f.open("/proc/self/numa_maps", /*read_only*/true);
             if ( f.is_open() && ! f.bad() ) {
                 char line[100]; //we only need the first line
-                if (read(f.fd, line, sizeof(line)) < 0){
+                if (read(f.fd(), line, sizeof(line)) < 0){
                     warning() << "failed to read from /proc/self/numa_maps: " << errnoWithDescription() << startupWarningsLog;
                     warned = true;
                 }

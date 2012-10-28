@@ -1007,6 +1007,9 @@
     <ClCompile Include="commands\server_status.cpp">
       <Filter>db\commands</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\file.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="auth\authorization_manager.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
