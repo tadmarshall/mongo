@@ -45,7 +45,7 @@ namespace mongo {
         return -1;
     }
 
-    void File::fsync() {
+    void File::fsync() const {
         if (FlushFileBuffers(_fd) == 0) {
             DWORD dosError = GetLastError();
             log() << "In File::fsync(), FlushFileBuffers for '" << _name
@@ -53,7 +53,7 @@ namespace mongo {
         }
     }
 
-    bool File::is_open() { return _fd != INVALID_HANDLE_VALUE; }
+    bool File::is_open() const { return _fd != INVALID_HANDLE_VALUE; }
 
     fileofs File::len() {
         LARGE_INTEGER li;
@@ -176,14 +176,14 @@ namespace mongo {
         return boost::intmax_t( info.f_bavail ) * info.f_frsize;
     }
 
-    void File::fsync() {
+    void File::fsync() const {
         if (::fsync(_fd)) {
             log() << "In File::fsync(), ::fsync for '" << _name
                   << "' failed with " << errnoWithDescription() << std::endl;
         }
     }
 
-    bool File::is_open() { return _fd > 0; }
+    bool File::is_open() const { return _fd > 0; }
 
     fileofs File::len() {
         off_t o = lseek(_fd, 0, SEEK_END);
