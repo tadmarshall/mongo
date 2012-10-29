@@ -15,32 +15,25 @@
 
 #include "mongo/util/file.h"
 
+#include <boost/cstdint.hpp>
 #include <boost/filesystem/operations.hpp>
+#include <iostream>
+#include <string>
 
-#include "mongo/util/assert_util.h"
-#include "mongo/util/allocator.h"
-#include "mongo/util/log.h"
-#include "mongo/util/mongoutils/str.h"
-#include "mongo/util/text.h"
-
-
-
-//#include <iostream>
-//#include <string>
 #ifndef _WIN32
-//#include <errno.h>
 #include <fcntl.h>
-//#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/types.h>
 #endif
 
-//#include "mongo/platform/basic.h"
-//#include "mongo/platform/cstdint.h"
-
-
-
+#include "mongo/platform/basic.h"
+#include "mongo/platform/cstdint.h"
+#include "mongo/util/assert_util.h"
+#include "mongo/util/allocator.h"
+#include "mongo/util/log.h"
+#include "mongo/util/mongoutils/str.h"
+#include "mongo/util/text.h"
 
 namespace mongo {
 
