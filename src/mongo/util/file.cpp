@@ -27,15 +27,15 @@
 
 //#include <iostream>
 //#include <string>
-//#ifndef _WIN32
+#ifndef _WIN32
 //#include <errno.h>
-//#include <fcntl.h>
+#include <fcntl.h>
 //#include <sys/mman.h>
-//#include <sys/stat.h>
-//#include <sys/statvfs.h>
-//#include <sys/types.h>
-//#endif
-//
+#include <sys/stat.h>
+#include <sys/statvfs.h>
+#include <sys/types.h>
+#endif
+
 //#include "mongo/platform/basic.h"
 //#include "mongo/platform/cstdint.h"
 
