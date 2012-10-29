@@ -40,13 +40,13 @@ namespace mongo {
 #if defined(_WIN32)
 
     File::File()
-        : _fd(INVALID_HANDLE_VALUE), _bad(true) {}
+        : _handle(INVALID_HANDLE_VALUE), _bad(true) {}
 
     File::~File() {
         if ( is_open() ) {
-            CloseHandle(_fd);
+            CloseHandle(_handle);
         }
-        _fd = INVALID_HANDLE_VALUE;
+        _handle = INVALID_HANDLE_VALUE;
     }
 
     boost::intmax_t File::freeSpace(const std::string& path) {
@@ -64,18 +64,18 @@ namespace mongo {
     }
 
     void File::fsync() const {
-        if (FlushFileBuffers(_fd) == 0) {
+        if (FlushFileBuffers(_handle) == 0) {
             DWORD dosError = GetLastError();
             log() << "In File::fsync(), FlushFileBuffers for '" << _name
                   << "' failed with " << errnoWithDescription(dosError) << std::endl;
         }
     }
 
-    bool File::is_open() const { return _fd != INVALID_HANDLE_VALUE; }
+    bool File::is_open() const { return _handle != INVALID_HANDLE_VALUE; }
 
     fileofs File::len() {
         LARGE_INTEGER li;
-        if (GetFileSizeEx(_fd, &li)) {
+        if (GetFileSizeEx(_handle, &li)) {
             return li.QuadPart;
         }
         _bad = true;
@@ -87,13 +87,13 @@ namespace mongo {
 
     void File::open(const char* filename, bool readOnly, bool direct) {
         _name = filename;
-        _fd = CreateFileW(toNativeString(filename).c_str(),                 // filename
-                          ( readOnly ? 0 : GENERIC_WRITE ) | GENERIC_READ,  // desired access
-                          FILE_SHARE_WRITE | FILE_SHARE_READ,               // share mode
-                          NULL,                                             // security
-                          OPEN_ALWAYS,                                      // create or open
-                          FILE_ATTRIBUTE_NORMAL,                            // file attributes
-                          NULL);                                            // template
+        _handle = CreateFileW(toNativeString(filename).c_str(),                 // filename
+                              (readOnly ? 0 : GENERIC_WRITE) | GENERIC_READ,    // desired access
+                              FILE_SHARE_WRITE | FILE_SHARE_READ,               // share mode
+                              NULL,                                             // security
+                              OPEN_ALWAYS,                                      // create or open
+                              FILE_ATTRIBUTE_NORMAL,                            // file attributes
+                              NULL);                                            // template
         _bad = !is_open();
         if (_bad) {
             DWORD dosError = GetLastError();
@@ -105,7 +105,7 @@ namespace mongo {
     void File::read(fileofs o, char* data, unsigned len) {
         LARGE_INTEGER li;
         li.QuadPart = o;
-        if (SetFilePointerEx(_fd, li, NULL, FILE_BEGIN) == 0) {
+        if (SetFilePointerEx(_handle, li, NULL, FILE_BEGIN) == 0) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::read(), SetFilePointerEx for '" << _name
@@ -114,7 +114,7 @@ namespace mongo {
             return;
         }
         DWORD bytesRead;
-        if(!ReadFile(_fd, data, len, &bytesRead, 0)) {
+        if(!ReadFile(_handle, data, len, &bytesRead, 0)) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::read(), ReadFile for '" << _name
@@ -138,7 +138,7 @@ namespace mongo {
 
         LARGE_INTEGER li;
         li.QuadPart = size;
-        if (SetFilePointerEx(_fd, li, NULL, FILE_BEGIN) == 0) {
+        if (SetFilePointerEx(_handle, li, NULL, FILE_BEGIN) == 0) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::truncate(), SetFilePointerEx for '" << _name
@@ -146,7 +146,7 @@ namespace mongo {
                   << " but failed with " << errnoWithDescription(dosError) << std::endl;
             return;
         }
-        if (SetEndOfFile(_fd) == 0) {
+        if (SetEndOfFile(_handle) == 0) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::truncate(), SetEndOfFile for '" << _name
@@ -157,7 +157,7 @@ namespace mongo {
     void File::write(fileofs o, const char* data, unsigned len) {
         LARGE_INTEGER li;
         li.QuadPart = o;
-        if (SetFilePointerEx(_fd, li, NULL, FILE_BEGIN) == 0) {
+        if (SetFilePointerEx(_handle, li, NULL, FILE_BEGIN) == 0) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::write(), SetFilePointerEx for '" << _name
@@ -166,7 +166,7 @@ namespace mongo {
             return;
         }
         DWORD bytesWritten;
-        if (WriteFile(_fd, data, len, &bytesWritten, NULL) == 0) {
+        if (WriteFile(_handle, data, len, &bytesWritten, NULL) == 0) {
             _bad = true;
             DWORD dosError = GetLastError();
             log() << "In File::write(), WriteFile for '" << _name

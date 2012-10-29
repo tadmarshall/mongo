@@ -25,16 +25,17 @@
 
 namespace mongo {
 
-#ifndef _WIN32
-    typedef int HANDLE;
-#endif
     typedef uint64_t fileofs;
 
     // NOTE: not thread-safe. (at least the windows implementation isn't)
 
     class File {
 
-        HANDLE _fd;
+#ifdef _WIN32
+        HANDLE _handle;
+#else
+        int _fd;
+#endif
         bool _bad;
         std::string _name;
 
@@ -45,7 +46,6 @@ namespace mongo {
         static boost::intmax_t freeSpace(const std::string& path);
 
         bool bad() const { return _bad; }
-        HANDLE fd() const { return _fd; }
         void fsync() const;
         bool is_open() const;
         fileofs len();

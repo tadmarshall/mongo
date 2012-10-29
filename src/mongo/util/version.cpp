@@ -179,6 +179,38 @@ namespace mongo {
             // $ numactl --interleave=all cat /proc/self/numa_maps
             // 00400000 interleave:0-7 file=/bin/cat mapped=6 N4=6
 
+#if 1
+            int fd = ::open("/proc/self/numa_maps", O_CREAT, S_IRUSR | S_IWUSR);
+            if (fd > 0) {
+                char line[100]; //we only need the first line
+                if (read(fd, line, sizeof(line)) < 0) {
+                    warning() << "failed to read from /proc/self/numa_maps: " << errnoWithDescription() << startupWarningsLog;
+                    warned = true;
+                }
+                else {
+                    // just in case...
+                    line[98] = ' ';
+                    line[99] = '\0';
+                    
+                    // skip over pointer
+                    const char* space = strchr(line, ' ');
+                    
+                    if ( ! space ) {
+                        log() << startupWarningsLog;
+                        log() << "** WARNING: cannot parse numa_maps" << startupWarningsLog;
+                        warned = true;
+                    }
+                    else if ( ! startsWith(space+1, "interleave") ) {
+                        log() << startupWarningsLog;
+                        log() << "** WARNING: You are running on a NUMA machine." << startupWarningsLog;
+                        log() << "**          We suggest launching mongod like this to avoid performance problems:" << startupWarningsLog;
+                        log() << "**              numactl --interleave=all mongod [other options]" << startupWarningsLog;
+                        warned = true;
+                    }
+                }
+                ::close(fd);
+            }
+#else
             File f;
             f.open("/proc/self/numa_maps", /*read_only*/true);
             if ( f.is_open() && ! f.bad() ) {
@@ -209,6 +241,8 @@ namespace mongo {
                     }
                 }
             }
+#endif
+
         }
 
         if (cmdLine.dur){
