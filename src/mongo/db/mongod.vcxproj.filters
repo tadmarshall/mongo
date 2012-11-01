@@ -1943,6 +1943,9 @@
     <None Include="..\base\error_codes.err">
       <Filter>base</Filter>
     </None>
+    <None Include="..\base\generate_error_codes.js">
+      <Filter>base</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="db">

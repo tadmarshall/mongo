@@ -1449,6 +1449,7 @@ cscript //Nologo ..\shell\createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <None Include="..\..\third_party\js-1.7\jskeyword.tbl" />
     <None Include="..\..\third_party\js-1.7\jsopcode.tbl" />
     <None Include="..\base\error_codes.err" />
+    <None Include="..\base\generate_error_codes.js" />
     <None Include="..\util\mongoutils\README" />
     <None Include="mongo.ico" />
   </ItemGroup>
