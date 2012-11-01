@@ -872,6 +872,7 @@ cscript //Nologo createCPPfromJavaScriptFiles.js "$(ProjectDir).."
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|x64'">4355;4800;4267;4244;4334</DisableSpecificWarnings>
     </ClCompile>
     <ClCompile Include="..\base\configuration_variable_manager.cpp" />
+    <ClCompile Include="..\base\error_codes.cpp" />
     <ClCompile Include="..\base\global_initializer.cpp" />
     <ClCompile Include="..\base\global_initializer_registerer.cpp" />
     <ClCompile Include="..\base\init.cpp" />
@@ -1039,6 +1040,7 @@ cscript //Nologo createCPPfromJavaScriptFiles.js "$(ProjectDir).."
   <ItemGroup>
     <None Include="..\..\third_party\js-1.7\jskeyword.tbl" />
     <None Include="..\..\third_party\js-1.7\jsopcode.tbl" />
+    <None Include="..\base\error_codes.err" />
     <None Include="collection.js" />
     <None Include="db.js" />
     <None Include="mongo.js" />

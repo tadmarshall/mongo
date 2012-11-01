@@ -1010,6 +1010,9 @@
     <ClCompile Include="commands\server_status.cpp">
       <Filter>db\commands</Filter>
     </ClCompile>
+    <ClCompile Include="..\base\error_codes.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />
@@ -1936,6 +1939,9 @@
     </None>
     <None Include="..\..\third_party\js-1.7\jsopcode.tbl">
       <Filter>third_party\SpiderMonkey\Header Files</Filter>
+    </None>
+    <None Include="..\base\error_codes.err">
+      <Filter>base</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
