@@ -1762,10 +1762,16 @@
     <ClCompile Include="..\db\auth\mongo_authentication_session.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
+    <ClCompile Include="..\base\error_codes.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="btreetests.inl">
       <Filter>dbtests</Filter>
+    </None>
+    <None Include="..\base\error_codes.err">
+      <Filter>base</Filter>
     </None>
   </ItemGroup>
 </Project>

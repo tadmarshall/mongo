@@ -15,8 +15,6 @@
  *    limitations under the License.
  */
 
-#include <third_party/js-1.7/jsapi.h>
-
 #include "mongo/client/dbclientcursor.h"
 #include "mongo/db/namespacestring.h"
 #include "mongo/scripting/engine_spidermonkey.h"
