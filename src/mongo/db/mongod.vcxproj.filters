@@ -1010,6 +1010,9 @@
     <ClCompile Include="commands\server_status.cpp">
       <Filter>db\commands</Filter>
     </ClCompile>
+    <ClCompile Include="..\base\error_codes.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\targetver.h" />
@@ -1923,6 +1926,12 @@
     <ClInclude Include="..\..\third_party\boost\boost\smart_ptr\scoped_ptr.hpp">
       <Filter>Boost</Filter>
     </ClInclude>
+    <ClInclude Include="..\scripting\engine_spidermonkey_internal.h">
+      <Filter>scripting</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\js-1.7\jsapi.h">
+      <Filter>third_party\SpiderMonkey\Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="mongo.ico">
@@ -1936,6 +1945,12 @@
     </None>
     <None Include="..\..\third_party\js-1.7\jsopcode.tbl">
       <Filter>third_party\SpiderMonkey\Header Files</Filter>
+    </None>
+    <None Include="..\base\error_codes.err">
+      <Filter>base</Filter>
+    </None>
+    <None Include="..\base\generate_error_codes.js">
+      <Filter>base</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
