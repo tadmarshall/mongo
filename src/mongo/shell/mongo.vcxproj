@@ -990,16 +990,7 @@ cscript //Nologo createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClCompile Include="..\..\third_party\pcre-8.30\pcreposix.c" />
     <ClCompile Include="..\scripting\bench.cpp" />
     <ClCompile Include="..\scripting\engine_spidermonkey.cpp" />
-    <ClCompile Include="..\scripting\sm_db.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\scripting\sm_db.cpp" />
     <ClCompile Include="..\scripting\utils.cpp" />
     <ClCompile Include="linenoise.cpp" />
     <ClCompile Include="..\util\background.cpp" />
@@ -1137,7 +1128,13 @@ cscript //Nologo createCPPfromJavaScriptFiles.js "$(ProjectDir).."
     <ClInclude Include="..\platform\unordered_map.h" />
     <ClInclude Include="..\platform\unordered_set.h" />
     <ClInclude Include="..\platform\windows_basic.h" />
+    <ClInclude Include="..\scripting\bench.h" />
     <ClInclude Include="..\scripting\bson_template_evaluator.h" />
+    <ClInclude Include="..\scripting\engine_spidermonkey_internal.h" />
+    <ClInclude Include="..\scripting\engine_v8.h" />
+    <ClInclude Include="..\scripting\v8_db.h" />
+    <ClInclude Include="..\scripting\v8_utils.h" />
+    <ClInclude Include="..\scripting\v8_wrapper.h" />
     <ClInclude Include="..\util\fail_point.h" />
     <ClInclude Include="..\util\fail_point_registry.h" />
     <ClInclude Include="..\util\net\ssl_manager.h" />
