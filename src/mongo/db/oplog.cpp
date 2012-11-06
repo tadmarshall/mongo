@@ -731,7 +731,7 @@ namespace mongo {
         @return true if was and update should have happened and the document DNE.  see replset initial sync code.
      */
     bool applyOperation_inlock(const BSONObj& op, bool fromRepl, bool convertUpdateToUpsert) {
-        LOG(6) << "applying op: " << op << endl;
+        LOG(3) << "applying op: " << op << endl;
         bool failedUpdate = false;
 
         OpCounters * opCounters = fromRepl ? &replOpCounters : &globalOpCounters;
@@ -923,13 +923,15 @@ namespace mongo {
             
             BSONObjIterator i( ops );
             BSONArrayBuilder ab;
+            const bool alwaysUpsert = cmdObj.hasField("alwaysUpsert") ?
+                    cmdObj["alwaysUpsert"].trueValue() : true;
             
             while ( i.more() ) {
                 BSONElement e = i.next();
                 const BSONObj& temp = e.Obj();
                 
                 Client::Context ctx( temp["ns"].String() ); // this handles security
-                bool failed = applyOperation_inlock( temp , false );
+                bool failed = applyOperation_inlock(temp, false, alwaysUpsert);
                 ab.append(!failed);
                 if ( failed )
                     errors++;
@@ -946,7 +948,19 @@ namespace mongo {
 
                 string tempNS = str::stream() << dbname << ".$cmd";
 
-                logOp( "c" , tempNS.c_str() , cmdObj.firstElement().wrap() );
+                // TODO: possibly use mutable BSON to remove preCondition field
+                // once it is available
+                BSONObjIterator iter(cmdObj);
+                BSONObjBuilder cmdBuilder;
+
+                while (iter.more()) {
+                    BSONElement elem(iter.next());
+                    if (strcmp(elem.fieldName(), "preCondition") != 0) {
+                        cmdBuilder.append(elem);
+                    }
+                }
+
+                logOp("c", tempNS.c_str(), cmdBuilder.done());
             }
 
             return errors == 0;
