@@ -1078,6 +1078,9 @@
     <None Include="..\base\generate_error_codes.py">
       <Filter>base</Filter>
     </None>
+    <None Include="..\..\third_party\run_if_newer.js">
+      <Filter>third_party</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\pch.h" />
