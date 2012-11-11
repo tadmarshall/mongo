@@ -63,11 +63,8 @@ namespace mongo {
         else {
 
             v8::String::Utf8Value filename(message->GetScriptResourceName());
-            if (*filename) {
-                int linenum = message->GetLineNumber();
-                ss << *filename << ":" << linenum << " ";
-            }
-            ss << *exception << endl;
+            int linenum = message->GetLineNumber();
+            ss << *filename << ":" << linenum << " " << *exception << endl;
 
             v8::String::Utf8Value sourceline(message->GetSourceLine());
             ss << *sourceline << endl;
