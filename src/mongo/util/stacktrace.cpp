@@ -11,6 +11,7 @@
 #ifdef _WIN32
 #include <sstream>
 #include <stdio.h>
+#include <boost/filesystem/operations.hpp>
 #include <boost/smart_ptr/scoped_array.hpp>
 #include "mongo/platform/windows_basic.h"
 #include <DbgHelp.h>
@@ -52,6 +53,33 @@ namespace mongo {
 #elif defined(_WIN32)
 
 namespace mongo {
+
+    /**
+     * Get the path string to be used when searching for PDB files.
+     * 
+     * @param process        Process handle
+     * @return searchPath    Returned search path string
+     */
+    static const char* getSymbolSearchPath(HANDLE process) {
+        static std::string symbolSearchPath;
+
+        if (symbolSearchPath.size() == 0) {
+            static const size_t bufferSize = 1024;
+            boost::scoped_array<char> pathBuffer(new char[bufferSize]);
+            GetModuleFileNameA(NULL, pathBuffer.get(), bufferSize);
+            boost::filesystem::path exePath(pathBuffer.get());
+            symbolSearchPath = exePath.parent_path().string();
+            symbolSearchPath += ";";
+            //BOOL ret = SymGetSearchPath(process, pathBuffer.get(), bufferSize);
+            //if (ret) {
+            //    symbolSearchPath += pathBuffer.get();
+            //}
+            //else {
+                symbolSearchPath += "C:\\Windows\\System32;C:\\Windows";
+            //}
+        }
+        return symbolSearchPath.c_str();
+    }
 
     /**
      * Get the display name of the executable module containing the specified address.
@@ -182,6 +210,22 @@ namespace mongo {
         DWORD options = SymGetOptions();
         options |= SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS;
         SymSetOptions( options );
+        //const char* symPath = getSymbolSearchPath(process);
+        //ret = SymSetSearchPath(process, symPath);
+        ret = SymSetSearchPath(process, getSymbolSearchPath(process));
+
+
+
+            static const size_t bufferSize = 1024;
+            boost::scoped_array<char> pathBuffer(new char[bufferSize]);
+            //GetModuleFileNameA(NULL, pathBuffer.get(), bufferSize);
+            //boost::filesystem::path exePath(pathBuffer.get());
+            //symbolSearchPath = exePath.parent_path().string();
+            //symbolSearchPath += ";";
+            ret = SymGetSearchPath(process, pathBuffer.get(), bufferSize);
+
+
+
 
         STACKFRAME64 frame64;
         memset( &frame64, 0, sizeof(frame64) );
