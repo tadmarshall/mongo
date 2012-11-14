@@ -63,20 +63,20 @@ namespace mongo {
     static const char* getSymbolSearchPath(HANDLE process) {
         static std::string symbolSearchPath;
 
-        if (symbolSearchPath.size() == 0) {
+        if (symbolSearchPath.empty()) {
             static const size_t bufferSize = 1024;
             boost::scoped_array<char> pathBuffer(new char[bufferSize]);
             GetModuleFileNameA(NULL, pathBuffer.get(), bufferSize);
             boost::filesystem::path exePath(pathBuffer.get());
             symbolSearchPath = exePath.parent_path().string();
             symbolSearchPath += ";";
-            //BOOL ret = SymGetSearchPath(process, pathBuffer.get(), bufferSize);
-            //if (ret) {
-            //    symbolSearchPath += pathBuffer.get();
-            //}
-            //else {
+            BOOL ret = SymGetSearchPath(process, pathBuffer.get(), bufferSize);
+            if (ret) {
+                symbolSearchPath += pathBuffer.get();
+            }
+            else {
                 symbolSearchPath += "C:\\Windows\\System32;C:\\Windows";
-            //}
+            }
         }
         return symbolSearchPath.c_str();
     }
@@ -200,7 +200,7 @@ namespace mongo {
     void printWindowsStackTrace( CONTEXT& context, std::ostream& os ) {
         SimpleMutex::scoped_lock lk(_stackTraceMutex);
         HANDLE process = GetCurrentProcess();
-        BOOL ret = SymInitialize( process, NULL, TRUE );
+        BOOL ret = SymInitialize(process, NULL, FALSE);
         if ( ret == FALSE ) {
             DWORD dosError = GetLastError();
             log() << "Stack trace failed, SymInitialize failed with error " <<
