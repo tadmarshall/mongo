@@ -497,11 +497,11 @@ namespace mongo {
     }
 
     void V8Scope::enter() {
-        _isolate->Enter();
+        //_isolate->Enter();
     }
 
     void V8Scope::exit() {
-        _isolate->Exit();
+        //_isolate->Exit();
     }
 
     bool V8Scope::hasOutOfMemoryException() {

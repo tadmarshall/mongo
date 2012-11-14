@@ -11,7 +11,7 @@ assert.eq.automsg("1", "t.find({$or: [{$where: 'this.x === 2'}, {$where: 'this.y
 assert.eq.automsg("10", "t.find({$or: [{$where: 'this.x === 2'}, {x: {$ne: 2}}]}).count()");
 
 // geo
-t.drop();
-t.ensureIndex({loc: "2d"});
+//t.drop();
+//t.ensureIndex({loc: "2d"});
 
-assert.throws(function () {t.find({$or: [{loc: {$near: [11, 11]}}]}).limit(1).next()['_id'];});
+//assert.throws(function () {t.find({$or: [{loc: {$near: [11, 11]}}]}).limit(1).next()['_id'];});
