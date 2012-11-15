@@ -21,6 +21,7 @@
 #include "mongo/client/dbclientinterface.h"
 #include "mongo/client/dbclientcursor.h"
 #include <boost/filesystem/operations.hpp>
+#include "mongo/util/stacktrace.h"
 
 namespace mongo {
 
@@ -30,10 +31,16 @@ namespace mongo {
 
     Scope::Scope() : _localDBName("") , _loadedVersion(0), _numTimeUsed(0) {
         _numScopes++;
+        log() << "Scope::Scope(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" << _numScopes << endl;
+        printStackTrace(cout);
     }
 
     Scope::~Scope() {
         _numScopes--;
+        log() << "Scope::~Scope(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" << _numScopes << endl;
+        printStackTrace(cout);
     }
 
     ScriptEngine::ScriptEngine() : _scopeInitCallback() {
@@ -271,9 +278,11 @@ namespace mongo {
 
         ScopeCache() : _mutex("ScopeCache") {
             _magic = 17;
+            log() << "ScopeCache::ScopeCache(" << reinterpret_cast<long long>(this) << ")" << endl;
         }
 
         ~ScopeCache() {
+            log() << "ScopeCache::~ScopeCache(" << reinterpret_cast<long long>(this) << ")" << endl;
             verify( _magic == 17 );
             _magic = 1;
 
@@ -284,6 +293,7 @@ namespace mongo {
         }
 
         void done( const string& pool , Scope * s ) {
+            log() << "ScopeCache::done(scope=" << reinterpret_cast<long long>(s) << ")" << endl;
             scoped_lock lk( _mutex );
             list<Scope*> & l = _pools[pool];
             bool oom = s->hasOutOfMemoryException();
@@ -291,10 +301,16 @@ namespace mongo {
 
             // do not keep too many contexts, or use them for too long
             if ( l.size() > 10 || s->getTimeUsed() > 10 || oom ) {
+                log() << "ScopeCache::done(" << reinterpret_cast<long long>(this)
+                      << ") deleting scope(" << reinterpret_cast<long long>(s)
+                      << ") cacheCount now=" << l.size() << endl;
                 delete s;
             }
             else {
                 l.push_back( s );
+                log() << "ScopeCache::done(" << reinterpret_cast<long long>(this)
+                      << ") caching scope(" << reinterpret_cast<long long>(s)
+                      << ") cacheCount now=" << l.size() << endl;
                 s->reset();
             }
 
@@ -308,24 +324,34 @@ namespace mongo {
         Scope * get( const string& pool ) {
             scoped_lock lk( _mutex );
             list<Scope*> & l = _pools[pool];
-            if ( l.size() == 0 )
+            if ( l.size() == 0 ) {
+                log() << "ScopeCache::get(" << reinterpret_cast<long long>(this) << ") returning 0" << endl;
                 return 0;
+            }
 
             Scope * s = l.back();
             l.pop_back();
             s->reset();
             s->incTimeUsed();
             s->enter();
+            log() << "ScopeCache::get(" << reinterpret_cast<long long>(this)
+                  << ") returning scope(" << reinterpret_cast<long long>(s)
+                  << ") cacheCount now=" << l.size() << endl;
             return s;
         }
 
         void clear() {
+            log() << "ScopeCache::clear(" << reinterpret_cast<long long>(this) << ")" << endl;
             set<Scope*> seen;
 
+            size_t poolCount = _pools.size();
             for ( PoolToScopes::iterator i=_pools.begin() ; i != _pools.end(); i++ ) {
                 for ( list<Scope*>::iterator j=i->second.begin(); j != i->second.end(); j++ ) {
                     Scope * s = *j;
                     verify( ! seen.count( s ) );
+                    log() << "ScopeCache::clear(" << reinterpret_cast<long long>(this)
+                          << ") deleting scope(" << reinterpret_cast<long long>(s)
+                          << ") cacheCount now=" << --poolCount << endl;
                     delete s;
                     seen.insert( s );
                 }
@@ -345,9 +371,11 @@ namespace mongo {
     class PooledScope : public Scope {
     public:
         PooledScope( const std::string& pool , Scope * real ) : _pool( pool ) , _real( real ) {
+            log() << "PooledScope::PooledScope(" << reinterpret_cast<long long>(this) << ")" << endl;
             _real->loadStored( true );
         };
         virtual ~PooledScope() {
+            log() << "PooledScope::~PooledScope(" << reinterpret_cast<long long>(this) << ")" << endl;
             ScopeCache * sc = scopeCache.get();
             if ( sc ) {
                 sc->done( _pool , _real );
@@ -356,8 +384,11 @@ namespace mongo {
             else {
                 // this means that the Scope was killed from a different thread
                 // for example a cursor got timed out that has a $where clause
-                LOG(3) << "warning: scopeCache is empty!" << endl;
+                log() << "warning: scopeCache is empty!" << endl;
                 _real->exit();
+                log() << "PooledScope::~PooledScope(" << reinterpret_cast<long long>(this) << ")"
+                      << " deleting scope(" << reinterpret_cast<long long>(_real)
+                      << ")" << endl;
                 delete _real;
                 _real = 0;
             }
@@ -469,6 +500,7 @@ namespace mongo {
     };
 
     auto_ptr<Scope> ScriptEngine::getPooledScope( const string& pool ) {
+        log() << "ScriptEngine::getPooledScope()" << endl;
         if ( ! scopeCache.get() ) {
             scopeCache.reset( new ScopeCache() );
         }
@@ -479,12 +511,24 @@ namespace mongo {
             s->enter();
         }
 
+        log() << "ScriptEngine::getPooledScope() about to create auto_ptr<Scope>" << endl;
         auto_ptr<Scope> p;
+        log() << "ScriptEngine::getPooledScope() about to reset auto_ptr<Scope>" << endl;
         p.reset( new PooledScope( pool , s ) );
+#if 1
+        log() << "ScriptEngine::getPooledScope() returning scope("
+              << reinterpret_cast<long long>(s) << ")" << endl;
+#else
+        log() << "ScriptEngine::getPooledScope() returning auto_ptr<Scope>("
+              << static_cast<long long>(p) << "), scope("
+              //<< reinterpret_cast<long long>(p) << "), scope("
+              << reinterpret_cast<long long>(s) << ")" << endl;
+#endif
         return p;
     }
 
     void ScriptEngine::threadDone() {
+        log() << "ScriptEngine::threadDone()" << endl;
         ScopeCache * sc = scopeCache.get();
         if ( sc ) {
             sc->clear();

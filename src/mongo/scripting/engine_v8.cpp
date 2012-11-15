@@ -404,6 +404,11 @@ namespace mongo {
 
         HandleScope handleScope;
         _context = Context::New();
+        log() << "V8Scope::V8Scope(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" <<_numScopes
+              << ", _isolate=" << reinterpret_cast<long long>(_isolate)
+              //<< ", _context=" << reinterpret_cast<long long>(_context)
+              << endl;
         Context::Scope context_scope( _context );
         _global = Persistent< v8::Object >::New( _context->Global() );
         _emptyObj = Persistent< v8::Object >::New( v8::Object::New() );
@@ -469,6 +474,11 @@ namespace mongo {
     }
 
     V8Scope::~V8Scope() {
+        log() << "V8Scope::~V8Scope(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" <<_numScopes
+              << ", _isolate=" << reinterpret_cast<long long>(_isolate)
+              //<< ", _context=" << reinterpret_cast<long long>(_context)
+              << endl;
         // make sure to disable interrupt, otherwise can get segfault on race condition
         disableV8Interrupt();
 
@@ -497,10 +507,20 @@ namespace mongo {
     }
 
     void V8Scope::enter() {
+        log() << "V8Scope::enter(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" <<_numScopes
+              << ", _isolate=" << reinterpret_cast<long long>(_isolate)
+              //<< ", _context=" << reinterpret_cast<long long>(_context)
+              << endl;
         _isolate->Enter();
     }
 
     void V8Scope::exit() {
+        log() << "V8Scope::exit(" << reinterpret_cast<long long>(this)
+              << ") _numScopes=" <<_numScopes
+              << ", _isolate=" << reinterpret_cast<long long>(_isolate)
+              //<< ", _context=" << reinterpret_cast<long long>(_context)
+              << endl;
         _isolate->Exit();
     }
 
