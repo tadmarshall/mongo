@@ -33,14 +33,14 @@ namespace mongo {
         _numScopes++;
         log() << "Scope::Scope(" << reinterpret_cast<long long>(this)
               << ") _numScopes=" << _numScopes << endl;
-        printStackTrace(cout);
+        //printStackTrace(cout);
     }
 
     Scope::~Scope() {
         _numScopes--;
         log() << "Scope::~Scope(" << reinterpret_cast<long long>(this)
               << ") _numScopes=" << _numScopes << endl;
-        printStackTrace(cout);
+        //printStackTrace(cout);
     }
 
     ScriptEngine::ScriptEngine() : _scopeInitCallback() {

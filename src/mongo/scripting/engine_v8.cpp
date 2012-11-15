@@ -513,6 +513,7 @@ namespace mongo {
               //<< ", _context=" << reinterpret_cast<long long>(_context)
               << endl;
         _isolate->Enter();
+        _context->Enter();
     }
 
     void V8Scope::exit() {
@@ -521,6 +522,7 @@ namespace mongo {
               << ", _isolate=" << reinterpret_cast<long long>(_isolate)
               //<< ", _context=" << reinterpret_cast<long long>(_context)
               << endl;
+        _context->Exit();
         _isolate->Exit();
     }
 
