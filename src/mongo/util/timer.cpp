@@ -65,17 +65,19 @@ namespace mongo {
 #error "Unknown mongo::Timer implementation"
 #endif
 
+        /** Pointer to global UpdateTimer object.
+         */
+        Timer* programUptimeTimer = NULL;
+
+        MONGO_INITIALIZER(ProgramUptimeTimer)(InitializerContext* context) {
+            programUptimeTimer = new Timer();
+            return Status::OK();
+        }
+
     }  // namespace
 
-    UptimeTimer* uptimeTimer = NULL;
-
-    MONGO_INITIALIZER(UptimeTimer)(InitializerContext* context) {
-        uptimeTimer = new UptimeTimer();
-        return Status::OK();
-    }
-
     unsigned long long getProgramUptimeMicros() {
-        return uptimeTimer->getUptimeMicros();
+        return programUptimeTimer->micros();
     }
 
 }  // namespace mongo
