@@ -46,6 +46,8 @@ namespace {
 
     mongo::mutex shutDownMutex("shutDownMutex");
     bool shuttingDown = false;
+
+    mongo::Timer masterTimer;
 }
 
 namespace mongo {
@@ -235,7 +237,7 @@ namespace mongo_test {
                 newConnList.push_back(newConn);
             }
 
-            const uint64_t oldCreationTime = mongo::curTimeMicros64();
+            const uint64_t oldCreationTime = masterTimer.micros();
 
             for (vector<ScopedDbConnection*>::iterator iter = newConnList.begin();
                     iter != newConnList.end(); ++iter) {
