@@ -75,6 +75,29 @@ namespace mongo {
 
         unsigned long long _old;
     };
+
+    /** Helper class to provide program uptime.
+     */
+    class UptimeTimer {
+    public:
+        /** Get this program's approximate uptime in microseconds.
+         *  @return uptime in microseconds.
+         */
+        unsigned long long getUptimeMicros() const { return _uptime.micros(); }
+
+    private:
+        Timer _uptime;
+    };
+
+    /** Pointer to global UpdateTimer object.
+     */
+    extern UptimeTimer* uptimeTimer;
+
+    /** Global function to get this program's approximate uptime in microseconds.
+     *  @return uptime in microseconds.
+     */
+    extern unsigned long long getProgramUptimeMicros();
+
 }  // namespace mongo
 
 #include "mongo/util/timer-inl.h"

@@ -19,6 +19,8 @@
 
 #include <limits>
 
+#include "mongo/base/init.h"
+
 namespace mongo {
 
     unsigned long long Timer::_countsPerSecond;
@@ -64,5 +66,16 @@ namespace mongo {
 #endif
 
     }  // namespace
+
+    UptimeTimer* uptimeTimer = NULL;
+
+    MONGO_INITIALIZER(UptimeTimer)(InitializerContext* context) {
+        uptimeTimer = new UptimeTimer();
+        return Status::OK();
+    }
+
+    unsigned long long getProgramUptimeMicros() {
+        return uptimeTimer->getUptimeMicros();
+    }
 
 }  // namespace mongo
