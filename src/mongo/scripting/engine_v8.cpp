@@ -1428,6 +1428,10 @@ namespace mongo {
 
     void V8Scope::v8ToMongoElement( BSONObjBuilder & b , const string sname , v8::Handle<v8::Value> value , int depth, BSONObj* originalParent ) {
 
+        if (depth > 20) {
+            ::DebugBreak();
+        }
+
         if ( value->IsString() ) {
 //            Handle<v8::String> str = Handle<v8::String>::Cast(value);
 //            ExternalString* es = (ExternalString*) (str->GetExternalAsciiStringResource());
@@ -1570,6 +1574,11 @@ namespace mongo {
     }
 
     BSONObj V8Scope::v8ToMongo( v8::Handle<v8::Object> o , int depth ) {
+
+        if (depth > 20) {
+            ::DebugBreak();
+        }
+
         BSONObj originalBSON;
         if (o->Has(V8STR_BSON)) {
             originalBSON = unwrapBSONObj(o);
