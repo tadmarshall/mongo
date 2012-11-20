@@ -28,6 +28,7 @@
 
 #ifdef _WIN32
 #include <boost/date_time/filetime_functions.hpp>
+#include "mongo/platform/atomic_word.h"
 #include "mongo/util/concurrency/mutex.h"
 #include "mongo/util/timer.h"
 #endif
@@ -287,10 +288,11 @@ namespace mongo {
 
     static unsigned long long baseFiletime = 0;
     static unsigned long long basePerfCounter = 0;
-    static unsigned long long resyncInterval = 0;
+    static unsigned long long resyncNeededCounterValue = 0;
+    static AtomicUInt32 timerBusyCount;
     static SimpleMutex _curTimeMicros64Mutex( "curTimeMicros64" );
 
-    static void resyncTime() {
+    static unsigned long long resyncTime() {
         SimpleMutex::scoped_lock lk(_curTimeMicros64Mutex);
         unsigned long long ftOld;
         unsigned long long ftNew;
@@ -298,19 +300,50 @@ namespace mongo {
         do {
             ftNew = getFiletime();
         } while (ftOld == ftNew);   // wait for filetime to change
+        unsigned long long newPerfCounter = getPerfCounter();
+        resyncNeededCounterValue = newPerfCounter + 60 * Timer::_countsPerSecond;
         baseFiletime = ftNew;
-        basePerfCounter = getPerfCounter();
-        resyncInterval = 60 * Timer::_countsPerSecond;
+        return newPerfCounter;
     }
 
     unsigned long long curTimeMicros64() {
+
+        // Get a current value for QueryPerformanceCounter; if it is not time to resync or
+        // another thread is already resynching then we will use this value.
+        //
         unsigned long long perfCounter = getPerfCounter();
-        if ((perfCounter - basePerfCounter) > resyncInterval) {
-            resyncTime();
-            perfCounter = getPerfCounter();
+
+        // Periodically resync the timer so that we don't let timer drift accumulate.  Testing
+        // suggests that we drift by about one microsecond per minute, so resynching once per
+        // minute should keep drift to no more than one microsecond.
+        //
+        if (perfCounter > resyncNeededCounterValue) {
+
+            // We have a critical section in resyncTime, but we would like to avoid blocking
+            // in it if possible.  If two threads call here before any thread has initialized
+            // basePerfCounter, then we will block all but the first thread (the case of
+            // basePerfCounter == 0).  If basePerfCounter has been initialized, then we have a
+            // usable timer.  In this case, we only allow one caller at a time into resyncTime
+            // and other callers will use the old values
+            timerBusyCount.fetchAndAdd(1);
+            if (basePerfCounter == 0 || timerBusyCount.loadRelaxed() == 1) {
+                basePerfCounter = perfCounter = resyncTime();
+            }
+            timerBusyCount.fetchAndSubtract(1);
         }
+
+        // Compute the current time in FILETIME format by adding our base FILETIME and an offset
+        // from that time based on QueryPerformanceCounter.  The math is (logically) to compute the
+        // fraction of a second elapsed since the 'baseFiletime' by taking the difference in ticks
+        // and dividing by the tick frequency, then scaling this fraction up to units of 100
+        // nanoseconds to match the FILETIME format.  We do the multiplication first to avoid
+        // truncation while using only integer instructions.
+        //
         unsigned long long computedTime = baseFiletime +
                 ((perfCounter - basePerfCounter) * 10 * 1000 * 1000) / Timer::_countsPerSecond;
+
+        // Convert the computed FILETIME into microseconds since the Unix epoch (1/1/1970).
+        //
         return boost::date_time::winapi::file_time_to_microseconds(computedTime);
     }
 
