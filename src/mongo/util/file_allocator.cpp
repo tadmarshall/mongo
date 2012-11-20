@@ -250,6 +250,8 @@ namespace mongo {
         return "";
 	}
 
+    extern unsigned long long curTimeMicros64_2();
+    unsigned long long _uniqueNumber2;
     void FileAllocator::run( FileAllocator * fa ) {
         setThreadName( "FileAllocator" );
         {
@@ -257,6 +259,7 @@ namespace mongo {
             // TODO: SERVER-6055 -- Unify temporary file name selection
             SimpleMutex::scoped_lock lk(_uniqueNumberMutex);
             _uniqueNumber = curTimeMicros64();
+            _uniqueNumber2 = curTimeMicros64_2();
         }
         while( 1 ) {
             {
