@@ -26,6 +26,11 @@
 
 #include "mongo/util/assert_util.h"
 
+#ifdef _WIN32
+#include <boost/date_time/filetime_functions.hpp>
+#include "mongo/util/concurrency/mutex.h"
+#include "mongo/util/timer.h"
+#endif
 
 namespace mongo {
 
@@ -267,12 +272,48 @@ namespace mongo {
         unsigned long long t = xt.nsec / 1000000;
         return ((unsigned long long) xt.sec * 1000) + t + getJSTimeVirtualSkew() + getJSTimeVirtualThreadSkew();
     }
+
+    static unsigned long long getFiletime() {
+        FILETIME ft;
+        GetSystemTimeAsFileTime(&ft);
+        return *reinterpret_cast<unsigned long long*>(&ft);
+    }
+
+    static unsigned long long getPerfCounter() {
+        LARGE_INTEGER li;
+        QueryPerformanceCounter(&li);
+        return li.QuadPart;
+    }
+
+    static unsigned long long baseFiletime = 0;
+    static unsigned long long basePerfCounter = 0;
+    static unsigned long long resyncInterval = 0;
+    static SimpleMutex _curTimeMicros64Mutex( "curTimeMicros64" );
+
+    static void resyncTime() {
+        SimpleMutex::scoped_lock lk(_curTimeMicros64Mutex);
+        unsigned long long ftOld;
+        unsigned long long ftNew;
+        ftOld = ftNew = getFiletime();
+        do {
+            ftNew = getFiletime();
+        } while (ftOld == ftNew);   // wait for filetime to change
+        baseFiletime = ftNew;
+        basePerfCounter = getPerfCounter();
+        resyncInterval = 60 * Timer::_countsPerSecond;
+    }
+
     unsigned long long curTimeMicros64() {
-        boost::xtime xt;
-        boost::xtime_get(&xt, MONGO_BOOST_TIME_UTC);
-        unsigned long long t = xt.nsec / 1000;
-        return (((unsigned long long) xt.sec) * 1000000) + t;
-    }    
+        unsigned long long perfCounter = getPerfCounter();
+        if ((perfCounter - basePerfCounter) > resyncInterval) {
+            resyncTime();
+            perfCounter = getPerfCounter();
+        }
+        unsigned long long computedTime = baseFiletime +
+                ((perfCounter - basePerfCounter) * 10 * 1000 * 1000) / Timer::_countsPerSecond;
+        return boost::date_time::winapi::file_time_to_microseconds(computedTime);
+    }
+
     unsigned curTimeMicros() {
         boost::xtime xt;
         boost::xtime_get(&xt, MONGO_BOOST_TIME_UTC);
