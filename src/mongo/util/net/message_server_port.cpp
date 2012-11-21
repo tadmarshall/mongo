@@ -37,93 +37,17 @@
 
 namespace mongo {
 
-    namespace pms {
-
-        MessageHandler * handler;
-
-        void threadRun( MessagingPort * inPort) {
-            TicketHolderReleaser connTicketReleaser( &Listener::globalTicketHolder );
-
-            {
-                string threadName = "conn";
-                if ( inPort->connectionId() > 0 )
-                    threadName = str::stream() << threadName << inPort->connectionId();
-                setThreadName( threadName.c_str() );
-            }
-            
-            verify( inPort );
-            inPort->psock->setLogLevel(1);
-            scoped_ptr<MessagingPort> p( inPort );
-
-            p->psock->postFork();
-
-            string otherSide;
-
-            Message m;
-            try {
-                LastError * le = new LastError();
-                lastError.reset( le ); // lastError now has ownership
-
-                otherSide = p->psock->remoteString();
-
-                handler->connected( p.get() );
-
-                while ( ! inShutdown() ) {
-                    m.reset();
-                    p->psock->clearCounters();
-
-                    if ( ! p->recv(m) ) {
-                        if( !cmdLine.quiet ){
-                            int conns = Listener::globalTicketHolder.used()-1;
-                            const char* word = (conns == 1 ? " connection" : " connections");
-                            log() << "end connection " << otherSide << " (" << conns << word << " now open)" << endl;
-                        }
-                        p->shutdown();
-                        break;
-                    }
-
-                    handler->process( m , p.get() , le );
-                    networkCounter.hit( p->psock->getBytesIn() , p->psock->getBytesOut() );
-                }
-            }
-            catch ( AssertionException& e ) {
-                log() << "AssertionException handling request, closing client connection: " << e << endl;
-                p->shutdown();
-            }
-            catch ( SocketException& e ) {
-                log() << "SocketException handling request, closing client connection: " << e << endl;
-                p->shutdown();
-            }
-            catch ( const DBException& e ) { // must be right above std::exception to avoid catching subclasses
-                log() << "DBException handling request, closing client connection: " << e << endl;
-                p->shutdown();
-            }
-            catch ( std::exception &e ) {
-                error() << "Uncaught std::exception: " << e.what() << ", terminating" << endl;
-                dbexit( EXIT_UNCAUGHT );
-            }
-            catch ( ... ) {
-                error() << "Uncaught exception, terminating" << endl;
-                dbexit( EXIT_UNCAUGHT );
-            }
-
-            handler->disconnected( p.get() );
-        }
-
-    }
-
     class PortMessageServer : public MessageServer , public Listener {
     public:
+        /**
+         * Creates a new message server.
+         *
+         * @param opts
+         * @param handler the handler to use. Caller is responsible for managing this object
+         *     and should make sure that it lives longer than this server.
+         */
         PortMessageServer(  const MessageServer::Options& opts, MessageHandler * handler ) :
-            Listener( "" , opts.ipList, opts.port ) {
-
-            uassert( 10275 ,  "multiple PortMessageServer not supported" , ! pms::handler );
-            pms::handler = handler;
-        }
-
-        ~PortMessageServer() {
-            delete pms::handler;
-            pms::handler = NULL;
+            Listener( "" , opts.ipList, opts.port ), _handler(handler) {
         }
 
         virtual void acceptedMP(MessagingPort * p) {
@@ -142,7 +66,8 @@ namespace mongo {
             try {
 #ifndef __linux__  // TODO: consider making this ifdef _WIN32
                 {
-                    boost::thread thr( boost::bind( &pms::threadRun , p ) );
+                    HandleIncomingMsgParam* param = new HandleIncomingMsgParam(p, _handler);
+                    boost::thread thr(boost::bind(&handleIncomingMsg, p, param));
                 }
 #else
                 pthread_attr_t attrs;
@@ -163,7 +88,9 @@ namespace mongo {
 
 
                 pthread_t thread;
-                int failed = pthread_create(&thread, &attrs, (void*(*)(void*)) &pms::threadRun, p);
+                HandleIncomingMsgParam* threadRunParam = new HandleIncomingMsgParam(p, _handler);
+                int failed = pthread_create(&thread, &attrs,
+                        reinterpret_cast<void*(*)(void*)>(&handleIncomingMsg), threadRunParam);
 
                 pthread_attr_destroy(&attrs);
 
@@ -203,6 +130,95 @@ namespace mongo {
         }
 
         virtual bool useUnixSockets() const { return true; }
+
+    private:
+        MessageHandler* _handler;
+
+        /**
+         * Simple holder for threadRun parameters. Should not destroy the objects it holds -
+         * it is the responsibility of the caller to take care of them.
+         */
+        struct HandleIncomingMsgParam {
+            HandleIncomingMsgParam(MessagingPort* inPort,  MessageHandler* handler):
+                inPort(inPort), handler(handler) {
+            }
+
+            MessagingPort* inPort;
+            MessageHandler* handler;
+        };
+
+        /**
+         * @param arg this method is in charge of cleaning up the arg object.
+         */
+        static void handleIncomingMsg(HandleIncomingMsgParam* arg) {
+            TicketHolderReleaser connTicketReleaser( &Listener::globalTicketHolder );
+
+            {
+                string threadName = "conn";
+                if ( arg->inPort->connectionId() > 0 )
+                    threadName = str::stream() << threadName << arg->inPort->connectionId();
+                setThreadName( threadName.c_str() );
+            }
+
+            verify( arg->inPort );
+            arg->inPort->psock->setLogLevel(1);
+            scoped_ptr<MessagingPort> p( arg->inPort );
+
+            p->psock->postFork();
+
+            string otherSide;
+
+            Message m;
+            try {
+                LastError * le = new LastError();
+                lastError.reset( le ); // lastError now has ownership
+
+                otherSide = p->psock->remoteString();
+
+                arg->handler->connected( p.get() );
+
+                while ( ! inShutdown() ) {
+                    m.reset();
+                    p->psock->clearCounters();
+
+                    if ( ! p->recv(m) ) {
+                        if( !cmdLine.quiet ){
+                            int conns = Listener::globalTicketHolder.used()-1;
+                            const char* word = (conns == 1 ? " connection" : " connections");
+                            log() << "end connection " << otherSide << " (" << conns << word << " now open)" << endl;
+                        }
+                        p->shutdown();
+                        break;
+                    }
+
+                    arg->handler->process( m , p.get() , le );
+                    networkCounter.hit( p->psock->getBytesIn() , p->psock->getBytesOut() );
+                }
+            }
+            catch ( AssertionException& e ) {
+                log() << "AssertionException handling request, closing client connection: " << e << endl;
+                p->shutdown();
+            }
+            catch ( SocketException& e ) {
+                log() << "SocketException handling request, closing client connection: " << e << endl;
+                p->shutdown();
+            }
+            catch ( const DBException& e ) { // must be right above std::exception to avoid catching subclasses
+                log() << "DBException handling request, closing client connection: " << e << endl;
+                p->shutdown();
+            }
+            catch ( std::exception &e ) {
+                error() << "Uncaught std::exception: " << e.what() << ", terminating" << endl;
+                dbexit( EXIT_UNCAUGHT );
+            }
+            catch ( ... ) {
+                error() << "Uncaught exception, terminating" << endl;
+                dbexit( EXIT_UNCAUGHT );
+            }
+
+            arg->handler->disconnected( p.get() );
+            delete arg;
+        }
     };
 
 
