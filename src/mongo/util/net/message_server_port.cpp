@@ -31,7 +31,7 @@
 #include "../../db/stats/counters.h"
 #include "mongo/util/concurrency/ticketholder.h"
 
-#ifdef __linux__  // TODO: consider making this ifndef _WIN32
+#ifndef _WIN32
 # include <sys/resource.h>
 #endif
 
@@ -64,7 +64,7 @@ namespace mongo {
             }
 
             try {
-#ifndef __linux__  // TODO: consider making this ifdef _WIN32
+#ifdef _WIN32
                 {
                     HandleIncomingMsgParam* himParam = new HandleIncomingMsgParam(p, _handler);
                     boost::thread thr(boost::bind(&handleIncomingMsg, himParam));
