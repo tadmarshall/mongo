@@ -174,13 +174,34 @@ namespace {
         }
     }
 
+    // If the command line contains an option like '--dbpath="C:\Path with spaces"', it shows up
+    // in argv as a single argument: '--dbpath=C:\Path with spaces'.  Split it into two arguments.
+    static void splitMergedArguments(const std::vector<std::string>& argv,
+                                     std::vector<std::string>* argvSplit) {
+        const size_t argc = argv.size();
+        for (size_t i = 0; i < argc; ++i) {
+            std::string arg(argv[i]);
+            if (arg.find('-') == 0) {
+                size_t pos = arg.find('=');
+                if (pos != std::string::npos) {
+                    argvSplit->push_back(string(arg, pos - 1));
+                    argvSplit->push_back(string(arg.c_str()[pos + 1]));
+                }
+            if (arg.find('-') == 0 && arg.find('=') != std::string::npos) {
+                argvSplit->push_back(string(
+            }
+            else {
+            }
+        }
+    }
+
     void installServiceOrDie(
             const wstring& serviceName,
             const wstring& displayName,
             const wstring& serviceDesc,
             const wstring& serviceUser,
             const wstring& servicePassword,
-            const std::vector<std::string>& argv
+            const std::vector<std::string>& argvIn
     ) {
         log() << "Trying to install Windows service '" << toUtf8String(serviceName) << "'" << endl;
 
@@ -189,6 +210,9 @@ namespace {
         char exePath[1024];
         GetModuleFileNameA( NULL, exePath, sizeof exePath );
         commandLine << '"' << exePath << "\" ";
+
+        std::vector<std::string> argv;
+        splitMergedArguments(argvIn, &argv);
 
         // because we use allow_long_disguise in our style for boost::program_options
         // parsing (to make -vvvvv work) we will accept "-install" and "--install" and
@@ -238,18 +262,19 @@ namespace {
                 continue;
             }
             else if ( arg.length() > 8 && arg.substr(0, 8) == "-service" ) {
-                // Strip off --service(Name|User|Password) arguments
+                // Strip off --service(Description|DisplayName|Name|User|Password) arguments
                 i++;
                 continue;
             }
             else if ( arg.length() > 9 && arg.substr(0, 9) == "--service" ) {
-                // Strip off --service(Name|User|Password) arguments
+                // Strip off --service(Description|DisplayName|Name|User|Password) arguments
                 i++;
                 continue;
             }
             commandLine << arg << " ";
         }
 
+        char* testHelper = _strdup(commandLine.str().c_str());
         SC_HANDLE schSCManager = ::OpenSCManager( NULL, NULL, SC_MANAGER_ALL_ACCESS );
         if ( schSCManager == NULL ) {
             DWORD err = ::GetLastError();
