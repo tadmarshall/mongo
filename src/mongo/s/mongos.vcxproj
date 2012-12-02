@@ -1157,6 +1157,7 @@ cscript //Nologo "$(ProjectDir)..\shell\createCPPfromJavaScriptFiles.js" "$(Proj
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Win2008PlusDebug|x64'">4355;4800;4267;4244;4291</DisableSpecificWarnings>
       <DisableSpecificWarnings Condition="'$(Configuration)|$(Platform)'=='Win2008PlusRelease|x64'">4355;4800;4267;4244;4291</DisableSpecificWarnings>
     </ClCompile>
+    <ClCompile Include="..\util\file.cpp" />
     <ClCompile Include="..\util\log.cpp" />
     <ClCompile Include="..\util\net\miniwebserver.cpp" />
     <ClCompile Include="..\util\net\listen.cpp" />
