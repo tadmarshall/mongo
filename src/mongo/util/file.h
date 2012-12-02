@@ -31,14 +31,6 @@ namespace mongo {
 
     class File {
 
-#ifdef _WIN32
-        HANDLE _handle;
-#else
-        int _fd;
-#endif
-        bool _bad;
-        std::string _name;
-
     public:
         File();
         ~File();
@@ -53,6 +45,16 @@ namespace mongo {
         void read(fileofs o, char* data, unsigned len);
         void truncate(fileofs size);
         void write(fileofs o, const char* data, unsigned len);
+
+    private:
+        bool _bad;
+#ifdef _WIN32
+        HANDLE _handle;
+#else
+        int _fd;
+#endif
+        std::string _name;
+
     };
 
 }

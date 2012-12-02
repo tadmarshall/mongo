@@ -40,7 +40,7 @@ namespace mongo {
 #if defined(_WIN32)
 
     File::File()
-        : _handle(INVALID_HANDLE_VALUE), _bad(true) {}
+        : _bad(true), _handle(INVALID_HANDLE_VALUE) {}
 
     File::~File() {
         if ( is_open() ) {
@@ -179,7 +179,7 @@ namespace mongo {
 #else // _WIN32
 
     File::File()
-        : _fd(-1), _bad(true) {}
+        : _bad(true), _fd(-1) {}
 
     File::~File() {
         if (is_open()) {
@@ -247,7 +247,8 @@ namespace mongo {
         }
         else if(bytesRead != static_cast<ssize_t>(len)) { 
             _bad = true;
-            msgasserted(16466,
+            
+            msgasserted(16510,
                         mongoutils::str::stream() << "In File::read(), ::pread for '" << _name
                                                   << "' read " << bytesRead
                                                   << " bytes while trying to read " << len
