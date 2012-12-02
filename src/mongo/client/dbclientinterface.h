@@ -25,6 +25,7 @@
 #include "mongo/client/authlevel.h"
 #include "mongo/client/authentication_table.h"
 #include "mongo/db/jsobj.h"
+#include "mongo/platform/atomic_word.h"
 #include "mongo/util/net/message.h"
 #include "mongo/util/net/message_port.h"
 
@@ -165,6 +166,11 @@ namespace mongo {
         ReadPreference_Nearest,
     };
 
+    /**
+     * @return true if the query object contains a read preference specification object.
+     */
+    bool hasReadPreference(const BSONObj& queryObj);
+
     class DBClientBase;
 
     /**
@@ -174,6 +180,9 @@ namespace mongo {
      *    server:port
      *    foo/server:port,server:port   SET
      *    server,server,server          SYNC
+     *                                    Warning - you usually don't want "SYNC", it's used 
+     *                                    for some special things such as sharding config servers.
+     *                                    See syncclusterconnection.h for more info.
      *
      * tyipcal use
      * string errmsg,
@@ -246,6 +255,14 @@ namespace mongo {
         vector<HostAndPort> getServers() const { return _servers; }
         
         ConnectionType type() const { return _type; }
+
+        /**
+         * This returns true if this and other point to the same logical entity.
+         * For single nodes, thats the same address.
+         * For replica sets, thats just the same replica set name.
+         * For pair (deprecated) or sync cluster connections, that's the same hosts in any ordering.
+         */
+        bool sameLogicalEndpoint( const ConnectionString& other ) const;
 
         static ConnectionString parse( const string& url , string& errmsg );
 
@@ -927,12 +944,18 @@ namespace mongo {
      */
     class DBClientBase : public DBClientWithCommands, public DBConnector {
     protected:
+        static AtomicInt64 ConnectionIdSequence;
+        long long _connectionId; // unique connection id for this connection
         WriteConcern _writeConcern;
-
     public:
+        static const uint64_t INVALID_SOCK_CREATION_TIME;
+
         DBClientBase() {
             _writeConcern = W_NORMAL;
+            _connectionId = ConnectionIdSequence.fetchAndAdd(1);
         }
+
+        long long getConnectionId() const { return _connectionId; }
 
         WriteConcern getWriteConcern() const { return _writeConcern; }
         void setWriteConcern( WriteConcern w ) { _writeConcern = w; }
@@ -1021,6 +1044,10 @@ namespace mongo {
         virtual ConnectionString::ConnectionType type() const = 0;
         
         virtual double getSoTimeout() const = 0;
+
+        virtual uint64_t getSockCreationMicroSec() const {
+            return INVALID_SOCK_CREATION_TIME;
+        }
 
     }; // DBClientBase
 
@@ -1154,6 +1181,8 @@ namespace mongo {
 
         static void setLazyKillCursor( bool lazy ) { _lazyKillCursor = lazy; }
         static bool getLazyKillCursor() { return _lazyKillCursor; }
+
+        uint64_t getSockCreationMicroSec() const;
 
     protected:
         friend class SyncClusterConnection;

@@ -617,9 +617,6 @@
     <ClCompile Include="explain.cpp">
       <Filter>db\Source Files\e to n</Filter>
     </ClCompile>
-    <ClCompile Include="nonce.cpp">
-      <Filter>db\Source Files\e to n</Filter>
-    </ClCompile>
     <ClCompile Include="extsort.cpp">
       <Filter>db\Source Files\e to n</Filter>
     </ClCompile>
@@ -872,9 +869,6 @@
     <ClCompile Include="..\util\touch_pages.cpp">
       <Filter>util\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\client\authentication_table.cpp">
-      <Filter>client\Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="hashindex.cpp">
       <Filter>db\Source Files\e to n</Filter>
     </ClCompile>
@@ -956,12 +950,6 @@
     <ClCompile Include="auth\action_set.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
-    <ClCompile Include="auth\capability.cpp">
-      <Filter>db\auth</Filter>
-    </ClCompile>
-    <ClCompile Include="auth\capability_set.cpp">
-      <Filter>db\auth</Filter>
-    </ClCompile>
     <ClCompile Include="auth\principal.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
@@ -1013,9 +1001,6 @@
     <ClCompile Include="auth\authorization_manager.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
-    <ClCompile Include="auth\external_state.cpp">
-      <Filter>db\auth</Filter>
-    </ClCompile>
     <ClCompile Include="..\bson\mutable\mutable_bson.cpp">
       <Filter>bson\mutable</Filter>
     </ClCompile>
@@ -1045,6 +1030,78 @@
     </ClCompile>
     <ClCompile Include="..\base\error_codes.cpp">
       <Filter>base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\util\bson_extract.cpp">
+      <Filter>bson\util</Filter>
+    </ClCompile>
+    <ClCompile Include="auth\privilege.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="auth\privilege_set.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="auth\auth_external_state.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\field_parser.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_collection.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="index_rebuilder.cpp">
+      <Filter>db\Source Files\e to n</Filter>
+    </ClCompile>
+    <ClCompile Include="geo\s2common.cpp">
+      <Filter>db\geo</Filter>
+    </ClCompile>
+    <ClCompile Include="geo\s2nearcursor.cpp">
+      <Filter>db\geo</Filter>
+    </ClCompile>
+    <ClCompile Include="..\client\authentication_table_common.cpp">
+      <Filter>client\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\client\authentication_table_server.cpp">
+      <Filter>client\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_chunk.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_database.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="btreeposition.cpp">
+      <Filter>db\Source Files\a to d</Filter>
+    </ClCompile>
+    <ClCompile Include="intervalbtreecursor.cpp">
+      <Filter>db\Source Files\e to n</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_shard.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="commands\parameters.cpp">
+      <Filter>db\commands</Filter>
+    </ClCompile>
+    <ClCompile Include="server_parameters.cpp">
+      <Filter>db\Source Files\o to z</Filter>
+    </ClCompile>
+    <ClCompile Include="auth\auth_external_state_d.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="auth\auth_external_state_server_common.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\collection_manager.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\metadata_loader.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="commands\find_and_modify_common.cpp">
+      <Filter>db\commands</Filter>
+    </ClCompile>
+    <ClCompile Include="commands\mr_common.cpp">
+      <Filter>db\commands</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1872,12 +1929,6 @@
     <ClInclude Include="auth\action_set.h">
       <Filter>db\auth</Filter>
     </ClInclude>
-    <ClInclude Include="auth\capability.h">
-      <Filter>db\auth</Filter>
-    </ClInclude>
-    <ClInclude Include="auth\capability_set.h">
-      <Filter>db\auth</Filter>
-    </ClInclude>
     <ClInclude Include="auth\principal.h">
       <Filter>db\auth</Filter>
     </ClInclude>
@@ -1959,12 +2010,6 @@
     <ClInclude Include="auth\authorization_manager.h">
       <Filter>db\auth</Filter>
     </ClInclude>
-    <ClInclude Include="auth\external_state.h">
-      <Filter>db\auth</Filter>
-    </ClInclude>
-    <ClInclude Include="auth\external_state_impl.h">
-      <Filter>db\auth</Filter>
-    </ClInclude>
     <ClInclude Include="..\bson\mutable\mutable_bson.h">
       <Filter>bson\mutable</Filter>
     </ClInclude>
@@ -1992,6 +2037,156 @@
     <ClInclude Include="..\util\fail_point_service.h">
       <Filter>util\Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\bson\util\bson_extract.h">
+      <Filter>bson\util</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\acquired_privilege.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\privilege.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\privilege_set.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\auth_external_state.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\field_parser.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_collection.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="btreebuilder.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="btreecursor.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="cc_by_loc.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="index_rebuilder.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="geo\s2nearcursor.h">
+      <Filter>db\geo</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_map.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_map_internal.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_writer.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\stringutils.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\unordered_fast_key_table.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\unordered_fast_key_table_internal.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\version.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\winutil.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\admin_access.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\bson_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\bufreader.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\checksum.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\compress.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\descriptive_stats.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\descriptive_stats-inl.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\exit_code.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\gsasl_session.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\heapcheck.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\map_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\moveablebuffer.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\password.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\scopeguard.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\timer-inl.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pipeline\document_internal.h">
+      <Filter>db\pipeline\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pipeline\value_internal.h">
+      <Filter>db\pipeline\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\authlevel.h">
+      <Filter>client\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_chunk.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_database.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="btreeposition.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="intervalbtreecursor.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_shard.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="server_parameters.h">
+      <Filter>db\Header Files\o to z</Filter>
+    </ClInclude>
+    <ClInclude Include="server_parameters_inline.h">
+      <Filter>db\Header Files\o to z</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\auth_external_state_d.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="auth\auth_external_state_server_common.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\collection_manager.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\metadata_loader.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="commands\find_and_modify.h">
+      <Filter>db\commands</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="mongo.ico">
@@ -2017,6 +2212,9 @@
     </None>
     <None Include="..\base\error_codes.err">
       <Filter>base</Filter>
+    </None>
+    <None Include="..\..\third_party\run_if_newer.js">
+      <Filter>third_party</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

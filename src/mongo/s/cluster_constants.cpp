@@ -23,6 +23,7 @@ namespace mongo {
     BSONField<string> ShardFields::host("host");
     BSONField<bool> ShardFields::draining("draining");
     BSONField<long long> ShardFields::maxSize("maxSize");
+    BSONField<BSONArray> ShardFields::tags("tags");
 
     const string ConfigNS::database = "config.databases";
     BSONField<string> DatabaseFields::name("_id");
@@ -60,35 +61,39 @@ namespace mongo {
     BSONField<BSONObj> TagFields::min("min");
     BSONField<BSONObj> TagFields::max("max");
 
-    // ============  below not yet hooked  ============
-
     const string ConfigNS::mongos = "config.mongos";
-    BSONField<string> MongosFields::UNHOOKED_name("_id");
-    BSONField<Date_t> MongosFields::UNHOOKED_ping("ping");
-    BSONField<int> MongosFields::UNHOOKED_up("up");
-    BSONField<bool> MongosFields::UNHOOKED_waiting("waiting");
+    BSONField<string> MongosFields::name("_id");
+    BSONField<Date_t> MongosFields::ping("ping");
+    BSONField<int> MongosFields::up("up");
+    BSONField<bool> MongosFields::waiting("waiting");
 
     const string ConfigNS::settings = "config.settings";
-    BSONField<int> SettingFields::UNHOOKED_name("_id");
-    BSONField<string> SettingFields::UNHOOKED_value("value");
+    BSONField<string> SettingsFields::key("_id");
+    BSONField<int> SettingsFields::chunksize("value");
+    BSONField<bool> SettingsFields::balancerStopped("stopped");
+    BSONField<BSONObj> SettingsFields::balancerActiveWindow("activeWindow");
+    BSONField<bool> SettingsFields::shortBalancerSleep("_nosleep");
+    BSONField<bool> SettingsFields::secondaryThrottle("_secondaryThrottle");
 
     const string ConfigNS::changelog = "config.changelog";
-    BSONField<string> ChangelogFields::UNHOOKED_name("_id");
-    BSONField<string> ChangelogFields::UNHOOKED_server("server");
-    BSONField<string> ChangelogFields::UNHOOKED_clientAddr("clientAddr");
-    BSONField<Date_t> ChangelogFields::UNHOOKED_time("time");
-    BSONField<string> ChangelogFields::UNHOOKED_what("what");
-    BSONField<string> ChangelogFields::UNHOOKED_ns("ns");
-    BSONField<string> ChangelogFields::UNHOOKED_details("details");
+    BSONField<string> ChangelogFields::changeID("_id");
+    BSONField<string> ChangelogFields::server("server");
+    BSONField<string> ChangelogFields::clientAddr("clientAddr");
+    BSONField<Date_t> ChangelogFields::time("time");
+    BSONField<string> ChangelogFields::what("what");
+    BSONField<string> ChangelogFields::ns("ns");
+    BSONField<BSONObj> ChangelogFields::details("details");
 
     const string ConfigNS::locks = "config.locks";
-    BSONField<string> LockFields::UNHOOKED_name("_id");
-    BSONField<int> LockFields::UNHOOKED_state("state");
-    BSONField<Date_t> LockFields::UNHOOKED_ts("ts");
-    BSONField<string> LockFields::UNHOOKED_who("who");
+    BSONField<string> LockFields::name("_id");
+    BSONField<int> LockFields::state("state");
+    BSONField<string> LockFields::process("process");
+    BSONField<OID> LockFields::lockID("ts");
+    BSONField<string> LockFields::who("who");
+    BSONField<string> LockFields::why("why");
 
     const string ConfigNS::lockpings = "config.lockpings";
-    BSONField<string> LockPingFields::UNHOOKED_name("_id");
-    BSONField<Date_t> LockPingFields::UNHOOKED_ping("ping");
+    BSONField<string> LockPingFields::process("_id");
+    BSONField<Date_t> LockPingFields::ping("ping");
 
 } // namespace mongo

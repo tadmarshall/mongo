@@ -1,7 +1,7 @@
 // @file chunk.cpp
 
 /**
- *    Copyright (C) 2008 10gen Inc.
+ *    Copyright (C) 2008-2012 10gen Inc.
  *
  *    This program is free software: you can redistribute it and/or  modify
  *    it under the terms of the GNU Affero General Public License, version 3,
@@ -18,20 +18,20 @@
 
 #include "pch.h"
 
-#include "../client/connpool.h"
-#include "../db/queryutil.h"
-#include "../util/startup_test.h"
-#include "../util/timer.h"
+#include "mongo/client/connpool.h"
 #include "mongo/client/dbclientcursor.h"
-
-#include "chunk.h"
-#include "chunk_diff.h"
-#include "config.h"
-#include "cursors.h"
-#include "grid.h"
-#include "strategy.h"
-#include "client_info.h"
+#include "mongo/db/queryutil.h"
+#include "mongo/platform/random.h"
+#include "mongo/s/chunk.h"
+#include "mongo/s/chunk_diff.h"
+#include "mongo/s/client_info.h"
+#include "mongo/s/config.h"
+#include "mongo/s/cursors.h"
+#include "mongo/s/grid.h"
 #include "mongo/util/concurrency/ticketholder.h"
+#include "mongo/s/strategy.h"
+#include "mongo/util/startup_test.h"
+#include "mongo/util/timer.h"
 
 namespace mongo {
 
@@ -79,8 +79,9 @@ namespace mongo {
         : _manager(info), _min(min), _max(max), _shard(shard), _lastmod(lastmod), _jumbo(false), _dataWritten(mkDataWritten())
     {}
 
-    long Chunk::mkDataWritten() {
-        return rand() % ( MaxChunkSize / ChunkManager::SplitHeuristics::splitTestFactor );
+    int Chunk::mkDataWritten() {
+        PseudoRandom r(static_cast<int64_t>(time(0)));
+        return r.nextInt32( MaxChunkSize / ChunkManager::SplitHeuristics::splitTestFactor );
     }
 
     string Chunk::getns() const {
@@ -548,7 +549,7 @@ namespace mongo {
            return;
         }
 
-        int csize = o["value"].numberInt();
+        int csize = o[SettingsFields::chunksize()].numberInt();
 
         // validate chunksize before proceeding
         if ( csize == 0 ) {
@@ -956,14 +957,11 @@ namespace mongo {
             }
 
             if ( !initShards || !initShards->size() ) {
-                // use all shards, starting with primary
+                // If not specified, only use the primary shard (note that it's not safe for mongos
+                // to put initial chunks on other shards without the primary mongod knowing).
                 shards->push_back( primary );
-                vector<Shard> tmp;
-                primary.getAllShards( tmp );
-                for ( unsigned i = 0; i < tmp.size(); ++i ) {
-                    if ( tmp[i] != primary )
-                        shards->push_back( tmp[i] );
-                }
+            } else {
+                std::copy( initShards->begin() , initShards->end() , std::back_inserter(*shards) );
             }
         }
     }
@@ -1082,8 +1080,8 @@ namespace mongo {
         // TODO Determine if the third argument to OrRangeGenerator() is necessary, see SERVER-5165.
         OrRangeGenerator org(_ns.c_str(), query, false);
 
-        const string special = org.getSpecial();
-        if (special == "2d") {
+        const set<string> special = org.getSpecial();
+        if (special.end() != special.find("2d") || special.end() != special.find("2dsphere")) {
             BSONForEach(field, query) {
                 if (getGtLtOp(field) == BSONObj::opNEAR) {
                     uassert(13501, "use geoNear command rather than $near query", false);
@@ -1091,9 +1089,12 @@ namespace mongo {
                 }
                 // $within queries are fine
             }
-        }
-        else if (!special.empty()) {
-            uassert(13502, "unrecognized special query type: " + special, false);
+        } else if (!special.empty()) {
+            stringstream ss;
+            for (set<string>::const_iterator it = special.begin(); it != special.end(); ++it) {
+                ss << *it << ", ";
+            }
+            uassert(13502, "unrecognized special query type: " + ss.str(), false);
         }
 
         do {

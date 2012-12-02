@@ -99,6 +99,11 @@ namespace mongo {
             BSONElement cmdElement(cmdIterator.next());
             const char *pFieldName = cmdElement.fieldName();
 
+            // ignore top-level fields prefixed with $. They are for the command processor, not us.
+            if (pFieldName[0] == '$') {
+                continue;
+            }
+
             /* look for the aggregation command */
             if (!strcmp(pFieldName, commandName)) {
                 pPipeline->collectionName = cmdElement.String();
@@ -126,13 +131,6 @@ namespace mongo {
             /* check for debug options */
             if (!strcmp(pFieldName, splitMongodPipelineName)) {
                 pPipeline->splitMongodPipeline = true;
-                continue;
-            }
-
-            /* Ignore $auth information sent along with the command. The authentication system will
-             * use it, it's not a part of the pipeline.
-             */
-            if (!strcmp(pFieldName, AuthenticationTable::fieldName.c_str())) {
                 continue;
             }
 
@@ -416,7 +414,7 @@ namespace mongo {
             // cant use subArrayStart() due to error handling
             BSONArrayBuilder resultArray;
             for(bool hasDoc = !pSource->eof(); hasDoc; hasDoc = pSource->advance()) {
-                intrusive_ptr<Document> pDocument(pSource->getCurrent());
+                Document pDocument(pSource->getCurrent());
 
                 /* add the document to the result set */
                 BSONObjBuilder documentBuilder (resultArray.subobjStart());
@@ -476,8 +474,7 @@ namespace mongo {
         BSONArrayBuilder shardOpArray; // where we'll put the pipeline ops
         for(bool hasDocument = !pSourceBsonArray->eof(); hasDocument;
             hasDocument = pSourceBsonArray->advance()) {
-            intrusive_ptr<Document> pDocument(
-                pSourceBsonArray->getCurrent());
+            Document pDocument = pSourceBsonArray->getCurrent();
             BSONObjBuilder opBuilder;
             pDocument->toBson(&opBuilder);
             shardOpArray.append(opBuilder.obj());

@@ -33,16 +33,10 @@
 
 namespace mongo {
 
-    struct ShardNS {
-        static string mongos;
-        static string settings;
-    };
-
     class ConfigServer;
 
     class DBConfig;
     typedef boost::shared_ptr<DBConfig> DBConfigPtr;
-    typedef shared_ptr<Shard> ShardPtr;
 
     extern DBConfigPtr configServerPtr;
     extern ConfigServer& configServer;
@@ -118,7 +112,20 @@ namespace mongo {
         }
 
         void enableSharding( bool save = true );
-        ChunkManagerPtr shardCollection( const string& ns , ShardKeyPattern fieldsAndOrder , bool unique , vector<BSONObj>* initPoints=0, vector<Shard>* initShards=0 );
+
+        /* Makes all the configuration changes necessary to shard a new collection.
+         * Optionally, chunks will be created based on a set of specified initial split points, and
+         * distributed in a round-robin fashion onto a set of initial shards.  If no initial shards
+         * are specified, only the primary will be used.
+         *
+         * WARNING: It's not safe to place initial chunks onto non-primary shards using this method.
+         * The initShards parameter allows legacy behavior expected by map-reduce.
+         */
+        ChunkManagerPtr shardCollection( const string& ns ,
+                                         ShardKeyPattern fieldsAndOrder ,
+                                         bool unique ,
+                                         vector<BSONObj>* initPoints = 0,
+                                         vector<Shard>* initShards = 0 );
 
         /**
            @return true if there was sharding info to remove

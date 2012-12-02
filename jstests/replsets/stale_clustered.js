@@ -98,6 +98,13 @@ prt("10: check our regular and slaveOk query")
 ReplSetTest.awaitRSClientHosts(coll.getMongo(), rsA.nodes, { ok : true })
 ReplSetTest.awaitRSClientHosts(coll.getMongo(), rsB.nodes, { ok : true })
 
+// We need to make sure at least one secondary is accessible from mongos - otherwise we fail
+// See SERVER-7699
+ReplSetTest.awaitRSClientHosts(collSOk.getMongo(), [rsA.getSecondaries()[0]], 
+                               { secondary : true, ok : true });
+ReplSetTest.awaitRSClientHosts(collSOk.getMongo(), [rsB.getSecondaries()[0]], 
+                               { secondary : true, ok : true });
+
 prt("SlaveOK Query...")
 var sOKCount = collSOk.find().itcount();
 

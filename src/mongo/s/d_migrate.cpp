@@ -23,19 +23,25 @@
  */
 
 #include "pch.h"
+
+#include <algorithm>
 #include <map>
 #include <string>
-#include <algorithm>
+#include <vector>
 
 #include <boost/thread/thread.hpp>
 
+#include "mongo/db/auth/action_set.h"
+#include "mongo/db/auth/action_type.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/privilege.h"
 #include "mongo/db/dbhelpers.h"
 #include "../db/commands.h"
 #include "mongo/db/hasher.h"
 #include "../db/jsobj.h"
 #include "../db/cmdline.h"
 #include "../db/queryoptimizer.h"
-#include "../db/btree.h"
+#include "mongo/db/btreecursor.h"
 #include "../db/repl_block.h"
 #include "../db/dur.h"
 #include "../db/clientcursor.h"
@@ -261,7 +267,7 @@ namespace mongo {
     class MigrateFromStatus {
     public:
 
-        MigrateFromStatus() : _m("MigrateFromStatus") , _workLock("MigrateFromStatus::workLock") {
+        MigrateFromStatus() : _mutex("MigrateFromStatus") , _workLock("MigrateFromStatus::workLock") {
             _active = false;
             _inCriticalSection = false;
             _memoryUsed = 0;
@@ -282,7 +288,7 @@ namespace mongo {
 
             //scoped_lock ll(_workLock);
 
-            scoped_lock l(_m); // reads and writes _active
+            scoped_lock l(_mutex); // reads and writes _active
 
             if (_active) {
                 return false;
@@ -307,7 +313,10 @@ namespace mongo {
         }
 
         void done() {
-            Lock::DBWrite lk( _ns );
+            log() << "MigrateFromStatus::done About to acquire global write lock to exit critical "
+                    "section" << endl;
+            Lock::GlobalWrite lk;
+            log() << "MigrateFromStatus::done Global lock acquired" << endl;
 
             {
                 scoped_spinlock lk( _trackerLocks );
@@ -317,9 +326,10 @@ namespace mongo {
             }
             _memoryUsed = 0;
 
-            scoped_lock l(_m);
+            scoped_lock l(_mutex);
             _active = false;
             _inCriticalSection = false;
+            _inCriticalSectionCV.notify_all();
         }
 
         void logOp( const char * opstr , const char * ns , const BSONObj& obj , BSONObj * patt ) {
@@ -621,8 +631,35 @@ namespace mongo {
 
         long long mbUsed() const { return _memoryUsed / ( 1024 * 1024 ); }
 
-        bool getInCriticalSection() const { scoped_lock l(_m); return _inCriticalSection; }
-        void setInCriticalSection( bool b ) { scoped_lock l(_m); _inCriticalSection = b; }
+        bool getInCriticalSection() const {
+            scoped_lock l(_mutex);
+            return _inCriticalSection;
+        }
+
+        void setInCriticalSection( bool b ) {
+            scoped_lock l(_mutex);
+            _inCriticalSection = b;
+            _inCriticalSectionCV.notify_all();
+        }
+
+        /**
+         * @return true if we are NOT in the critical section
+         */
+        bool waitTillNotInCriticalSection( int maxSecondsToWait ) {
+            verify( !Lock::isLocked() );
+
+            boost::xtime xt;
+            boost::xtime_get(&xt, MONGO_BOOST_TIME_UTC);
+            xt.sec += maxSecondsToWait;
+
+            scoped_lock l(_mutex);
+            while ( _inCriticalSection ) {
+                if ( ! _inCriticalSectionCV.timed_wait( l.boost(), xt ) )
+                    return false;
+            }
+
+            return true;
+        }
 
         bool isActive() const { return _getActive(); }
         
@@ -642,7 +679,9 @@ namespace mongo {
         }
 
     private:
-        mutable mongo::mutex _m; // protect _inCriticalSection and _active
+        mutable mongo::mutex _mutex; // protect _inCriticalSection and _active
+        boost::condition _inCriticalSectionCV;
+
         bool _inCriticalSection;
         bool _active;
 
@@ -668,8 +707,8 @@ namespace mongo {
         mutable mongo::mutex _workLock; // this is used to make sure only 1 thread is doing serious work
                                         // for now, this means migrate or removing old chunk data
 
-        bool _getActive() const { scoped_lock l(_m); return _active; }
-        void _setActive( bool b ) { scoped_lock l(_m); _active = b; }
+        bool _getActive() const { scoped_lock l(_mutex); return _active; }
+        void _setActive( bool b ) { scoped_lock l(_mutex); _active = b; }
 
     } migrateFromStatus;
 
@@ -801,7 +840,13 @@ namespace mongo {
         virtual bool slaveOk() const { return false; }
         virtual bool adminOnly() const { return true; }
         virtual LockType locktype() const { return NONE; }
-
+        virtual void addRequiredPrivileges(const std::string& dbname,
+                                           const BSONObj& cmdObj,
+                                           std::vector<Privilege>* out) {
+            ActionSet actions;
+            actions.addAction(ActionType::moveChunk);
+            out->push_back(Privilege(AuthorizationManager::CLUSTER_RESOURCE_NAME, actions));
+        }
 
         bool run(const string& , BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool) {
             // 1. parse options
@@ -1077,7 +1122,9 @@ namespace mongo {
             // 4.
             for ( int i=0; i<86400; i++ ) { // don't want a single chunk move to take more than a day
                 verify( !Lock::isLocked() );
-                sleepsecs( 1 );
+                // Exponential sleep backoff, up to 1024ms. Don't sleep much on the first few
+                // iterations, since we want empty chunk migrations to be fast.
+                sleepmillis( 1 << std::min( i , 10 ) );
                 scoped_ptr<ScopedDbConnection> conn(
                         ScopedDbConnection::getScopedDbConnection( toShard.getConnString() ) );
                 BSONObj res;
@@ -1152,7 +1199,7 @@ namespace mongo {
                     BSONObj res;
                     scoped_ptr<ScopedDbConnection> connTo(
                             ScopedDbConnection::getScopedDbConnection( toShard.getConnString(),
-                                                                       10.0 ) );
+                                                                       35.0 ) );
 
                     bool ok;
 
@@ -1170,15 +1217,18 @@ namespace mongo {
                     connTo->done();
 
                     if ( ! ok ) {
+                        log() << "moveChunk migrate commit not accepted by TO-shard: " << res
+                              << " resetting shard version to: " << startingVersion << migrateLog;
                         {
-                            Lock::DBWrite lk( ns );
+                            Lock::GlobalWrite lk;
+                            log() << "moveChunk global lock acquired to reset shard version from "
+                                    "failed migration" << endl;
 
                             // revert the chunk manager back to the state before "forgetting" about the chunk
                             shardingState.undoDonateChunk( ns , min , max , startingVersion );
                         }
-
-                        log() << "moveChunk migrate commit not accepted by TO-shard: " << res
-                              << " resetting shard version to: " << startingVersion << migrateLog;
+                        log() << "Shard version successfully reset to clean up failed migration"
+                                << endl;
 
                         errmsg = "_recvChunkCommit failed!";
                         result.append( "cause" , res );
@@ -1402,6 +1452,10 @@ namespace mongo {
 
     bool ShardingState::inCriticalMigrateSection() {
         return migrateFromStatus.getInCriticalSection();
+    }
+
+    bool ShardingState::waitTillNotInCriticalSection( int maxSecondsToWait ) {
+        return migrateFromStatus.waitTillNotInCriticalSection( maxSecondsToWait );
     }
 
     /* -----
@@ -1634,6 +1688,8 @@ namespace mongo {
                 // this will prevent us from going into critical section until we're ready
                 Timer t;
                 while ( t.minutes() < 600 ) {
+                    log() << "Waiting for replication to catch up before entering critical section"
+                          << endl;
                     if ( flushPendingWrites( lastOpApplied ) )
                         break;
                     sleepsecs(1);
@@ -1823,7 +1879,8 @@ namespace mongo {
             
             Timer t;
             // we wait for the commit to succeed before giving up
-            while ( t.minutes() <= 5 ) {
+            while ( t.seconds() <= 30 ) {
+                log() << "Waiting for commit to finish" << endl;
                 sleepmillis(1);
                 if ( state == DONE )
                     return true;

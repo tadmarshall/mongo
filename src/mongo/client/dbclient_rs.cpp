@@ -53,31 +53,50 @@ namespace mongo {
     }
 
     /**
-     * @param ns the namespace of the query
-     * @param queryObj the query object to check
+     * @param ns the namespace of the query.
+     * @param queryOptionFlags the flags for the query.
+     * @param queryObj the query object to check.
      *
-     * @return true if the given query can be sent to a secondary node.
+     * @return true if the given query can be sent to a secondary node without taking the
+     *     slaveOk flag into account.
      */
-    bool isQueryOkToSecondary(const string& ns, const BSONObj& queryObj) {
+    bool _isQueryOkToSecondary(const string& ns, int queryOptionFlags, const BSONObj& queryObj) {
+        if (queryOptionFlags & QueryOption_SlaveOk) {
+            return true;
+        }
+
         // _secOkCmdList was not initialized! mongo::runGlobalInitializersOrDie
         // probably was not called.
         fassert(16464, !_secOkCmdList.empty());
+
+        if (!hasReadPreference(queryObj)) {
+            return false;
+        }
 
         if (ns.find(".$cmd") == string::npos) {
             return true;
         }
 
-        const string cmdName = queryObj.firstElementFieldName();
+        BSONObj actualQueryObj;
+        if (strcmp(queryObj.firstElement().fieldName(), "query") == 0) {
+            actualQueryObj = queryObj["query"].embeddedObject();
+        }
+        else {
+            actualQueryObj = queryObj;
+        }
+
+        const string cmdName = actualQueryObj.firstElementFieldName();
         if (_secOkCmdList.count(cmdName) == 1) {
             return true;
         }
 
         if (cmdName == "mapReduce" || cmdName == "mapreduce") {
-            if (!queryObj.hasField("out")) {
+            if (!actualQueryObj.hasField("out")) {
                 return false;
             }
 
-            if (queryObj["out"]["inline"].trueValue()) {
+            BSONElement outElem(actualQueryObj["out"]);
+            if (outElem.isABSONObj() && outElem["inline"].trueValue()) {
                 return true;
             }
         }
@@ -99,15 +118,19 @@ namespace mongo {
      * @param lastHost the last host returned (mainly used for doing round-robin).
      *     Will be overwritten with the newly returned host if not empty. Should
      *     never be NULL.
+     * @param isPrimarySelected out parameter that is set to true if the returned host
+     *     is a primary.
      *
      * @return the host object of the node selected. If none of the nodes are
-     *     eligible, returns an empty host.
+     *     eligible, returns an empty host. Cannot be NULL and valid only if returned
+     *     host is not empty.
      */
     HostAndPort _selectNode(const vector<ReplicaSetMonitor::Node>& nodes,
                             const BSONObj& readPreferenceTag,
                             bool secOnly,
                             int localThresholdMillis,
-                            HostAndPort* lastHost /* in/out */) {
+                            HostAndPort* lastHost /* in/out */,
+                            bool* isPrimarySelected) {
         HostAndPort fallbackHost;
 
         // Implicit: start from index 0 if lastHost doesn't exist anymore
@@ -138,6 +161,7 @@ namespace mongo {
             if (node.matchesTag(readPreferenceTag)) {
                 // found an ok candidate; may not be local.
                 fallbackHost = node.addr;
+                *isPrimarySelected = node.ismaster;
 
                 if (node.isLocalSecondary(localThresholdMillis)) {
                     // found a local node.  return early.
@@ -157,7 +181,16 @@ namespace mongo {
     }
 
     /**
-     * Extracts the read preference settings from the query document.
+     * Extracts the read preference settings from the query document. Note that this method
+     * assumes that the query is ok for secondaries so it defaults to
+     * ReadPreference_SecondaryPreferred when nothing is specified. Supports the following
+     * format:
+     *
+     * Format A (official format):
+     * { query: <actual query>, $readPreference: <read pref obj> }
+     *
+     * Format B (unofficial internal format from mongos):
+     * { <actual query>, $queryOptions: { $readPreference: <read pref obj> }}
      *
      * @param query the raw query document
      * @param pref an out parameter and will contain the read preference mode extracted
@@ -170,13 +203,22 @@ namespace mongo {
      * @throws AssertionException if the read preference object is malformed
      */
     TagSet* _extractReadPref(const BSONObj& query, ReadPreference* pref) {
-        if (!query.hasField("$readPreference")) {
+        if (!hasReadPreference(query)) {
             *pref = mongo::ReadPreference_SecondaryPreferred;
         }
         else {
+            BSONElement readPrefElement;
+
+            if (query.hasField("$readPreference")) {
+                readPrefElement = query["$readPreference"];
+            }
+            else {
+                readPrefElement = query["$queryOptions"]["$readPreference"];
+            }
+
             uassert(16381, "$readPreference should be an object",
-                    query["$readPreference"].isABSONObj());
-            const BSONObj& prefDoc = query["$readPreference"].Obj();
+                    readPrefElement.isABSONObj());
+            const BSONObj& prefDoc = readPrefElement.Obj();
 
             uassert(16382, "mode not specified for read preference", prefDoc.hasField("mode"));
 
@@ -344,6 +386,15 @@ namespace mongo {
             }
         }
         return ReplicaSetMonitorPtr();
+    }
+
+    void ReplicaSetMonitor::getAllTrackedSets(set<string>* activeSets) {
+        scoped_lock lk( _setsLock );
+        for (map<string,ReplicaSetMonitorPtr>::const_iterator it = _sets.begin();
+             it != _sets.end(); ++it)
+        {
+            activeSets->insert(it->first);
+        }
     }
 
     void ReplicaSetMonitor::checkAll( bool checkAllSecondaries ) {
@@ -563,7 +614,7 @@ namespace mongo {
         if ( !authenticatedConn->get()->runCommand( "admin",
                                                     BSON( "replSetGetStatus" << 1 ),
                                                     status )) {
-            LOG(1) << "dbclient_rs replSetGetStatus failed" << endl;
+            LOG(1) << "dbclient_rs replSetGetStatus failed" << status << endl;
             authenticatedConn->done(); // connection worked properly, but we got an error from server
             return;
         }
@@ -1059,14 +1110,15 @@ namespace mongo {
     }
 
     HostAndPort ReplicaSetMonitor::selectAndCheckNode(ReadPreference preference,
-                                                      TagSet* tags) {
+                                                      TagSet* tags,
+                                                      bool* isPrimarySelected) {
 
         HostAndPort candidate;
 
         {
             scoped_lock lk(_lock);
             candidate = ReplicaSetMonitor::selectNode(_nodes, preference, tags,
-                    _localThresholdMillis, &_lastReadPrefHost);
+                    _localThresholdMillis, &_lastReadPrefHost, isPrimarySelected);
         }
 
         if (candidate.empty()) {
@@ -1075,7 +1127,7 @@ namespace mongo {
 
             scoped_lock lk(_lock);
             return ReplicaSetMonitor::selectNode(_nodes, preference, tags, _localThresholdMillis,
-                    &_lastReadPrefHost);
+                    &_lastReadPrefHost, isPrimarySelected);
         }
 
         return candidate;
@@ -1086,11 +1138,15 @@ namespace mongo {
                                               ReadPreference preference,
                                               TagSet* tags,
                                               int localThresholdMillis,
-                                              HostAndPort* lastHost) {
+                                              HostAndPort* lastHost,
+                                              bool* isPrimarySelected) {
+        *isPrimarySelected = false;
+
         switch (preference) {
         case ReadPreference_PrimaryOnly:
             for (vector<Node>::const_iterator iter = nodes.begin(); iter != nodes.end(); ++iter) {
                 if (iter->ismaster && iter->ok) {
+                    *isPrimarySelected = true;
                     return iter->addr;
                 }
             }
@@ -1100,14 +1156,14 @@ namespace mongo {
         case ReadPreference_PrimaryPreferred:
         {
             HostAndPort candidatePri = selectNode(nodes, ReadPreference_PrimaryOnly, tags,
-                                                  localThresholdMillis, lastHost);
+                    localThresholdMillis, lastHost, isPrimarySelected);
 
             if (!candidatePri.empty()) {
                 return candidatePri;
             }
 
             return selectNode(nodes, ReadPreference_SecondaryOnly, tags,
-                              localThresholdMillis, lastHost);
+                              localThresholdMillis, lastHost, isPrimarySelected);
         }
 
         case ReadPreference_SecondaryOnly:
@@ -1116,7 +1172,7 @@ namespace mongo {
 
             while (!tags->isExhausted()) {
                 candidate = _selectNode(nodes, tags->getCurrentTag(), true, localThresholdMillis,
-                        lastHost);
+                        lastHost, isPrimarySelected);
 
                 if (candidate.empty()) {
                     tags->next();
@@ -1132,14 +1188,14 @@ namespace mongo {
         case ReadPreference_SecondaryPreferred:
         {
             HostAndPort candidateSec = selectNode(nodes, ReadPreference_SecondaryOnly, tags,
-                                                  localThresholdMillis, lastHost);
+                    localThresholdMillis, lastHost, isPrimarySelected);
 
             if (!candidateSec.empty()) {
                 return candidateSec;
             }
 
             return selectNode(nodes, ReadPreference_PrimaryOnly, tags,
-                              localThresholdMillis, lastHost);
+                    localThresholdMillis, lastHost, isPrimarySelected);
         }
 
         case ReadPreference_Nearest:
@@ -1148,7 +1204,7 @@ namespace mongo {
 
             while (!tags->isExhausted()) {
                 candidate = _selectNode(nodes, tags->getCurrentTag(), false, localThresholdMillis,
-                        lastHost);
+                        lastHost, isPrimarySelected);
 
                 if (candidate.empty()) {
                     tags->next();
@@ -1492,9 +1548,7 @@ namespace mongo {
                                                        const BSONObj *fieldsToReturn,
                                                        int queryOptions,
                                                        int batchSize) {
-        if ((queryOptions & QueryOption_SlaveOk) ||
-                (query.obj.hasField("$readPreference") &&
-                        isQueryOkToSecondary(ns, query.obj["query"].Obj()))) {
+        if (_isQueryOkToSecondary(ns, queryOptions, query.obj)) {
             ReadPreference pref;
             scoped_ptr<TagSet> tags(_extractReadPref(query.obj, &pref));
 
@@ -1531,8 +1585,7 @@ namespace mongo {
                                         const Query& query,
                                         const BSONObj *fieldsToReturn,
                                         int queryOptions) {
-        if ((queryOptions & QueryOption_SlaveOk) ||
-                query.obj.hasField("$readPreference")) {
+        if (_isQueryOkToSecondary(ns, queryOptions, query.obj)) {
             ReadPreference pref;
             scoped_ptr<TagSet> tags(_extractReadPref(query.obj, &pref));
 
@@ -1613,10 +1666,22 @@ namespace mongo {
         }
 
         ReplicaSetMonitorPtr monitor = _getMonitor();
-        _lastSlaveOkHost = monitor->selectAndCheckNode(preference, tags);
+        bool isPrimarySelected = false;
+        _lastSlaveOkHost = monitor->selectAndCheckNode(preference, tags, &isPrimarySelected);
 
         if ( _lastSlaveOkHost.empty() ){
             return NULL;
+        }
+
+        // Primary connection is special because it is the only connection that is
+        // versioned in mongos. Therefore, we have to make sure that this object
+        // maintains only one connection to the primary and use that connection
+        // every time we need to talk to the primary.
+        if (isPrimarySelected) {
+            checkMaster();
+            _lastSlaveOkConn = _master;
+            _lastSlaveOkHost = _masterHost; // implied, but still assign just to be safe
+            return _master.get();
         }
 
         _lastSlaveOkConn.reset(new DBClientConnection(true , this , _so_timeout));
@@ -1640,7 +1705,7 @@ namespace mongo {
             QueryMessage qm(dm);
 
             const bool slaveOk = qm.queryOptions & QueryOption_SlaveOk;
-            if (slaveOk || qm.query.hasField("$readPreference")) {
+            if (_isQueryOkToSecondary(qm.ns, qm.queryOptions, qm.query)) {
                 ReadPreference pref;
                 scoped_ptr<TagSet> tags(_extractReadPref(qm.query, &pref));
 
@@ -1783,8 +1848,7 @@ namespace mongo {
             QueryMessage qm(dm);
             ns = qm.ns;
 
-            if ((qm.queryOptions & QueryOption_SlaveOk) ||
-                    qm.query.hasField("$readPreference")) {
+            if (_isQueryOkToSecondary(ns, qm.queryOptions, qm.query)) {
                 ReadPreference pref;
                 scoped_ptr<TagSet> tags(_extractReadPref(qm.query, &pref));
 

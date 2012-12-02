@@ -22,6 +22,13 @@
 
 #include "mongo/db/compact.h"
 
+#include <string>
+#include <vector>
+
+#include "mongo/db/auth/action_set.h"
+#include "mongo/db/auth/action_type.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/privilege.h"
 #include "mongo/db/background.h"
 #include "mongo/db/commands.h"
 #include "mongo/db/d_concurrency.h"
@@ -29,6 +36,7 @@
 #include "mongo/db/extsort.h"
 #include "mongo/db/index.h"
 #include "mongo/db/index_update.h"
+#include "mongo/db/jsobj.h"
 #include "mongo/db/kill_current_op.h"
 #include "mongo/db/pdfile.h"
 #include "mongo/util/concurrency/task.h"
@@ -37,8 +45,6 @@
 
 namespace mongo {
 
-    void addRecordToRecListInExtent(Record *r, DiskLoc loc);
-    DiskLoc allocateSpaceForANewRecord(const char *ns, NamespaceDetails *d, int lenWHdr, bool god);
     void freeExtents(DiskLoc firstExt, DiskLoc lastExt);
 
     /* this should be done in alloc record not here, but doing here for now. 
@@ -123,7 +129,7 @@ namespace mongo {
                         {
                             // extract keys for all indexes we will be rebuilding
                             for( int x = 0; x < nidx; x++ ) { 
-                                phase1[x].addKeys(indexSpecs[x], objOld, loc);
+                                phase1[x].addKeys(indexSpecs[x], objOld, loc, false);
                             }
                         }
                     }
@@ -341,6 +347,13 @@ namespace mongo {
         virtual bool slaveOk() const { return true; }
         virtual bool maintenanceMode() const { return true; }
         virtual bool logTheOp() { return false; }
+        virtual void addRequiredPrivileges(const std::string& dbname,
+                                           const BSONObj& cmdObj,
+                                           std::vector<Privilege>* out) {
+            ActionSet actions;
+            actions.addAction(ActionType::compact);
+            out->push_back(Privilege(parseNs(dbname, cmdObj), actions));
+        }
         virtual void help( stringstream& help ) const {
             help << "compact collection\n"
                 "warning: this operation blocks the server and is slow. you can cancel with cancelOp()\n"

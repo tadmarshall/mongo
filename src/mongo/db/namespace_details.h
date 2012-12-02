@@ -81,7 +81,7 @@ namespace mongo {
 
         // ofs 352 (16 byte aligned)
         int _isCapped;                         // there is wasted space here if I'm right (ERH)
-        int _maxDocsInCapped;                  // max # of objects for a capped table.  TODO: should this be 64 bit?
+        int _maxDocsInCapped;                  // max # of objects for a capped table, -1 for inf.
 
         double _paddingFactor;                 // 1.0 = no padding.
         // ofs 386 (16)
@@ -138,9 +138,6 @@ namespace mongo {
         Extra* allocExtra(const char *ns, int nindexessofar);
         void copyingFrom(const char *thisns, NamespaceDetails *src); // must be called when renaming a NS to fix up extra
 
-        /* called when loaded from disk */
-        void onLoad(const Namespace& k);
-
         /* dump info on this namespace.  for debugging. */
         void dump(const Namespace& k);
 
@@ -158,9 +155,13 @@ namespace mongo {
     public:
 
         bool isCapped() const { return _isCapped; }
-        long long maxCappedDocs() const { verify( isCapped() ); return _maxDocsInCapped; }
+        long long maxCappedDocs() const;
         void setMaxCappedDocs( long long max );
-
+        /**
+         * @param max in and out, will be adjusted
+         * @return if the value is valid at all
+         */
+        static bool validMaxCappedDocs( long long* max );
 
         DiskLoc& cappedListOfAllDeletedRecords() { return deletedList[0]; }
         DiskLoc& cappedLastDelRecLastExtent()    { return deletedList[1]; }
@@ -226,10 +227,17 @@ namespace mongo {
         bool isMultikey(int i) const { return (multiKeyIndexBits & (((unsigned long long) 1) << i)) != 0; }
         void setIndexIsMultikey(const char *thisns, int i);
 
-        /* add a new index.  does not add to system.indexes etc. - just to NamespaceDetails.
-           caller must populate returned object.
+        /**
+         * This fetches the IndexDetails for the next empty index slot. The caller must populate
+         * returned object.  This handles allocating extra index space, if necessary.
          */
-        IndexDetails& addIndex(const char *thisns, bool resetTransient=true);
+        IndexDetails& getNextIndexDetails(const char* thisns);
+
+        /**
+         * Add a new index.  This does not add it to system.indexes etc. - just to NamespaceDetails.
+         * This resets the transient namespace details.
+         */
+        void addIndex(const char* thisns);
 
         void aboutToDeleteAnIndex() { 
             clearSystemFlag( Flag_HaveIdIndex );
@@ -356,12 +364,20 @@ namespace mongo {
             return Buckets-1;
         }
 
+        /* @return the size for an allocated record quantized to 1/16th of the BucketSize
+           @param allocSize    requested size to allocate
+        */
+        static int quantizeAllocationSpace(int allocSize);
+
         /* predetermine location of the next alloc without actually doing it. 
            if cannot predetermine returns null (so still call alloc() then)
         */
         DiskLoc allocWillBeAt(const char *ns, int lenToAlloc);
 
-        /* allocate a new record.  lenToAlloc includes headers. */
+        /** allocate space for a new record from deleted lists.
+            @param lenToAlloc is WITH header
+            @return null diskloc if no room - allocate a new extent then
+        */
         DiskLoc alloc(const char* ns, int lenToAlloc);
 
         /* add a given record to the deleted chains for this NS */
@@ -475,14 +491,6 @@ namespace mongo {
          *
          * @param planPolicy - A policy for selecting query plans - see queryoptimizercursor.h
          *
-         * @param requestMatcher - Set to true to request that the returned Cursor provide a
-         * matcher().  If false, the cursor's matcher() may return NULL if the Cursor can perform
-         * accurate query matching internally using a non Matcher mechanism.  One case where a
-         * Matcher might be requested even though not strictly necessary to select matching
-         * documents is if metadata about matches may be requested using MatchDetails.  NOTE This is
-         * a hint that the Cursor use a Matcher, but the hint may be ignored.  In some cases the
-         * returned cursor may not provide a matcher even if 'requestMatcher' is true.
-         *
          * @param parsedQuery - Additional query parameters, as from a client query request.
          *
          * @param requireOrder - If false, the resulting cursor may return results in an order
@@ -502,15 +510,15 @@ namespace mongo {
          * - covered indexes
          * - in memory sorting
          */
-        static shared_ptr<Cursor> getCursor( const char *ns, const BSONObj &query,
-                                            const BSONObj &order = BSONObj(),
-                                            const QueryPlanSelectionPolicy &planPolicy =
-                                            QueryPlanSelectionPolicy::any(),
-                                            bool requestMatcher = true,
-                                            const shared_ptr<const ParsedQuery> &parsedQuery =
-                                            shared_ptr<const ParsedQuery>(),
-                                            bool requireOrder = true,
-                                            QueryPlanSummary *singlePlanSummary = 0 );
+        static shared_ptr<Cursor> getCursor( const char* ns,
+                                             const BSONObj& query,
+                                             const BSONObj& order = BSONObj(),
+                                             const QueryPlanSelectionPolicy& planPolicy =
+                                                 QueryPlanSelectionPolicy::any(),
+                                             const shared_ptr<const ParsedQuery>& parsedQuery =
+                                                 shared_ptr<const ParsedQuery>(),
+                                             bool requireOrder = true,
+                                             QueryPlanSummary* singlePlanSummary = NULL );
 
         /**
          * @return a single cursor that may work well for the given query.  A $or style query will

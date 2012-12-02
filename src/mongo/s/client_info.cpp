@@ -17,6 +17,7 @@
  */
 
 #include "pch.h"
+
 #include "server.h"
 #include "../util/scopeguard.h"
 #include "../db/commands.h"
@@ -33,10 +34,11 @@
 #include "cursors.h"
 #include "grid.h"
 #include "s/writeback_listener.h"
+#include "mongo/util/mongoutils/str.h"
 
 namespace mongo {
 
-    ClientInfo::ClientInfo() {
+    ClientInfo::ClientInfo(AbstractMessagingPort* messagingPort) : ClientBasic(messagingPort) {
         _cur = &_a;
         _prev = &_b;
         _autoSplitOk = true;
@@ -70,16 +72,40 @@ namespace mongo {
         _cur = _prev;
         _prev = temp;
         _cur->clear();
+        _ai.startRequest();
     }
 
-    ClientInfo * ClientInfo::get() {
+    ClientInfo* ClientInfo::create(AbstractMessagingPort* messagingPort) {
         ClientInfo * info = _tlInfo.get();
-        if ( ! info ) {
-            info = new ClientInfo();
-            _tlInfo.reset( info );
-            info->newRequest();
-        }
+        massert(16472, "A ClientInfo already exists for this thread", !info);
+        info = new ClientInfo(messagingPort);
+        _tlInfo.reset( info );
+        info->initializeAuthorizationManager();
+        info->newRequest();
         return info;
+    }
+
+    ClientInfo * ClientInfo::get(AbstractMessagingPort* messagingPort) {
+        ClientInfo * info = _tlInfo.get();
+        if (!info) {
+            info = create(messagingPort);
+        }
+        massert(16483,
+                mongoutils::str::stream() << "AbstractMessagingPort was provided to ClientInfo::get"
+                        << " but differs from the one stored in the current ClientInfo object. "
+                        << "Current ClientInfo messaging port "
+                        << (info->port() ? "is not" : "is")
+                        << " NULL",
+                messagingPort == NULL || messagingPort == info->port());
+        return info;
+    }
+
+    bool ClientInfo::exists() {
+        return _tlInfo.get();
+    }
+
+    bool ClientBasic::hasCurrent() {
+        return ClientInfo::exists();
     }
 
     ClientBasic* ClientBasic::getCurrent() {

@@ -16,14 +16,15 @@
 *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "pch.h"
-#include "introspect.h"
-#include "../bson/util/builder.h"
-#include "../util/goodies.h"
-#include "pdfile.h"
-#include "jsobj.h"
-#include "pdfile.h"
-#include "curop.h"
+#include "mongo/pch.h"
+
+#include "mongo/bson/util/builder.h"
+#include "mongo/db/curop.h"
+#include "mongo/db/databaseholder.h"
+#include "mongo/db/introspect.h"
+#include "mongo/db/jsobj.h"
+#include "mongo/db/pdfile.h"
+#include "mongo/util/goodies.h"
 
 namespace {
     const size_t MAX_PROFILE_DOC_SIZE_BYTES = 100*1024;
@@ -31,17 +32,12 @@ namespace {
 
 namespace mongo {
 
-    BufBuilder profileBufBuilder; // reused, instead of allocated every time - avoids a malloc/free cycle
-
-    void profile( const Client& c , CurOp& currentOp ) {
-        verify( Lock::somethingWriteLocked() );
-
+    static void _profile(const Client& c, CurOp& currentOp, BufBuilder& profileBufBuilder) {
         Database *db = c.database();
         DEV verify( db );
         const char *ns = db->profileName.c_str();
         
         // build object
-        profileBufBuilder.reset();
         BSONObjBuilder b(profileBufBuilder);
 
         const bool isQueryObjTooBig = !currentOp.debug().append(currentOp, b,
@@ -88,21 +84,55 @@ namespace mongo {
         }
     }
 
-    NamespaceDetails* getOrCreateProfileCollection(Database *db, bool force) {
+    void profile(const Client& c, int op, CurOp& currentOp) {
+        // initialize with 1kb to start, to avoid realloc later
+        // doing this outside the dblock to improve performance
+        BufBuilder profileBufBuilder(1024);
+
+        try {
+            Lock::DBWrite lk( currentOp.getNS() );
+            if ( dbHolder()._isLoaded( nsToDatabase( currentOp.getNS() ) , dbpath ) ) {
+                Client::Context cx( currentOp.getNS(), dbpath, false );
+                _profile(c, currentOp, profileBufBuilder);
+            }
+            else {
+                mongo::log() << "note: not profiling because db went away - probably a close on: "
+                             << currentOp.getNS() << endl;
+            }
+        }
+        catch (const AssertionException& assertionEx) {
+            warning() << "Caught Assertion while trying to profile " << opToString(op)
+                      << " against " << currentOp.getNS()
+                      << ": " << assertionEx.toString() << endl;
+        }
+    }
+
+    NamespaceDetails* getOrCreateProfileCollection(Database *db, bool force, string* errmsg ) {
         fassert(16372, db);
         const char* profileName = db->profileName.c_str();
         NamespaceDetails* details = db->namespaceIndex.details(profileName);
         if (!details && (cmdLine.defaultProfile || force)) {
             // system.profile namespace doesn't exist; create it
             log() << "creating profile collection: " << profileName << endl;
-            string errmsg;
+            string myerrmsg;
             if (!userCreateNS(db->profileName.c_str(),
-                              BSON("capped" << true << "size" << 1024 * 1024), errmsg , false)) {
-                log() << "could not create ns " << db->profileName << ": " << errmsg << endl;
+                              BSON("capped" << true << "size" << 1024 * 1024), myerrmsg , false)) {
+                myerrmsg = str::stream() << "could not create ns " << db->profileName << ": " << myerrmsg;
+                log() << myerrmsg << endl;
+                if ( errmsg )
+                    *errmsg = myerrmsg;
                 return NULL;
             }
             details = db->namespaceIndex.details(profileName);
         }
+        else if ( details && !details->isCapped() ) {
+            string myerrmsg = str::stream() << profileName << " exists but isn't capped";
+            log() << myerrmsg << endl;
+            if ( errmsg )
+                *errmsg = myerrmsg;
+            return NULL;
+        }
+
         if (!details) {
             // failed to get or create profile collection
             static time_t last = time(0) - 10;  // warn the first time

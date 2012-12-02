@@ -103,7 +103,12 @@ namespace {
         
         // Extra hidden options
         hidden.add_options()
-        ("traceExceptions", "log stack traces for every exception");
+        ("traceExceptions", "log stack traces for every exception")
+        ("enableExperimentalIndexStatsCmd", po::bool_switch(&cmdLine.experimental.indexStatsCmdEnabled),
+                "EXPERIMENTAL (UNSUPPORTED). Enable command computing aggregate statistics on indexes.")
+        ("enableExperimentalStorageDetailsCmd", po::bool_switch(&cmdLine.experimental.storageDetailsCmdEnabled),
+                "EXPERIMENTAL (UNSUPPORTED). Enable command computing aggregate statistics on storage.")
+        ;
     }
 
 #if defined(_WIN32)
@@ -448,17 +453,4 @@ namespace {
     void printCommandLineOpts() {
         log() << "options: " << parsedOpts << endl;
     }
-
-    map<string,ParameterValidator*>* pv_all(NULL);
-
-    ParameterValidator::ParameterValidator( const string& name ) : _name( name ) {
-        if ( ! pv_all)
-            pv_all = new map<string,ParameterValidator*>();
-        (*pv_all)[_name] = this;
-    }
-
-    ParameterValidator* ParameterValidator::get( const string& name ) {
-        return mapFindWithDefault(*pv_all, name, static_cast<ParameterValidator*>(NULL));
-    }
-
 }

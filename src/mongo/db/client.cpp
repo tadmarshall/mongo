@@ -24,6 +24,15 @@
 
 #include "mongo/db/client.h"
 
+#include <string>
+#include <vector>
+
+#include "mongo/base/status.h"
+#include "mongo/db/auth/action_set.h"
+#include "mongo/db/auth/action_type.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/auth_external_state_d.h"
+#include "mongo/db/auth/privilege.h"
 #include "mongo/db/db.h"
 #include "mongo/db/commands.h"
 #include "mongo/db/curop-inl.h"
@@ -31,6 +40,7 @@
 #include "mongo/db/dbwebserver.h"
 #include "mongo/db/instance.h"
 #include "mongo/db/json.h"
+#include "mongo/db/jsobj.h"
 #include "mongo/db/pagefault.h"
 #include "mongo/db/repl/rs.h"
 #include "mongo/s/d_logic.h"
@@ -39,6 +49,7 @@
 #include "mongo/util/file_allocator.h"
 #include "mongo/util/mongoutils/checksum.h"
 #include "mongo/util/mongoutils/html.h"
+#include "mongo/util/mongoutils/str.h"
 
 namespace mongo {
 
@@ -53,9 +64,13 @@ namespace mongo {
 
     struct StackChecker { 
 #if defined(_WIN32)
-        enum { SZ = 256 * 1024 };
+        enum { SZ = 322 * 1024 };
+#elif defined(__APPLE__) && defined(__MACH__)
+        enum { SZ = 362 * 1024 };
+#elif defined(__linux__)
+        enum { SZ = 218 * 1024 };
 #else
-        enum { SZ = 192 * 1024 };
+        enum { SZ = 218 * 1024 };   // default size, same as Linux to match old behavior
 #endif
         char buf[SZ];
         StackChecker() { 
@@ -92,6 +107,14 @@ namespace mongo {
     };
 #endif
 
+    void ClientBasic::initializeAuthorizationManager() {
+        // This thread corresponds to an incoming user connection, and thus needs an
+        // AuthorizationManager
+        AuthExternalState* externalState = new AuthExternalStateMongod;
+        AuthorizationManager* authManager = new AuthorizationManager(externalState);
+        setAuthorizationManager(authManager);
+    }
+
     /* each thread which does db operations has a Client object in TLS.
        call this when your thread starts.
     */
@@ -108,16 +131,19 @@ namespace mongo {
         Client *c = new Client(desc, mp);
         currentClient.reset(c);
         mongo::lastError.initThread();
+        if (mp != NULL) {
+            c->initializeAuthorizationManager();
+        }
         return *c;
     }
 
     Client::Client(const char *desc, AbstractMessagingPort *p) :
+        ClientBasic(p),
         _context(0),
         _shutdown(false),
         _desc(desc),
         _god(0),
-        _lastOp(0),
-        _mp(p)
+        _lastOp(0)
     {
         _hasWrittenThisPass = false;
         _pageFaultRetryableSection = 0;
@@ -397,6 +423,10 @@ namespace mongo {
         }
     }
 
+    bool ClientBasic::hasCurrent() {
+        return currentClient.get();
+    }
+
     ClientBasic* ClientBasic::getCurrent() {
         return currentClient.get();
     }
@@ -408,6 +438,13 @@ namespace mongo {
         virtual LockType locktype() const { return NONE; }
         virtual bool slaveOk() const { return true; }
         virtual bool adminOnly() const { return false; }
+        virtual void addRequiredPrivileges(const std::string& dbname,
+                                           const BSONObj& cmdObj,
+                                           std::vector<Privilege>* out) {
+            ActionSet actions;
+            actions.addAction(ActionType::handshake);
+            out->push_back(Privilege(AuthorizationManager::SERVER_RESOURCE_NAME, actions));
+        }
         virtual bool run(const string& , BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
             Client& c = cc();
             c.gotHandshake( cmdObj );

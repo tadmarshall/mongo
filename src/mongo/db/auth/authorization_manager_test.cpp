@@ -20,7 +20,7 @@
 #include "mongo/db/auth/authorization_manager.h"
 
 #include "mongo/base/status.h"
-#include "mongo/db/auth/external_state_mock.h"
+#include "mongo/db/auth/auth_external_state_mock.h"
 #include "mongo/db/jsobj.h"
 #include "mongo/unittest/unittest.h"
 
@@ -30,13 +30,13 @@
 namespace mongo {
 namespace {
 
-    TEST(AuthorizationManagerTest, AcquireCapabilityAndCheckAuthorization) {
+    TEST(AuthorizationManagerTest, AcquirePrivilegeAndCheckAuthorization) {
         Principal* principal = new Principal("Spencer");
         ActionSet actions;
         actions.addAction(ActionType::insert);
-        AcquiredCapability writeCapability(Capability("test", actions), principal);
-        AcquiredCapability allDBsWriteCapability(Capability("*", actions), principal);
-        ExternalStateMock* externalState = new ExternalStateMock();
+        AcquiredPrivilege writePrivilege(Privilege("test", actions), principal);
+        AcquiredPrivilege allDBsWritePrivilege(Privilege("*", actions), principal);
+        AuthExternalStateMock* externalState = new AuthExternalStateMock();
         AuthorizationManager authManager(externalState);
 
         ASSERT_NULL(authManager.checkAuthorization("test", ActionType::insert));
@@ -47,78 +47,69 @@ namespace {
         ASSERT_NULL(authManager.checkAuthorization("test", ActionType::insert));
 
         ASSERT_EQUALS(ErrorCodes::UserNotFound,
-                      authManager.acquireCapability(writeCapability).code());
+                      authManager.acquirePrivilege(writePrivilege).code());
         authManager.addAuthorizedPrincipal(principal);
-        ASSERT_OK(authManager.acquireCapability(writeCapability));
+        ASSERT_OK(authManager.acquirePrivilege(writePrivilege));
         ASSERT_EQUALS(principal, authManager.checkAuthorization("test", ActionType::insert));
 
         ASSERT_NULL(authManager.checkAuthorization("otherDb", ActionType::insert));
-        ASSERT_OK(authManager.acquireCapability(allDBsWriteCapability));
+        ASSERT_OK(authManager.acquirePrivilege(allDBsWritePrivilege));
         ASSERT_EQUALS(principal, authManager.checkAuthorization("otherDb", ActionType::insert));
+        // Auth checks on a collection should be applied to the database name.
+        ASSERT_EQUALS(principal, authManager.checkAuthorization("otherDb.collectionName",
+                                                                ActionType::insert));
     }
 
-    TEST(AuthorizationManagerTest, GrantInternalAuthorization) {
-        ExternalStateMock* externalState = new ExternalStateMock();
-        AuthorizationManager authManager(externalState);
-
-        ASSERT_NULL(authManager.checkAuthorization("test", ActionType::insert));
-        ASSERT_NULL(authManager.checkAuthorization("test", ActionType::replSetHeartbeat));
-
-        authManager.grantInternalAuthorization();
-
-        ASSERT_NON_NULL(authManager.checkAuthorization("test", ActionType::insert));
-        ASSERT_NON_NULL(authManager.checkAuthorization("test", ActionType::replSetHeartbeat));
-    }
-
-    TEST(AuthorizationManagerTest, GetCapabilitiesFromPrivilegeDocument) {
+    TEST(AuthorizationManagerTest, GetPrivilegesFromPrivilegeDocument) {
         Principal* principal = new Principal("Spencer");
         BSONObj invalid;
         BSONObj readWrite = BSON("user" << "Spencer" << "pwd" << "passwordHash");
         BSONObj readOnly = BSON("user" << "Spencer" << "pwd" << "passwordHash" <<
                                 "readOnly" << true);
 
-        CapabilitySet capabilitySet;
+        PrivilegeSet privilegeSet;
         ASSERT_EQUALS(ErrorCodes::UnsupportedFormat,
-                      AuthorizationManager::buildCapabilitySet("test",
+                      AuthorizationManager::buildPrivilegeSet("test",
                                                                principal,
                                                                invalid,
-                                                               &capabilitySet).code());
+                                                               &privilegeSet).code());
 
-        ASSERT_OK(AuthorizationManager::buildCapabilitySet("test",
+        ASSERT_OK(AuthorizationManager::buildPrivilegeSet("test",
                                                            principal,
                                                            readOnly,
-                                                           &capabilitySet));
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("test", ActionType::insert));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("test", ActionType::find));
+                                                           &privilegeSet));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::insert));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::find));
 
-        ASSERT_OK(AuthorizationManager::buildCapabilitySet("test",
+        ASSERT_OK(AuthorizationManager::buildPrivilegeSet("test",
                                                            principal,
                                                            readWrite,
-                                                           &capabilitySet));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("test", ActionType::find));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("test", ActionType::insert));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("test", ActionType::userAdmin));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("test", ActionType::compact));
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("test", ActionType::shutdown));
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("test", ActionType::addShard));
+                                                           &privilegeSet));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::find));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::insert));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::userAdmin));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::compact));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::shutdown));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("test", ActionType::addShard));
 
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("admin", ActionType::find));
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("*", ActionType::find));
-        ASSERT_OK(AuthorizationManager::buildCapabilitySet("admin",
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("admin", ActionType::find));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("*", ActionType::find));
+        ASSERT_OK(AuthorizationManager::buildPrivilegeSet("admin",
                                                            principal,
                                                            readOnly,
-                                                           &capabilitySet));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("admin", ActionType::find));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("*", ActionType::find));
+                                                           &privilegeSet));
+        // Should grant privileges on *, not on admin DB directly
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("admin", ActionType::find));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("*", ActionType::find));
 
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("admin", ActionType::insert));
-        ASSERT_NULL(capabilitySet.getCapabilityForAction("*", ActionType::insert));
-        ASSERT_OK(AuthorizationManager::buildCapabilitySet("admin",
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("admin", ActionType::insert));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("*", ActionType::insert));
+        ASSERT_OK(AuthorizationManager::buildPrivilegeSet("admin",
                                                            principal,
                                                            readWrite,
-                                                           &capabilitySet));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("admin", ActionType::insert));
-        ASSERT_NON_NULL(capabilitySet.getCapabilityForAction("*", ActionType::insert));
+                                                           &privilegeSet));
+        ASSERT_NULL(privilegeSet.getPrivilegeForAction("admin", ActionType::insert));
+        ASSERT_NON_NULL(privilegeSet.getPrivilegeForAction("*", ActionType::insert));
     }
 
 }  // namespace

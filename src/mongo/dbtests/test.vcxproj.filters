@@ -119,6 +119,9 @@
     <Filter Include="db\auth">
       <UniqueIdentifier>{f05caff2-28ae-48ec-87b2-ee00d8c9012d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="bson\mutable">
+      <UniqueIdentifier>{96220e3c-7484-4511-b445-b3d10f98df61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\client\connpool.h">
@@ -750,9 +753,6 @@
     <ClInclude Include="..\base\status.h">
       <Filter>base</Filter>
     </ClInclude>
-    <ClInclude Include="..\db\fail_point_service.h">
-      <Filter>db\Header Files\e to n</Filter>
-    </ClInclude>
     <ClInclude Include="..\util\fail_point.h">
       <Filter>util\Header Files</Filter>
     </ClInclude>
@@ -820,6 +820,312 @@
       <Filter>db\auth</Filter>
     </ClInclude>
     <ClInclude Include="..\db\auth\mongo_authentication_session.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\fail_point_service.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\util\bson_extract.h">
+      <Filter>bson\util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\mutable\mutable_bson.h">
+      <Filter>bson\mutable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\mutable\mutable_bson_builder.h">
+      <Filter>bson\mutable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\mutable\mutable_bson_heap.h">
+      <Filter>bson\mutable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\mutable\mutable_bson_internal.h">
+      <Filter>bson\mutable</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\action_type.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\acquired_privilege.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\action_set.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\authorization_manager.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\principal.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\principal_set.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\privilege.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\privilege_set.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\auth_external_state.h">
+      <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\field_parser.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_collection.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\background.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\btreebuilder.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\btreecursor.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\cc_by_loc.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\client.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\client_common.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\cloner.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\compact.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\curop-inl.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\d_globals.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dur_commitjob.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dur_journalformat.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dur_journalimpl.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dur_recover.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dur_stats.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\filever.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\hashindex.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\index.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\index_insertion_continuation.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\index_rebuilder.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\indexkey.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\initialize_server_global_state.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\instance.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\interrupt_status.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\key.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\memconcept.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\module.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\admin_access.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\alignedbuilder.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\allocator.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\array.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\assert_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\background.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\base64.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\bson_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\bufreader.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\debug_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\descriptive_stats.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\descriptive_stats-inl.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\exit_code.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\file_allocator.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\gsasl_session.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\heapcheck.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\hex.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\intrusive_counter.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\map_util.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\moveablebuffer.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\optime.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\password.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\paths.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\processinfo.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\progress_meter.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\queue.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\ramlog.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\scopeguard.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_map.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_map_internal.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\string_writer.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\stringutils.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\systeminfo.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\text.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\timer-inl.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\trace.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\unordered_fast_key_table.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\unordered_fast_key_table_internal.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\version.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\winutil.h">
+      <Filter>util\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\dbclientcursor.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\dbclientinterface.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\distlock.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\parallel.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\redef_macros.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\syncclusterconnection.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\client\undef_macros.h">
+      <Filter>client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_chunk.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_database.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\util.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\btreeposition.h">
+      <Filter>db\Header Files\a to d</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\intervalbtreecursor.h">
+      <Filter>db\Header Files\e to n</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\type_shard.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\server_parameters.h">
+      <Filter>db\Header Files\o to z</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\server_parameters_inline.h">
+      <Filter>db\Header Files\o to z</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\collection_manager.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\s\metadata_loader.h">
+      <Filter>s</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\auth\auth_external_state_d.h">
       <Filter>db\auth</Filter>
     </ClInclude>
   </ItemGroup>
@@ -1193,9 +1499,6 @@
       <Filter>db\Source Files\a to d</Filter>
     </ClCompile>
     <ClCompile Include="..\db\explain.cpp">
-      <Filter>db\Source Files\e to n</Filter>
-    </ClCompile>
-    <ClCompile Include="..\db\nonce.cpp">
       <Filter>db\Source Files\e to n</Filter>
     </ClCompile>
     <ClCompile Include="..\db\extsort.cpp">
@@ -1651,9 +1954,6 @@
     <ClCompile Include="..\util\touch_pages.cpp">
       <Filter>util\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\client\authentication_table.cpp">
-      <Filter>client</Filter>
-    </ClCompile>
     <ClCompile Include="histogram_test.cpp">
       <Filter>dbtests</Filter>
     </ClCompile>
@@ -1720,9 +2020,6 @@
     <ClCompile Include="..\base\status.cpp">
       <Filter>base</Filter>
     </ClCompile>
-    <ClCompile Include="..\db\fail_point_service.cpp">
-      <Filter>db\Source Files\e to n</Filter>
-    </ClCompile>
     <ClCompile Include="..\util\fail_point.cpp">
       <Filter>util\Source Files</Filter>
     </ClCompile>
@@ -1765,10 +2062,115 @@
     <ClCompile Include="..\util\file.cpp">
       <Filter>util\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\base\error_codes.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\fail_point_service.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\util\bson_extract.cpp">
+      <Filter>bson\util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\mutable\mutable_bson.cpp">
+      <Filter>bson\mutable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\mutable\mutable_bson_builder.cpp">
+      <Filter>bson\mutable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\mutable\mutable_bson_heap.cpp">
+      <Filter>bson\mutable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\bson\mutable\mutable_bson_internal.cpp">
+      <Filter>bson\mutable</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\action_type.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\action_set.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\authorization_manager.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\principal.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\principal_set.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\privilege.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\privilege_set.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\auth_external_state.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\field_parser.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_collection.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\index_rebuilder.cpp">
+      <Filter>db\Source Files\e to n</Filter>
+    </ClCompile>
+    <ClCompile Include="..\client\authentication_table_common.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\client\authentication_table_server.cpp">
+      <Filter>client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_chunk.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_database.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\btreeposition.cpp">
+      <Filter>db\Source Files\a to d</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\intervalbtreecursor.cpp">
+      <Filter>db\Source Files\e to n</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\type_shard.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\commands\parameters.cpp">
+      <Filter>db\commands</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\server_parameters.cpp">
+      <Filter>db\Source Files\o to z</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\collection_manager.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\s\metadata_loader.cpp">
+      <Filter>s</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\auth_external_state_d.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\auth\auth_external_state_server_common.cpp">
+      <Filter>db\auth</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="btreetests.inl">
       <Filter>dbtests</Filter>
+    </None>
+    <None Include="..\base\error_codes.err">
+      <Filter>base</Filter>
+    </None>
+    <None Include="..\base\generate_error_codes.py">
+      <Filter>base</Filter>
+    </None>
+    <None Include="..\db\auth\action_types.txt">
+      <Filter>db\auth</Filter>
+    </None>
+    <None Include="..\db\auth\generate_action_types.py">
+      <Filter>db\auth</Filter>
     </None>
   </ItemGroup>
 </Project>

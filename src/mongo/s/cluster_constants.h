@@ -51,6 +51,7 @@ namespace mongo {
         static BSONField<string> host;       // connection string for the host(s)
         static BSONField<bool> draining;     // is it draining chunks?
         static BSONField<long long> maxSize; // max allowe disk space usage
+        static BSONField<BSONArray> tags;    // shard tags
     };
 
     /**
@@ -114,55 +115,115 @@ namespace mongo {
         static BSONField<BSONObj> max;  // last key of the tag, non-including
     };
 
-    // ============  below not yet hooked  ============
-
     /**
      * MongosFields holds all the field names and types for the mongos collection.
      */
     struct MongosFields {
-        static BSONField<string> UNHOOKED_name;  // process id string
-        static BSONField<Date_t> UNHOOKED_ping;  // last time it was seen alive
-        static BSONField<int> UNHOOKED_up;       // uptime at the last ping
-        static BSONField<bool> UNHOOKED_waiting; // for testing purposes
+
+        // "host:port" for this mongos
+        static BSONField<string> name;
+
+        // last time it was seen alive
+        static BSONField<Date_t> ping;
+
+        // uptime at the last ping
+        static BSONField<int> up;
+
+        // for testing purposes
+        static BSONField<bool> waiting;
     };
 
     /**
-     * SettingFields holds all the field names and types for the settings collection.
+     * SettingsFields holds all the field names and types for the settings collection.
      */
-    struct SettingFields {
-        static BSONField<int> UNHOOKED_name;     // key for the parameter
-        static BSONField<string> UNHOOKED_value; // value for the parameter
+    struct SettingsFields {
+
+        // key determining the type of setting document this is
+        static BSONField<string> key;
+
+        // === chunksize options ===
+
+        static BSONField<int> chunksize;
+
+        // === balancer options ===
+
+        // balancer enabled/disabled
+        static BSONField<bool> balancerStopped;
+
+        // if present, activeWindow is an interval during the day when the balancer should be
+        // active.  Format: { start: "08:00" , stop: "19:30" }, strftime format is %H:%M
+        static BSONField<BSONObj> balancerActiveWindow;
+
+        // controls how long the balancer sleeps in some situations
+        static BSONField<bool> shortBalancerSleep;
+
+        // only migrate chunks as fast as at least one secondary can keep up with
+        static BSONField<bool> secondaryThrottle;
     };
 
     /**
      * ChangelogFields holds all the field names and types for the changelog collection.
      */
     struct ChangelogFields {
-        static BSONField<string> UNHOOKED_name;
-        static BSONField<string> UNHOOKED_server;
-        static BSONField<string> UNHOOKED_clientAddr;
-        static BSONField<Date_t> UNHOOKED_time;
-        static BSONField<string> UNHOOKED_what;
-        static BSONField<string> UNHOOKED_ns;
-        static BSONField<string> UNHOOKED_details;
+
+        // id for this change "<hostname>-<current_time>-<increment>"
+        static BSONField<string> changeID;
+
+        // hostname of server that we are making the change on.  Does not include port.
+        static BSONField<string> server;
+
+        // hostname:port of the client that made this change
+        static BSONField<string> clientAddr;
+
+        // time this change was made
+        static BSONField<Date_t> time;
+
+        // description of the change
+        static BSONField<string> what;
+
+        // database or collection this change applies to
+        static BSONField<string> ns;
+
+        // A BSONObj containing extra information about some operations
+        static BSONField<BSONObj> details;
     };
 
     /**
      * LockFields holds all the field names and types for the locks collection.
      */
     struct LockFields {
-        static BSONField<string> UNHOOKED_name; // process id holding the lock
-        static BSONField<int> UNHOOKED_state;   // 0: | 1: | 2:
-        static BSONField<Date_t> UNHOOKED_ts;
-        static BSONField<string> UNHOOKED_who;
+
+        // name of the lock
+        static BSONField<string> name;
+
+        // 0: Unlocked | 1: Locks in contention | 2: Lock held
+        static BSONField<int> state;
+
+        // the process field contains the (unique) identifier for the instance
+        // of mongod/mongos which has requested the lock
+        static BSONField<string> process;
+
+        // a unique identifier for the instance of the lock itself. Allows for
+        // safe cleanup after network partitioning
+        static BSONField<OID> lockID;
+
+        // a note about why the lock is held, or which subcomponent is holding it
+        static BSONField<string> who;
+
+        // a human readable description of the purpose of the lock
+        static BSONField<string> why;
     };
 
     /**
      * LockPingFields holds all the field names and types for the lockpings collection.
      */
     struct LockPingFields {
-        static BSONField<string> UNHOOKED_name; // process id holding the lock
-        static BSONField<Date_t> UNHOOKED_ping; // last time it pinged
+
+        // string describing the process holding the lock
+        static BSONField<string> process;
+
+        // last time the holding process updated this document
+        static BSONField<Date_t> ping;
     };
 
 } // namespace mongo

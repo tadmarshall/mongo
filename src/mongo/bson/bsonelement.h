@@ -135,7 +135,7 @@ namespace mongo {
         BSONObj wrap() const;
 
         /** Wrap this element up as a singleton object with a new name. */
-        BSONObj wrap( const char* newName) const;
+        BSONObj wrap( const StringData& newName) const;
 
         /** field name of the element.  e.g., for
             name : "Joe"
@@ -453,6 +453,8 @@ namespace mongo {
 
         std::string _asCode() const;
         OpTime _opTime() const;
+
+        template<typename T> bool coerce( T* out ) const;
 
     private:
         const char *data;

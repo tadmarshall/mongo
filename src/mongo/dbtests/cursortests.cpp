@@ -19,7 +19,7 @@
 
 #include "mongo/pch.h"
 
-#include "mongo/db/btree.h"
+#include "mongo/db/btreecursor.h"
 #include "mongo/db/clientcursor.h"
 #include "mongo/db/instance.h"
 #include "mongo/db/json.h"
@@ -72,7 +72,11 @@ namespace CursorTests {
                 int v[] = { 1, 2, 4, 6 };
                 boost::shared_ptr< FieldRangeVector > frv( vec( v, 4 ) );
                 Client::WriteContext ctx( ns );
-                scoped_ptr<BtreeCursor> _c( BtreeCursor::make( nsdetails( ns ), nsdetails( ns )->idx(1), frv, 1 ) );
+                scoped_ptr<BtreeCursor> _c( BtreeCursor::make( nsdetails( ns ),
+                                                               nsdetails( ns )->idx(1),
+                                                               frv,
+                                                               0,
+                                                               1 ) );
                 BtreeCursor &c = *_c.get();
                 ASSERT_EQUALS( "BtreeCursor a_1 multi", c.toString() );
                 double expected[] = { 1, 2, 4, 5, 6 };
@@ -100,7 +104,11 @@ namespace CursorTests {
                 int v[] = { -50, 2, 40, 60, 109, 200 };
                 boost::shared_ptr< FieldRangeVector > frv( vec( v, 6 ) );
                 Client::WriteContext ctx( ns );
-                scoped_ptr<BtreeCursor> _c( BtreeCursor::make(nsdetails( ns ), nsdetails( ns )->idx(1), frv, 1 ) );
+                scoped_ptr<BtreeCursor> _c( BtreeCursor::make( nsdetails( ns ),
+                                                               nsdetails( ns )->idx(1),
+                                                               frv,
+                                                               0,
+                                                               1 ) );
                 BtreeCursor &c = *_c.get();
                 ASSERT_EQUALS( "BtreeCursor a_1 multi", c.toString() );
                 double expected[] = { 0, 1, 2, 109 };
@@ -126,7 +134,11 @@ namespace CursorTests {
                 int v[] = { 1, 2, 4, 6 };
                 boost::shared_ptr< FieldRangeVector > frv( vec( v, 4, -1 ) );
                 Client::WriteContext ctx( ns );
-                scoped_ptr<BtreeCursor> _c( BtreeCursor::make( nsdetails( ns ), nsdetails( ns )->idx(1), frv, -1 ) );
+                scoped_ptr<BtreeCursor> _c( BtreeCursor::make( nsdetails( ns ),
+                                                               nsdetails( ns )->idx(1),
+                                                               frv,
+                                                               0,
+                                                               -1 ) );
                 BtreeCursor& c = *_c.get();
                 ASSERT_EQUALS( "BtreeCursor a_1 reverse multi", c.toString() );
                 double expected[] = { 6, 5, 4, 2, 1 };
@@ -163,7 +175,11 @@ namespace CursorTests {
                 // orphan spec for this test.
                 IndexSpec *idxSpec = new IndexSpec( idx() );
                 boost::shared_ptr< FieldRangeVector > frv( new FieldRangeVector( frs, *idxSpec, direction() ) );
-                scoped_ptr<BtreeCursor> c( BtreeCursor::make( nsdetails( ns() ), nsdetails( ns() )->idx( 1 ), frv, direction() ) );
+                scoped_ptr<BtreeCursor> c( BtreeCursor::make( nsdetails( ns() ),
+                                                              nsdetails( ns() )->idx( 1 ),
+                                                              frv,
+                                                              0,
+                                                              direction() ) );
                 Matcher m( spec );
                 int count = 0;
                 while( c->ok() ) {
@@ -288,6 +304,7 @@ namespace CursorTests {
                 scoped_ptr<BtreeCursor> c( BtreeCursor::make( nsdetails( ns() ),
                                                               nsdetails( ns() )->idx(1),
                                                               frv,
+                                                              0,
                                                               1 ) );
 
                 // BtreeCursor::init() and BtreeCursor::advance() attempt to advance the cursor to
@@ -334,6 +351,11 @@ namespace CursorTests {
             }
         };
 
+        class RequestMatcherFalse : public QueryPlanSelectionPolicy {
+            virtual string name() const { return "RequestMatcherFalse"; }
+            virtual bool requestMatcher() const { return false; }
+        } _requestMatcherFalse;
+
         /**
          * A BtreeCursor typically moves from one index match to another when its advance() method
          * is called.  However, to prevent excessive iteration advance() may bail out early before
@@ -364,8 +386,7 @@ namespace CursorTests {
                         NamespaceDetailsTransient::getCursor( ns(),
                                                               query,
                                                               BSONObj(),
-                                                              QueryPlanSelectionPolicy::any(),
-                                                              /* requestMatcher */ false );
+                                                              _requestMatcherFalse );
                 // The BtreeCursor attempts to find each of the values 0, 1, 2, ... etc in the
                 // btree.  Because the values 0.5, 1.5, etc are present in the btree, the
                 // BtreeCursor will explicitly look for all the values in the $in list during
@@ -408,8 +429,7 @@ namespace CursorTests {
                         NamespaceDetailsTransient::getCursor( ns(),
                                                               BSON( "a" << GT << 0 << LT << 5 ),
                                                               BSONObj(),
-                                                              QueryPlanSelectionPolicy::any(),
-                                                              /* requestMatcher */ false );
+                                                              _requestMatcherFalse );
                 while( c->ok() ) {
                     // A Matcher is provided even though 'requestMatcher' is false.
                     ASSERT( c->matcher() );
@@ -444,8 +464,7 @@ namespace CursorTests {
                         NamespaceDetailsTransient::getCursor( ns(),
                                                               BSON( "a.b" << 2 << "a.c" << 2 ),
                                                               BSONObj(),
-                                                              QueryPlanSelectionPolicy::any(),
-                                                              /* requestMatcher */ false );
+                                                              _requestMatcherFalse );
                 while( c->ok() ) {
                     // A Matcher is provided even though 'requestMatcher' is false.
                     ASSERT( c->matcher() );
@@ -474,8 +493,7 @@ namespace CursorTests {
                         NamespaceDetailsTransient::getCursor( ns(),
                                                               BSON( "a" << GTE << "" ),
                                                               BSONObj(),
-                                                              QueryPlanSelectionPolicy::any(),
-                                                              /* requestMatcher */ false );
+                                                              _requestMatcherFalse );
                 while( c->ok() ) {
                     ASSERT( !c->matcher() );
                     if ( c->currentMatches() ) {
@@ -503,8 +521,7 @@ namespace CursorTests {
                         NamespaceDetailsTransient::getCursor( ns(),
                                                               BSON( "a" << LTE << Date_t( 1 ) ),
                                                               BSONObj(),
-                                                              QueryPlanSelectionPolicy::any(),
-                                                              /* requestMatcher */ false );
+                                                              _requestMatcherFalse );
                 while( c->ok() ) {
                     ASSERT( !c->matcher() );
                     if ( c->currentMatches() ) {
@@ -513,6 +530,31 @@ namespace CursorTests {
                     }
                     c->advance();
                 }                
+            }
+        };
+
+        /** Test iteration of a reverse direction btree cursor between start and end keys. */
+        class ReverseDirectionStartEndKeys : public Base {
+        public:
+            void run() {
+                _c.dropCollection( ns() );
+                _c.ensureIndex( ns(), BSON( "a" << 1 ) );
+                // Add documents a:4 and a:5
+                _c.insert( ns(), BSON( "a" << 4 ) );
+                _c.insert( ns(), BSON( "a" << 5 ) );
+                Client::ReadContext ctx( ns() );
+                scoped_ptr<Cursor> cursor( BtreeCursor::make( nsdetails( ns() ),
+                                                              nsdetails( ns() )->idx( 1 ),
+                                                              /* startKey */ BSON( "" << 5 ),
+                                                              /* endKey */ BSON( "" << 4 ),
+                                                              /* endKeyInclusive */ true,
+                                                              /* direction */ -1 ) );
+                // Check that the iterator produces the expected results, in the expected order.
+                ASSERT( cursor->ok() );
+                ASSERT_EQUALS( 5, cursor->current()[ "a" ].Int() );
+                ASSERT( cursor->advance() );
+                ASSERT_EQUALS( 4, cursor->current()[ "a" ].Int() );
+                ASSERT( !cursor->advance() );
             }
         };
         
@@ -752,6 +794,7 @@ namespace CursorTests {
             add<BtreeCursor::MatcherRequiredTwoConstraintsDifferentFields>();
             add<BtreeCursor::TypeBracketedUpperBoundWithoutMatcher>();
             add<BtreeCursor::TypeBracketedLowerBoundWithoutMatcher>();
+            add<BtreeCursor::ReverseDirectionStartEndKeys>();
             add<ClientCursor::HandleDelete>();
             add<ClientCursor::AboutToDelete>();
             add<ClientCursor::AboutToDeleteDuplicate>();

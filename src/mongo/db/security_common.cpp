@@ -24,11 +24,17 @@
 #include "pch.h"
 
 #include <sys/stat.h>
+#include <string>
+#include <vector>
 
+#include "mongo/db/auth/action_set.h"
+#include "mongo/db/auth/action_type.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/privilege.h"
+#include "mongo/db/jsobj.h"
 #include "security.h"
 #include "security_common.h"
 #include "commands.h"
-#include "nonce.h"
 #include "../util/md5.hpp"
 #include "client_common.h"
 #include "mongo/client/dbclientinterface.h"
@@ -38,8 +44,6 @@ namespace mongo {
 
     // this is a config setting, set at startup and not changing after initialization.
     bool noauth = true;
-
-    AuthInfo internalSecurity;
 
     bool setUpSecurityKey(const string& filename) {
         struct stat stats;

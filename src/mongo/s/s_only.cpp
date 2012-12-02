@@ -16,6 +16,12 @@
  */
 
 #include "pch.h"
+
+#include "mongo/client/connpool.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/auth_external_state_s.h"
+#include "mongo/s/shard.h"
+#include "mongo/s/grid.h"
 #include "request.h"
 #include "client_info.h"
 #include "../db/dbhelpers.h"
@@ -44,19 +50,30 @@ namespace mongo {
     LockState::LockState(){} // ugh
 
     Client::Client(const char *desc , AbstractMessagingPort *p) :
+        ClientBasic(p),
         _context(0),
         _shutdown(false),
         _desc(desc),
         _god(0),
-        _lastOp(0),
-        _mp(p) {
+        _lastOp(0) {
     }
     Client::~Client() {}
     bool Client::shutdown() { return true; }
 
+    void ClientBasic::initializeAuthorizationManager() {
+        AuthorizationManager* authManager = new AuthorizationManager(new AuthExternalStateMongos);
+        setAuthorizationManager(authManager);
+    }
+
     Client& Client::initThread(const char *desc, AbstractMessagingPort *mp) {
+        // mp is non-null only for client connections, and mongos uses ClientInfo for those
+        massert(16478, "Client being used for incoming connection thread in mongos", mp == NULL);
         setThreadName(desc);
         verify( currentClient.get() == 0 );
+        // mp is always NULL in mongos. Threads for client connections use ClientInfo in mongos
+        massert(16482,
+                "Non-null messaging port provided to Client::initThread in a mongos",
+                mp == NULL);
         Client *c = new Client(desc, mp);
         currentClient.reset(c);
         mongo::lastError.initThread();

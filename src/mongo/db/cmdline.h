@@ -72,6 +72,7 @@ namespace mongo {
         bool usingReplSets() const { return !_replSet.empty(); }
 
         std::string rsIndexPrefetch;// --indexPrefetch
+        bool indexBuildRetry;  // --noIndexBuildRetry
 
         // for master/slave replication
         std::string source;    // --source
@@ -141,7 +142,19 @@ namespace mongo {
 
         SSLManager* sslServerManager; // currently leaks on close
 #endif
-        
+
+        /**
+         * Switches to enable experimental (unsupported) features.
+         */
+        struct ExperimentalFeatures {
+            ExperimentalFeatures()
+                : indexStatsCmdEnabled(false)
+                , storageDetailsCmdEnabled(false)
+            {}
+            bool indexStatsCmdEnabled; // -- enableExperimentalIndexStatsCmd
+            bool storageDetailsCmdEnabled; // -- enableExperimentalStorageDetailsCmd
+        } experimental;
+
         static void launchOk();
 
         static void addGlobalOptions( boost::program_options::options_description& general ,
@@ -176,7 +189,7 @@ namespace mongo {
 
     // todo move to cmdline.cpp?
     inline CmdLine::CmdLine() :
-        port(DefaultDBPort), rest(false), jsonp(false), quiet(false),
+        port(DefaultDBPort), rest(false), jsonp(false), indexBuildRetry(true), quiet(false),
         noTableScan(false), prealloc(true), preallocj(true), smallfiles(sizeof(int*) == 4),
         configsvr(false), quota(false), quotaFiles(8), cpu(false),
         durOptions(0), objcheck(false), oplogSize(0), defaultProfile(0),
@@ -206,26 +219,5 @@ namespace mongo {
     extern CmdLine cmdLine;
 
     void printCommandLineOpts();
-
-    /**
-     * used for setParameter command
-     * so you can write validation code that lives with code using it
-     * rather than all in the command place
-     * also lets you have mongos or mongod specific code
-     * without pulling it all sorts of things
-     */
-    class ParameterValidator {
-    public:
-        ParameterValidator( const std::string& name );
-        virtual ~ParameterValidator() {}
-
-        virtual bool isValid( BSONElement e , std::string& errmsg ) const = 0;
-
-        static ParameterValidator * get( const std::string& name );
-
-    private:
-        const std::string _name;
-    };
-
 }
 

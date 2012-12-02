@@ -38,9 +38,6 @@ namespace mongo {
     int ConfigServer::VERSION = 3;
     Shard Shard::EMPTY;
 
-    string ShardNS::mongos = "config.mongos";
-    string ShardNS::settings = "config.settings";
-
     OID serverID;
 
     /* --- DBConfig --- */
@@ -908,15 +905,15 @@ namespace mongo {
         
         try {
             
-            auto_ptr<DBClientCursor> c = conn->get()->query( ShardNS::settings , BSONObj() );
+            auto_ptr<DBClientCursor> c = conn->get()->query( ConfigNS::settings , BSONObj() );
             verify( c.get() );
             while ( c->more() ) {
                 
                 BSONObj o = c->next();
-                string name = o["_id"].valuestrsafe();
+                string name = o[SettingsFields::key()].valuestrsafe();
                 got.insert( name );
                 if ( name == "chunksize" ) {
-                    int csize = o["value"].numberInt();
+                    int csize = o[SettingsFields::chunksize()].numberInt();
 
                     // validate chunksize before proceeding
                     if ( csize == 0 ) {
@@ -937,9 +934,10 @@ namespace mongo {
             }
 
             if ( ! got.count( "chunksize" ) ) {
-                conn->get()->insert( ShardNS::settings,
-                                     BSON( "_id" << "chunksize"  <<
-                                           "value" << (Chunk::MaxChunkSize / ( 1024 * 1024 ) ) ) );
+                conn->get()->insert(ConfigNS::settings,
+                                     BSON(SettingsFields::key("chunksize") <<
+                                          SettingsFields::chunksize(Chunk::MaxChunkSize /
+                                                                    (1024 * 1024))));
             }
 
             // indexes
@@ -993,8 +991,13 @@ namespace mongo {
 
             // send a copy of the message to the log in case it doesn't manage to reach config.changelog
             Client* c = currentClient.get();
-            BSONObj msg = BSON( "_id" << changeID << "server" << getHostNameCached() << "clientAddr" << (c ? c->clientAddress(true) : "N/A")
-                                << "time" << DATENOW << "what" << what << "ns" << ns << "details" << detail );
+            BSONObj msg = BSON( ChangelogFields::changeID(changeID) <<
+                                ChangelogFields::server(getHostNameCached()) <<
+                                ChangelogFields::clientAddr((c ? c->clientAddress(true) : "N/A")) <<
+                                ChangelogFields::time(jsTime()) <<
+                                ChangelogFields::what(what) <<
+                                ChangelogFields::ns(ns) <<
+                                ChangelogFields::details(detail) );
             log() << "about to log metadata event: " << msg << endl;
 
             verify( _primary.ok() );
@@ -1006,7 +1009,7 @@ namespace mongo {
             static bool createdCapped = false;
             if ( ! createdCapped ) {
                 try {
-                    conn->get()->createCollection( "config.changelog" , 1024 * 1024 * 10 , true );
+                    conn->get()->createCollection( ConfigNS::changelog , 1024 * 1024 * 10 , true );
                 }
                 catch ( UserException& e ) {
                     LOG(1) << "couldn't create changelog (like race condition): " << e << endl;
@@ -1015,7 +1018,7 @@ namespace mongo {
                 createdCapped = true;
             }
 
-            conn->get()->insert( "config.changelog" , msg );
+            conn->get()->insert( ConfigNS::changelog , msg );
 
             conn->done();
 
@@ -1034,7 +1037,7 @@ namespace mongo {
                 LOG(1) << "replicaSetChange: shard not found for set: " << monitor->getServerAddress() << endl;
                 return;
             }
-            scoped_ptr<ScopedDbConnection> conn( ScopedDbConnection::getScopedDbConnection(
+            scoped_ptr<ScopedDbConnection> conn( ScopedDbConnection::getInternalScopedDbConnection(
                     configServer.getConnectionString().toString(), 30.0 ) );
             conn->get()->update(ConfigNS::shard,
                                 BSON(ShardFields::name(s.getName())),
@@ -1042,8 +1045,9 @@ namespace mongo {
                                      BSON(ShardFields::host(monitor->getServerAddress()))));
             conn->done();
         }
-        catch ( DBException & ) {
-            error() << "RSChangeWatcher: could not update config db for set: " << monitor->getName() << " to: " << monitor->getServerAddress() << endl;
+        catch (DBException& e) {
+            error() << "RSChangeWatcher: could not update config db for set: " << monitor->getName()
+                    << " to: " << monitor->getServerAddress() << causedBy(e) << endl;
         }
     }
 

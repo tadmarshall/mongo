@@ -21,7 +21,7 @@
 
 #include "mongo/db/queryoptimizercursorimpl.h"
 
-#include "mongo/db/btree.h"
+#include "mongo/db/btreecursor.h"
 #include "mongo/db/queryoptimizer.h"
 
 namespace mongo {
@@ -386,13 +386,17 @@ namespace mongo {
                                          const BSONObj &query,
                                          const BSONObj &order,
                                          const QueryPlanSelectionPolicy &planPolicy,
-                                         bool requestMatcher,
                                          const shared_ptr<const ParsedQuery> &parsedQuery,
                                          bool requireOrder,
                                          QueryPlanSummary *singlePlanSummary ) {
 
-        CursorGenerator generator( ns, query, order, planPolicy, requestMatcher, parsedQuery,
-                                   requireOrder, singlePlanSummary );
+        CursorGenerator generator( ns,
+                                   query,
+                                   order,
+                                   planPolicy,
+                                   parsedQuery,
+                                   requireOrder,
+                                   singlePlanSummary );
         return generator.generate();
     }
     
@@ -400,7 +404,6 @@ namespace mongo {
                                      const BSONObj &query,
                                      const BSONObj &order,
                                      const QueryPlanSelectionPolicy &planPolicy,
-                                     bool requestMatcher,
                                      const shared_ptr<const ParsedQuery> &parsedQuery,
                                      bool requireOrder,
                                      QueryPlanSummary *singlePlanSummary ) :
@@ -408,7 +411,6 @@ namespace mongo {
     _query( query ),
     _order( order ),
     _planPolicy( planPolicy ),
-    _requestMatcher( requestMatcher ),
     _parsedQuery( parsedQuery ),
     _requireOrder( requireOrder ),
     _singlePlanSummary( singlePlanSummary ) {
@@ -459,8 +461,7 @@ namespace mongo {
                 if ( idxNo >= 0 ) {
                     IndexDetails& i = d->idx( idxNo );
                     BSONObj key = i.getKeyFromQuery( _query );
-                    return shared_ptr<Cursor>( BtreeCursor::make( d, idxNo, i, key, key, true,
-                                                                 1 ) );
+                    return shared_ptr<Cursor>( BtreeCursor::make( d, i, key, key, true, 1 ) );
                 }
             }
         }
@@ -487,7 +488,8 @@ namespace mongo {
         if ( _singlePlanSummary ) {
             *_singlePlanSummary = singlePlan->summary();
         }
-        shared_ptr<Cursor> single = singlePlan->newCursor();
+        shared_ptr<Cursor> single = singlePlan->newCursor( DiskLoc(),
+                                                           _planPolicy.requestIntervalCursor() );
         if ( !_query.isEmpty() && !single->matcher() ) {
 
             // The query plan must have a matcher.  The matcher's constructor performs some aspects
@@ -495,7 +497,7 @@ namespace mongo {
             fassert( 16449, singlePlan->matcher() );
 
             if ( // If a matcher is requested or ...
-                 _requestMatcher ||
+                 _planPolicy.requestMatcher() ||
                  // ... the index ranges do not exactly match the query or ...
                  singlePlan->mayBeMatcherNecessary() ||
                  // ... the matcher must look at the full record ...

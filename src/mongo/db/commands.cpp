@@ -18,10 +18,19 @@
  */
 
 #include "pch.h"
-#include "jsobj.h"
-#include "commands.h"
-#include "client.h"
-#include "replutil.h"
+
+#include "mongo/db/commands.h"
+
+#include <string>
+#include <vector>
+
+#include "mongo/db/auth/action_set.h"
+#include "mongo/db/auth/action_type.h"
+#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/privilege.h"
+#include "mongo/db/client.h"
+#include "mongo/db/jsobj.h"
+#include "mongo/db/replutil.h"
 
 namespace mongo {
 
@@ -153,12 +162,25 @@ namespace mongo {
         return i->second;
     }
 
-
     Command::LockType Command::locktype( const string& name ) {
         Command * c = findCommand( name );
         if ( ! c )
             return WRITE;
         return c->locktype();
+    }
+
+    // TODO: remove this default implementation so that all Command subclasses have to explicitly
+    // declare their own.
+    void Command::addRequiredPrivileges(const std::string& dbname,
+                                        const BSONObj& cmdObj,
+                                        std::vector<Privilege>* out) {
+        if (!requiresAuth()) {
+            return;
+        }
+        ActionSet actions;
+        actions.addAction(locktype() == WRITE ? ActionType::oldWrite : ActionType::oldRead);
+        Privilege privilege(adminOnly() ? "admin" : dbname, actions);
+        out->push_back(privilege);
     }
 
     void Command::logIfSlow( const Timer& timer, const string& msg ) {
@@ -181,6 +203,13 @@ namespace mongo {
         PoolFlushCmd() : Command( "connPoolSync" , false , "connpoolsync" ) {}
         virtual void help( stringstream &help ) const { help<<"internal"; }
         virtual LockType locktype() const { return NONE; }
+        virtual void addRequiredPrivileges(const std::string& dbname,
+                                           const BSONObj& cmdObj,
+                                           std::vector<Privilege>* out) {
+            ActionSet actions;
+            actions.addAction(ActionType::connPoolSync);
+            out->push_back(Privilege(AuthorizationManager::SERVER_RESOURCE_NAME, actions));
+        }
         virtual bool run(const string&, mongo::BSONObj&, int, std::string&, mongo::BSONObjBuilder& result, bool) {
             pool.flush();
             return true;
@@ -196,6 +225,13 @@ namespace mongo {
         PoolStats() : Command( "connPoolStats" ) {}
         virtual void help( stringstream &help ) const { help<<"stats about connection pool"; }
         virtual LockType locktype() const { return NONE; }
+        virtual void addRequiredPrivileges(const std::string& dbname,
+                                           const BSONObj& cmdObj,
+                                           std::vector<Privilege>* out) {
+            ActionSet actions;
+            actions.addAction(ActionType::connPoolStats);
+            out->push_back(Privilege(AuthorizationManager::SERVER_RESOURCE_NAME, actions));
+        }
         virtual bool run(const string&, mongo::BSONObj&, int, std::string&, mongo::BSONObjBuilder& result, bool) {
             pool.appendInfo( result );
             result.append( "numDBClientConnection" , DBClientConnection::getNumConnections() );

@@ -18,6 +18,8 @@
 // security.cpp
 
 #include "pch.h"
+
+#include "mongo/db/auth/authorization_manager.h"
 #include "../db/security_common.h"
 #include "../db/security.h"
 #include "config.h"
@@ -30,49 +32,28 @@ namespace mongo {
 
     bool AuthenticationInfo::_warned;
 
-    bool CmdAuthenticate::getUserObj(const string& dbname, const string& user, BSONObj& userObj, string& pwd) {
-        if (user == internalSecurity.user) {
-            uassert(15890, "key file must be used to log in with internal user",
-                    !cmdLine.keyFile.empty());
-            pwd = internalSecurity.pwd;
-        }
-        else {
-            string systemUsers = dbname + ".system.users";
-            DBConfigPtr config = grid.getDBConfig( systemUsers );
-            Shard s = config->getShard( systemUsers );
-
-            static BSONObj userPattern = BSON("user" << 1);
-
-            scoped_ptr<ScopedDbConnection> conn(
-                    ScopedDbConnection::getInternalScopedDbConnection( s.getConnString(), 30.0 ) );
-            OCCASIONALLY conn->get()->ensureIndex(systemUsers, userPattern, false, "user_1");
-            {
-                BSONObjBuilder b;
-                b << "user" << user;
-                BSONObj query = b.done();
-                userObj = conn->get()->findOne(systemUsers, query, 0, QueryOption_SlaveOk);
-                if( userObj.isEmpty() ) {
-                    log() << "auth: couldn't find user " << user << ", " << systemUsers << endl;
-                    conn->done(); // return to pool
-                    return false;
-                }
-            }
-
-            pwd = userObj.getStringField("pwd");
-
-            conn->done(); // return to pool
-        }
-        return true;
+    void AuthenticationInfo::startRequest() {
+        _checkLocalHostSpecialAdmin();
     }
 
     void AuthenticationInfo::setIsALocalHostConnectionWithSpecialAuthPowers() {
         verify(!_isLocalHost);
         _isLocalHost = true;
+        _isLocalHostAndLocalHostIsAuthorizedForAll = true;
+        _checkLocalHostSpecialAdmin();
     }
 
     bool AuthenticationInfo::_isAuthorizedSpecialChecks( const string& dbname ) const {
-        if ( !_isLocalHost ) {
-            return false;
+        return isSpecialLocalhostAdmin();
+    }
+
+    bool AuthenticationInfo::isSpecialLocalhostAdmin() const {
+        return _isLocalHostAndLocalHostIsAuthorizedForAll;
+    }
+
+    void AuthenticationInfo::_checkLocalHostSpecialAdmin() {
+        if (noauth || !_isLocalHost || !_isLocalHostAndLocalHostIsAuthorizedForAll) {
+            return;
         }
 
         string adminNs = "admin.system.users";
@@ -80,8 +61,15 @@ namespace mongo {
         DBConfigPtr config = grid.getDBConfig( adminNs );
         Shard s = config->getShard( adminNs );
 
-        ShardConnection conn( s, adminNs );
-        BSONObj result = conn->findOne("admin.system.users", Query());
+        //
+        // Note: The connection mechanism here is *not* ideal, and should not be used elsewhere.
+        // It is safe in this particular case because the admin database is always on the config
+        // server and does not move.
+        //
+        scoped_ptr<ScopedDbConnection> conn(
+                ScopedDbConnection::getInternalScopedDbConnection(s.getConnString(), 30.0));
+
+        BSONObj result = (*conn)->findOne("admin.system.users", Query());
         if( result.isEmpty() ) {
             if( ! _warned ) {
                 // you could get a few of these in a race, but that's ok
@@ -91,13 +79,14 @@ namespace mongo {
 
             // Must return conn to pool
             // TODO: Check for errors during findOne(), or just let the conn die?
-            conn.done();
-            return true;
+            conn->done();
+            _isLocalHostAndLocalHostIsAuthorizedForAll = true;
+            return;
         }
 
         // Must return conn to pool
-        conn.done();
-        return false;
+        conn->done();
+        _isLocalHostAndLocalHostIsAuthorizedForAll = false;
     }
 
     bool CmdLogout::run(const string& dbname , BSONObj& cmdObj, int, string& errmsg, BSONObjBuilder& result, bool fromRepl) {
