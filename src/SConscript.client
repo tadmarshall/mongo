@@ -58,6 +58,7 @@ clientSource = [
     'mongo/util/concurrency/mutexdebugger.cpp',
     'mongo/util/debug_util.cpp',
     'mongo/util/stacktrace.cpp',
+    'mongo/util/file.cpp',
     'mongo/util/file_allocator.cpp',
     'mongo/util/fail_point.cpp',
     'mongo/util/fail_point_registry.cpp',
