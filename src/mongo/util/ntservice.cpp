@@ -174,6 +174,86 @@ namespace {
         }
     }
 
+    /**
+     * Handle a command line argument that requires quoting, typically a file specification.
+     * Deal with arguments with embedded equal signs and with argument pairs; for example:
+     *  single argument:  "--dbpath=C:\path to database directory"
+     *  paired arguments: "--dbpath" "C:\path to database directory"
+     * 
+     * @param argc          Argument count
+     * @param argv          Argument list
+     * @param keyName       Extracted key name
+     * @param keyValue      Extracted key value if useKeyValue == true
+     * @param useKeyValue   Use keyValue if true, otherwise use paired argument
+     * @param commandLine   Command line to add quoted parameter to
+     * @param argIndex      Argument index, updated if paired argument used
+     * @return              'true' if parameter was handled
+     */
+    static bool isQuotedParameter(size_t argc,
+                                  const std::vector<std::string>& argv,
+                                  const std::string& keyName,
+                                  const std::string& keyValue,
+                                  bool useKeyValue,
+                                  std::stringstream* commandLine,
+                                  size_t* argIndex) {
+        static const char* quotedParameters[] = {
+                "config",
+                "dbpath",
+                "f",
+                "keyfile",
+                "logpath",
+                "pidfilepath",
+                "repairpath"
+        };
+        for (size_t j = 0; j < sizeof(quotedParameters)/sizeof(quotedParameters[0]); ++j) {
+            if (keyName == quotedParameters[j]) {
+                if (useKeyValue) {
+                    *commandLine << " --" << keyName << " \"" << keyValue << '"';
+                }
+                else if (*argIndex + 1 < argc) {
+                    *commandLine << " --" << keyName << " \"" << argv[*argIndex+1] << '"';
+                    ++*argIndex;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Handle a command line argument that should be omitted.
+     * Deal with arguments with embedded equal signs and with argument pairs; for example:
+     *  single argument:  "--serviceDescription=MongoDB Shard 0001"
+     *  paired arguments: "--serviceDescription" "MongoDB Shard 0001"
+     * 
+     * @param argc          Argument count
+     * @param keyName       Extracted key name
+     * @param useKeyValue   Use keyValue if true, otherwise use paired argument
+     * @param argIndex      Argument index, updated if paired argument used
+     * @return              'true' if parameter was handled
+     */
+    static bool isOmittedParameter(size_t argc,
+                                   const std::string& keyName,
+                                   bool useKeyValue,
+                                   size_t* argIndex) {
+        static const char* omittedParameters[] = {
+                "serviceDescription",
+                "serviceDisplayName",
+                "serviceName",
+                "servicePassword",
+                "serviceUser"
+        };
+        for (size_t j = 0; j < sizeof(omittedParameters)/sizeof(omittedParameters[0]); ++j) {
+            if (keyName == omittedParameters[j]) {
+                if (!useKeyValue && *argIndex + 1 < argc) {
+                    ++*argIndex;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     void installServiceOrDie(
             const wstring& serviceName,
             const wstring& displayName,
@@ -184,70 +264,70 @@ namespace {
     ) {
         log() << "Trying to install Windows service '" << toUtf8String(serviceName) << "'" << endl;
 
-        stringstream commandLine;
-
+        // construct a new command line for the service
+        std::stringstream commandLine;
         char exePath[1024];
-        GetModuleFileNameA( NULL, exePath, sizeof exePath );
-        commandLine << '"' << exePath << "\" ";
-
-        // because we use allow_long_disguise in our style for boost::program_options
-        // parsing (to make -vvvvv work) we will accept "-install" and "--install" and
-        // likewise for all options.  this means that when parsing option-by-option as
-        // we do here, we need to handle both "-" and "--" prefixes.
+        GetModuleFileNameA(NULL, exePath, sizeof(exePath));
+        commandLine << '"' << exePath << "\" --service" ;
 
         const size_t argc = argv.size();
-        for ( size_t i = 1; i < argc; i++ ) {
+        for (size_t i = 1; i < argc; ++i) {
             std::string arg(argv[i]);
-            // replace install command to indicate process is being started as a service
-            if ( arg == "-install" || arg == "--install" || arg == "-reinstall" || arg == "--reinstall" ) {
-                arg = "--service";
+            std::string keyName;
+            std::string keyValue;
+
+            // because we use allow_long_disguise in our style for boost::program_options
+            // parsing (to make -vvvvv work) we will accept "-install" and "--install" and
+            // likewise for all options.  this means that when parsing option-by-option as
+            // we do here, we need to handle both "-" and "--" prefixes.
+            size_t leadingDashes = 0;
+            if (startsWith(arg, "--")) {
+                leadingDashes = 2;
             }
-            else if ( (arg == "-dbpath" || arg == "--dbpath") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
+            else if (startsWith(arg, "-")) {
+                leadingDashes = 1;
             }
-            else if ( (arg == "-logpath" || arg == "--logpath") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
+
+            // some options require splitting and/or quoting, and some should not be copied
+            if (leadingDashes > 0) {
+
+                // handle options with embedded equal signs (e.g. "--dbpath=some path")
+                size_t equalSignPosition = arg.find('=');
+                if (equalSignPosition != std::string::npos) {
+                    keyName = arg.substr(leadingDashes, equalSignPosition - leadingDashes);
+                    keyValue = arg.substr(equalSignPosition + 1);
+                }
+                else {
+                    keyName = arg.substr(leadingDashes);
+                }
+
+                // these are just skipped
+                if (keyName == "install" || keyName == "reinstall") {
+                    continue;
+                }
+
+                // handle parameters that require quoting
+                if (isQuotedParameter(argc,
+                                      argv,
+                                      keyName,
+                                      keyValue,
+                                      equalSignPosition != std::string::npos,
+                                      &commandLine,
+                                      &i)) {
+                    continue;
+                }
+
+                // omit --serviceName, etc.
+                if (isOmittedParameter(argc,
+                                       keyName,
+                                       equalSignPosition != std::string::npos,
+                                       &i)) {
+                    continue;
+                }
             }
-            else if ( arg == "-f" && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
-            }
-            else if ( (arg == "-config" || arg == "--config") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
-            }
-            else if ( (arg == "-pidfilepath" || arg == "--pidfilepath") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
-            }
-            else if ( (arg == "-repairpath" || arg == "--repairpath") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
-            }
-            else if ( (arg == "-keyfile" || arg == "--keyfile") && i + 1 < argc ) {
-                commandLine << arg << " \"" << argv[i+1] << "\" ";
-                i++;
-                continue;
-            }
-            else if ( arg.length() > 8 && arg.substr(0, 8) == "-service" ) {
-                // Strip off --service(Name|User|Password) arguments
-                i++;
-                continue;
-            }
-            else if ( arg.length() > 9 && arg.substr(0, 9) == "--service" ) {
-                // Strip off --service(Name|User|Password) arguments
-                i++;
-                continue;
-            }
-            commandLine << arg << " ";
+
+            // command-line parameters that have not been handled yet are copied verbatim
+            commandLine << " " << arg;
         }
 
         SC_HANDLE schSCManager = ::OpenSCManager( NULL, NULL, SC_MANAGER_ALL_ACCESS );
