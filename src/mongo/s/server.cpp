@@ -50,7 +50,8 @@
 #include "mongo/util/stacktrace.h"
 
 #if defined(_WIN32)
-# include "../util/ntservice.h"
+# include "mongo/util/exception_filter_win32.h"
+# include "mongo/util/ntservice.h"
 #endif
 
 namespace {
@@ -174,6 +175,10 @@ namespace mongo {
 #endif
 #if defined(SIGPIPE)
         signal( SIGPIPE , SIG_IGN );
+#endif
+
+#if defined(_WIN32)
+        setWindowsUnhandledExceptionFilter();
 #endif
 
         set_new_handler( my_new_handler );
