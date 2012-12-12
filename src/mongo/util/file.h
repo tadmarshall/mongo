@@ -35,9 +35,8 @@ namespace mongo {
         File();
         ~File();
 
-        static boost::intmax_t freeSpace(const std::string& path);
-
         bool bad() const { return _bad; }
+        static boost::intmax_t freeSpace(const std::string& path);
         void fsync() const;
         bool is_open() const;
         fileofs len();

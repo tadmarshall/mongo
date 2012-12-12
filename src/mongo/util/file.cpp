@@ -224,7 +224,7 @@ namespace mongo {
     void File::open(const char* filename, bool readOnly, bool direct) {
         _name = filename;
         _fd = ::open(filename,
-                     O_CREAT | (readOnly ? 0 : (O_RDWR | O_NOATIME))
+                     O_NOATIME | (readOnly ? O_RDONLY : (O_CREAT | O_RDWR))
 #if defined(O_DIRECT)
                              | (direct ? O_DIRECT : 0)
 #endif
