@@ -1252,6 +1252,11 @@ static void processCommandLineOptions(const std::vector<std::string>& argv) {
 static int mongoDbMain(int argc, char* argv[], char **envp) {
     static StaticObserver staticObserver;
 
+#ifdef _WIN32
+    // do not display dialog on abort()
+    _set_abort_behavior(0, _CALL_REPORTFAULT | _WRITE_ABORT_MSG);
+#endif
+
     getcurns = ourgetns;
 
     setupCoreSignals();

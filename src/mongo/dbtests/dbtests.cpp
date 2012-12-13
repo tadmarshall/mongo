@@ -27,6 +27,12 @@
 
 int main( int argc, char** argv, char** envp ) {
     static StaticObserver StaticObserver;
+
+#ifdef _WIN32
+    // do not display dialog on abort()
+    _set_abort_behavior(0, _CALL_REPORTFAULT | _WRITE_ABORT_MSG);
+#endif
+
     Command::testCommandsEnabled = 1;
     mongo::runGlobalInitializersOrDie(argc, argv, envp);
     StartupTest::runTests();

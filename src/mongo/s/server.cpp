@@ -500,6 +500,11 @@ int main(int argc, char* argv[], char** envp) {
     if (argc < 1)
         ::_exit(EXIT_FAILURE);
 
+#ifdef _WIN32
+    // do not display dialog on abort()
+    _set_abort_behavior(0, _CALL_REPORTFAULT | _WRITE_ABORT_MSG);
+#endif
+
     mongosCommand = argv[0];
 
     processCommandLineOptions(std::vector<std::string>(argv, argv + argc));

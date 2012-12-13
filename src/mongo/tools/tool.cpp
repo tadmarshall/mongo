@@ -112,6 +112,11 @@ namespace mongo {
     int Tool::main( int argc , char ** argv ) {
         static StaticObserver staticObserver;
 
+#ifdef _WIN32
+        // do not display dialog on abort()
+        _set_abort_behavior(0, _CALL_REPORTFAULT | _WRITE_ABORT_MSG);
+#endif
+
         cmdLine.prealloc = false;
 
         // The default value may vary depending on compile options, but for tools
