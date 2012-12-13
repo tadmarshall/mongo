@@ -998,6 +998,10 @@ int _main( int argc, char* argv[], char **envp ) {
 #ifdef _WIN32
 int wmain( int argc, wchar_t* argvW[] ) {
     static mongo::StaticObserver staticObserver;
+
+    // do not display dialog on abort()
+    _set_abort_behavior(0, _CALL_REPORTFAULT | _WRITE_ABORT_MSG);
+
     UINT initialConsoleInputCodePage = GetConsoleCP();
     UINT initialConsoleOutputCodePage = GetConsoleOutputCP();
     SetConsoleCP( CP_UTF8 );
