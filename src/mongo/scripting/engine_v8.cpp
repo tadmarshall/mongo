@@ -86,43 +86,43 @@ namespace mongo {
     }
 
     static Handle<v8::Value> namedGet(Local<v8::String> name, const v8::AccessorInfo &info) {
-      if ( info.This()->HasRealNamedProperty( name ) ) {
-          // value already cached
-          return info.This()->GetRealNamedProperty(name);
-      }
+        if ( info.This()->HasRealNamedProperty( name ) ) {
+            // value already cached
+            return info.This()->GetRealNamedProperty(name);
+        }
 
-      string key = toSTLString(name);
-      BSONHolder* holder = unwrapHolder(info.Holder());
-      if ( holder->_removed.count( key ) )
-    	  return Handle<Value>();
+        string key = toSTLString(name);
+        BSONHolder* holder = unwrapHolder(info.Holder());
+        if ( holder->_removed.count( key ) )
+            return Handle<Value>();
 
-      BSONObj obj = holder->_obj;
-      BSONElement elmt = obj.getField(key.c_str());
-      if (elmt.eoo())
-          return Handle<Value>();
-      Local< External > scp = External::Cast( *info.Data() );
-      V8Scope* scope = (V8Scope*)(scp->Value());
-      Handle<v8::Value> val = scope->mongoToV8Element(elmt, false);
-      info.This()->ForceSet(name, val, DontEnum);
+        BSONObj obj = holder->_obj;
+        BSONElement elmt = obj.getField(key.c_str());
+        if (elmt.eoo())
+            return Handle<Value>();
+        Local< External > scp = External::Cast( *info.Data() );
+        V8Scope* scope = (V8Scope*)(scp->Value());
+        Handle<v8::Value> val = scope->mongoToV8Element(elmt, false);
+        info.This()->ForceSet(name, val, DontEnum);
 
-      if (elmt.type() == mongo::Object || elmt.type() == mongo::Array) {
-          // if accessing a subobject, it may get modified and base obj would not know
-          // have to set base as modified, which means some optim is lost
-          unwrapHolder(info.Holder())->_modified = true;
-      }
-      return val;
+        if (elmt.type() == mongo::Object || elmt.type() == mongo::Array) {
+            // if accessing a subobject, it may get modified and base obj would not know
+            // have to set base as modified, which means some optim is lost
+            unwrapHolder(info.Holder())->_modified = true;
+        }
+        return val;
     }
 
     static Handle<v8::Value> namedGetRO(Local<v8::String> name, const v8::AccessorInfo &info) {
-      string key = toSTLString(name);
-      BSONObj obj = unwrapBSONObj(info.Holder());
-      BSONElement elmt = obj.getField(key.c_str());
-      if (elmt.eoo())
-          return Handle<Value>();
-      Local< External > scp = External::Cast( *info.Data() );
-      V8Scope* scope = (V8Scope*)(scp->Value());
-      Handle<v8::Value> val = scope->mongoToV8Element(elmt, true);
-      return val;
+        string key = toSTLString(name);
+        BSONObj obj = unwrapBSONObj(info.Holder());
+        BSONElement elmt = obj.getField(key.c_str());
+        if (elmt.eoo())
+            return Handle<Value>();
+        Local< External > scp = External::Cast( *info.Data() );
+        V8Scope* scope = (V8Scope*)(scp->Value());
+        Handle<v8::Value> val = scope->mongoToV8Element(elmt, true);
+        return val;
     }
 
     static Handle<v8::Value> namedSet(Local<v8::String> name, Local<v8::Value> value_obj, const v8::AccessorInfo& info) {
@@ -151,7 +151,7 @@ namespace mongo {
 //            arr->Set(i, v8::String::NewExternal(new ExternalString(f.fieldName())));
             string sname = f.fieldName();
             if ( holder->_removed.count( sname ) )
-            	continue;
+                continue;
 
             Handle<v8::String> name = scope->getV8Str( sname );
             added.insert( sname );
@@ -159,9 +159,9 @@ namespace mongo {
         }
 
         for ( list<string>::iterator it = holder->_extra.begin(); it != holder->_extra.end(); it++ ) {
-        	string sname = *it;
-        	if ( added.count( sname ) )
-        		continue;
+            string sname = *it;
+            if ( added.count( sname ) )
+                continue;
             arr->Set(i++, scope->getV8Str( sname ));
         }
         return arr;
@@ -198,7 +198,7 @@ namespace mongo {
 
         BSONHolder* holder = unwrapHolder(info.Holder());
         if ( holder->_removed.count( key ) )
-      	  return Handle<Value>();
+            return Handle<Value>();
 
         BSONObj obj = holder->_obj;
         BSONElement elmt = obj.getField(key);
