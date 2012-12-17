@@ -458,7 +458,8 @@ namespace {
         if ( !_statusHandle )
             return;
 
-        reportStatus( SERVICE_START_PENDING, 1000 );
+        //reportStatus( SERVICE_START_PENDING, 1000 );
+        reportStatus( SERVICE_START_PENDING, 10 * 60 * 1000 ); // 10 minutes for testing
 
         _serviceCallback();
         reportStatus( SERVICE_STOPPED );
@@ -469,7 +470,8 @@ namespace {
         Client::initThread( "serviceShutdown" );
         log() << "got " << controlCodeName << " request from Windows Service Control Manager, " <<
             ( inShutdown() ? "already in shutdown" : "will terminate after current cmd ends" ) << endl;
-        reportStatus( SERVICE_STOP_PENDING );
+        //reportStatus( SERVICE_STOP_PENDING );
+        reportStatus( SERVICE_STOP_PENDING, 10 * 60 * 1000 ); // 10 minutes for testing
         if ( ! inShutdown() ) {
             // TODO: SERVER-5703, separate the "cleanup for shutdown" functionality from
             // the "terminate process" functionality in exitCleanly.

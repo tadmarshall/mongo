@@ -687,8 +687,19 @@ namespace mongo {
 
         listen(listenPort);
 
+#if 1
         // listen() will return when exit code closes its socket.
         exitCleanly(EXIT_NET_ERROR);
+#else
+        if ( ! inShutdown() ) {
+            // listen() will return when exit code closes its socket.
+            exitCleanly(EXIT_NET_ERROR);
+        }
+        else {
+            Client * c = currentClient.get();
+            if ( c ) c->shutdown();
+        }
+#endif
     }
 
     void testPretouch();
