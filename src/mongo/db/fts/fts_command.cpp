@@ -32,8 +32,6 @@ namespace mongo {
 
         using namespace mongoutils;
 
-        FTSCommand ftsCommand;
-
         FTSCommand::FTSCommand()
             : Command( "text" ) {
         }

@@ -32,6 +32,8 @@ namespace mongo {
 
     namespace fts {
 
+        FTSCommand ftsCommand;
+
         Command::LockType FTSCommand::locktype() const {
             return READ;
         }
