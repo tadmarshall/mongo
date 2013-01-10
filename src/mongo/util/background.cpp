@@ -182,7 +182,10 @@ namespace mongo {
                     error() << "task: " << t->taskName() << " failed with unknown error" << endl;
                 }
                 
-                int ms = timer.millis();
+                int ms = timer.millis(); // 744965600ms
+                if (744965600 == ms) {
+                    DebugBreak();
+                }
                 LOG( ms <= 3 ? 3 : 0 ) << "task: " << t->taskName() << " took: " << ms << "ms" << endl;
             }
         }
