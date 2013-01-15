@@ -1627,29 +1627,46 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> V8Scope::Print(V8Scope* scope, const v8::Arguments& args) {
+        stringstream ss;
         v8::HandleScope handle_scope;
         bool first = true;
-        for (int i = 0; i < args.Length(); i++) {
-            if (first)
-                first = false;
-            else
-                printf(" ");
+        bool someWritten = false;
+        try {
+            for (int i = 0; i < args.Length(); i++) {
+                if (first)
+                    first = false;
+                else
+                    ss << " ";
 
-            if (!*args[i]) {
-                // failed to get object to convert
-                printf("[unknown type]");
-                break;
-            }
-            if (args[i]->IsExternal()) {
-                // object is External
-                printf("[mongo internal]");
-                break;
-            }
+                if (!*args[i]) {
+                    // failed to get object to convert
+                    ss << "[unknown type]";
+                    continue;
+                }
+                if (args[i]->IsExternal()) {
+                    // object is External
+                    ss << "[mongo internal]";
+                    continue;
+                }
 
-            v8::String::Utf8Value str(args[i]);
-            printf("%s", *str);
+                v8::String::Utf8Value str(args[i]);
+                ss << *str;
+                someWritten = true;
+            }
+            ss << "\n";
+            Logstream::logLockless(ss.str());
         }
-        printf("\n");
+        catch (const AssertionException& e) {
+            if (someWritten) {
+                ss << "\n";
+                Logstream::logLockless(ss.str());
+            }
+            return v8::ThrowException(v8::String::New(e.what()));
+        }
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16686);
+        }
         return handle_scope.Close(v8::Undefined());
     }
 
