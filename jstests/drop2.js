@@ -26,13 +26,15 @@ function op( drop ) {
     return null;
 }
 
-s1 = startParallelShell( "db.jstests_drop2.count( { $where: function() { while( 1 ) { sleep( 1 ); } } } )" );
+//s1 = startParallelShell( "db.jstests_drop2.count( { $where: function() { while( 1 ) { sleep( 1 ); } } } )" );
 countOp = null;
-assert.soon( function() { countOp = op( false ); return countOp; } );
+//assert.soon( function() { countOp = op( false ); return countOp; } );
 
-s2 = startParallelShell( "db.jstests_drop2.drop()" );
+//s2 = startParallelShell( "db.jstests_drop2.drop()" );
 dropOp = null;
-assert.soon( function() { dropOp = op( true ); return dropOp; } );
+//assert.soon( function() { dropOp = op( true ); return dropOp; } );
+print("a");
+sleep(10000);
 
 db.killOp( dropOp );
 db.killOp( countOp );
