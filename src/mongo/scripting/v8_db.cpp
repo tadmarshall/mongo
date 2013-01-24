@@ -110,7 +110,6 @@ namespace mongo {
 
     v8::Handle<v8::Value> mongoConsExternal(V8Scope* scope, const v8::Arguments& args) {
         char host[255];
-
         if (args.Length() > 0 && args[0]->IsString()) {
             uassert(16666, "string argument too long", args[0]->ToString()->Utf8Length() < 250);
             args[0]->ToString()->WriteAscii(host);
@@ -121,13 +120,15 @@ namespace mongo {
 
         string errmsg;
         ConnectionString cs = ConnectionString::parse(host, errmsg);
-        if (!cs.isValid())
-            return v8::ThrowException(v8::String::New(errmsg.c_str()));
+        if (!cs.isValid()) {
+            return v8AssertionException(errmsg);
+        }
 
         DBClientWithCommands* conn;
         conn = cs.connect(errmsg);
-        if (!conn)
-            return v8::ThrowException(v8::String::New(errmsg.c_str()));
+        if (!conn) {
+            return v8AssertionException(errmsg);
+        }
 
         v8::Persistent<v8::Object> self = v8::Persistent<v8::Object>::New(args.Holder());
         self.MakeWeak(conn, destroyConnection);
@@ -142,8 +143,7 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> mongoConsLocal(V8Scope* scope, const v8::Arguments& args) {
-        if (args.Length() > 0)
-            return v8::ThrowException(v8::String::New("local Mongo constructor takes no args"));
+        argumentCheck(args.Length() == 0, "local Mongo constructor takes no args")
 
         DBClientBase* conn = createDirectClient();
         v8::Persistent<v8::Object> self = v8::Persistent<v8::Object>::New(args.This());
@@ -173,8 +173,8 @@ namespace mongo {
      * JavaScript binding for Mongo.prototype.find(namespace, query, fields, limit, skip)
      */
     v8::Handle<v8::Value> mongoFind(V8Scope* scope, const v8::Arguments& args) {
-        uassert(16653, "find needs 7 args", args.Length() == 7);
-        uassert(16654, "needs to be an object", args[1]->IsObject());
+        argumentCheck(args.Length() == 7, "find needs 7 args")
+        argumentCheck(args[1]->IsObject(), "needs to be an object")
         DBClientBase * conn = getConnection(args);
         GETNS;
         BSONObj fields;
@@ -186,6 +186,7 @@ namespace mongo {
 
         v8::Local<v8::Object> mongo = args.This();
 
+        string exception;
         try {
             auto_ptr<mongo::DBClientCursor> cursor;
             int nToReturn = (int)(args[3]->ToNumber()->Value());
@@ -194,41 +195,53 @@ namespace mongo {
             int options = (int)(args[6]->ToNumber()->Value());
             cursor = conn->query(ns.get(), q,  nToReturn, nToSkip, haveFields ? &fields : 0,
                                  options, batchSize);
-            if (!cursor.get())
-                return v8::ThrowException(v8::String::New("error doing query: failed"));
+            if (!cursor.get()) {
+                return v8AssertionException("error doing query: failed");
+            }
 
             v8::Function* cons = (v8::Function*)(*(mongo->Get(scope->v8StringData("internalCursor"))));
 
-            if (!cons)
-                return v8::ThrowException(v8::String::New("Could not create a cursor"));
+            if (!cons) {
+                return v8AssertionException("could not create a cursor");
+            }
 
             v8::Persistent<v8::Object> c = v8::Persistent<v8::Object>::New(cons->NewInstance());
             c.MakeWeak(cursor.get(), destroyCursor);
             c->SetInternalField(0, v8::External::New(cursor.release()));
             return c;
         }
-        catch (...) {
-            return v8::ThrowException(v8::String::New("socket error on query"));
+        catch (const DBException& e) {
+            exception = e.what();
         }
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16702);
+        }
+        catch (...) {
+            exception = "unknown exception";
+        }
+        return v8AssertionException(exception);
     }
 
     v8::Handle<v8::Value> mongoInsert(V8Scope* scope, const v8::Arguments& args) {
-        uassert(16626, "insert needs 3 args", args.Length() == 3);
-        uassert(16627, "attempted to insert a non-object", args[1]->IsObject());
+        argumentCheck(args.Length() == 3 ,"insert needs 3 args")
+        argumentCheck(args[1]->IsObject() ,"attempted to insert a non-object")
 
-        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue())
-            return v8::ThrowException(v8::String::New("js db in read only mode"));
+        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue()) {
+            return v8AssertionException("js db in read only mode");
+        }
 
         DBClientBase * conn = getConnection(args);
         GETNS;
 
         v8::Handle<v8::Integer> flags = args[2]->ToInteger();
 
+        string exception;
         if(args[1]->IsArray()){
             v8::Local<v8::Array> arr = v8::Array::Cast(*args[1]);
             vector<BSONObj> bos;
             uint32_t len = arr->Length();
-            uassert(16629, "attempted to insert an empty array", len);
+            uassert(16629, "attempted to insert an empty array", len > 0);
 
             for(uint32_t i = 0; i < len; i++){
                 v8::Local<v8::Object> el = arr->CloneElementAt(i);
@@ -246,8 +259,12 @@ namespace mongo {
             try {
                 conn->insert(ns.get(), bos, flags->Int32Value());
             }
-            catch (...) {
-                return v8::ThrowException(v8::String::New("socket error on bulk insert"));
+            catch (const DBException& e) {
+                exception = e.what() + string(" on bulk insert");
+            }
+            catch (const std::exception& e) {
+                log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+                fassertFailed(16703);
             }
         }
         else {
@@ -263,19 +280,27 @@ namespace mongo {
             try {
                 conn->insert(ns.get(), o);
             }
-            catch (...) {
-                return v8::ThrowException(v8::String::New("socket error on insert"));
+            catch (const DBException& e) {
+                exception = e.what() + string(" on insert");
             }
+            catch (const std::exception& e) {
+                log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+                fassertFailed(16704);
+            }
+        }
+        if (!exception.empty()) {
+            v8AssertionException(exception);
         }
         return v8::Undefined();
     }
 
     v8::Handle<v8::Value> mongoRemove(V8Scope* scope, const v8::Arguments& args) {
-        jsassert(args.Length() == 2 || args.Length() == 3, "remove needs 2 args");
-        jsassert(args[1]->IsObject(), "have to remove an object template");
+        argumentCheck(args.Length() == 2 || args.Length() == 3, "remove needs 2 or 3 args")
+        argumentCheck(args[1]->IsObject(), "attempted to remove a non-object")
 
-        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue())
-            return v8::ThrowException(v8::String::New("js db in read only mode"));
+        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue()) {
+            return v8AssertionException("js db in read only mode");
+        }
 
         DBClientBase * conn = getConnection(args);
         GETNS;
@@ -288,23 +313,32 @@ namespace mongo {
             justOne = args[2]->BooleanValue();
         }
 
+        string exception;
         try {
             conn->remove(ns.get(), o, justOne);
         }
-        catch (...) {
-            return v8::ThrowException(v8::String::New("socket error on remove"));
+        catch (const DBException& e) {
+            exception = e.what() + string(" on remove");
+        }
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16708);
         }
 
+        if (!exception.empty()) {
+            v8AssertionException(exception);
+        }
         return v8::Undefined();
     }
 
     v8::Handle<v8::Value> mongoUpdate(V8Scope* scope, const v8::Arguments& args) {
-        jsassert(args.Length() >= 3, "update needs at least 3 args");
-        jsassert(args[1]->IsObject(), "1st param to update has to be an object");
-        jsassert(args[2]->IsObject(), "2nd param to update has to be an object");
+        argumentCheck(args.Length() >= 3, "update needs at least 3 args")
+        argumentCheck(args[1]->IsObject(), "1st param to update has to be an object")
+        argumentCheck(args[2]->IsObject(), "2nd param to update has to be an object")
 
-        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue())
-            return v8::ThrowException(v8::String::New("js db in read only mode"));
+        if (args.This()->Get(scope->v8StringData("readOnly"))->BooleanValue()) {
+            return v8AssertionException("js db in read only mode");
+        }
 
         DBClientBase * conn = getConnection(args);
         GETNS;
@@ -315,20 +349,27 @@ namespace mongo {
         bool upsert = args.Length() > 3 && args[3]->IsBoolean() && args[3]->ToBoolean()->Value();
         bool multi = args.Length() > 4 && args[4]->IsBoolean() && args[4]->ToBoolean()->Value();
 
+        string exception;
         try {
             BSONObj q1 = scope->v8ToMongo(q);
             BSONObj o1 = scope->v8ToMongo(o);
             conn->update(ns.get(), q1, o1, upsert, multi);
         }
-        catch (...) {
-            return v8::ThrowException(v8::String::New("socket error on remove"));
+        catch (const DBException& e) {
+            exception = e.what();
         }
-
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16706);
+        }
+        if (!exception.empty()) {
+            return v8AssertionException(exception);
+        }
         return v8::Undefined();
     }
 
     v8::Handle<v8::Value> mongoAuth(V8Scope* scope, const v8::Arguments& args) {
-        jsassert(args.Length() >= 3, "update needs at least 3 args");
+        argumentCheck(args.Length() == 3, "mongoAuth needs 3 args")
         DBClientBase* conn = getConnection(args);
         string db = toSTLString(args[0]);
         string username = toSTLString(args[1]);
@@ -339,22 +380,31 @@ namespace mongo {
             if (conn->auth(db, username, password, errmsg)) {
                 return v8::Boolean::New(true);
             }
-        } catch (...) {
         }
-        return v8::ThrowException(v8::String::New(errmsg.c_str()));
+        catch (...) {
+        }
+        return v8AssertionException(errmsg);
     }
 
     v8::Handle<v8::Value> mongoLogout(V8Scope* scope, const v8::Arguments& args) {
-        jsassert(args.Length() == 1, "update needs 1 arg");
+        argumentCheck(args.Length() == 1, "logout needs 1 arg")
         DBClientBase* conn = getConnection(args);
         const string db = toSTLString(args[0]);
 
+        string exception;
         BSONObj ret;
         try {
             conn->logout(db, ret);
         }
-        catch (const std::exception& ex) {
-            return v8::ThrowException(v8::String::New(ex.what()));
+        catch (const DBException& e) {
+            exception = e.what();
+        }
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16705);
+        }
+        if (!exception.empty()) {
+            return v8AssertionException(exception);
         }
         return scope->mongoToLZV8(ret, false);
     }
@@ -422,7 +472,7 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> dbInit(V8Scope* scope, const v8::Arguments& args) {
-        uassert(16655, "db constructor requires 2 arguments", args.Length() == 2);
+        argumentCheck(args.Length() == 2, "db constructor requires 2 arguments")
 
         args.This()->ForceSet(scope->v8StringData("_mongo"), args[0]);
         args.This()->ForceSet(scope->v8StringData("_name"), args[1]);
@@ -435,22 +485,23 @@ namespace mongo {
         if (!NamespaceString::validDBName(dbName)) {
             string msg = str::stream() << "[" << dbName << "] is not a "
                                        << "valid database name";
-            return v8::ThrowException(v8::String::New(msg.c_str()));
+            return v8AssertionException(msg);
         }
 
         return v8::Undefined();
     }
 
     v8::Handle<v8::Value> collectionInit(V8Scope* scope, const v8::Arguments& args) {
-        uassert(16657, "collection constructor requires 4 arguments", args.Length() == 4);
+        argumentCheck(args.Length() == 4, "collection constructor requires 4 arguments")
 
         args.This()->ForceSet(scope->v8StringData("_mongo"), args[0]);
         args.This()->ForceSet(scope->v8StringData("_db"), args[1]);
         args.This()->ForceSet(scope->v8StringData("_shortName"), args[2]);
         args.This()->ForceSet(v8::String::New("_fullName"), args[3]);
 
-        if (haveLocalShardingInfo(toSTLString(args[3])))
-            return v8::ThrowException(v8::String::New("can't use sharded collection from db.eval"));
+        if (haveLocalShardingInfo(toSTLString(args[3]))) {
+            return v8AssertionException("can't use sharded collection from db.eval");
+        }
 
         for (int i=0; i<args.Length(); i++)
             uassert(16668, "collection constructor cannot take undefined argument",
@@ -460,9 +511,9 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> dbQueryInit(V8Scope* scope, const v8::Arguments& args) {
-        v8::Handle<v8::Object> t = args.This();
-        uassert(16658, "dbQuery constructor requires at least 4 arguments", args.Length() >= 4);
+        argumentCheck(args.Length() >= 4, "dbQuery constructor requires at least 4 arguments")
 
+        v8::Handle<v8::Object> t = args.This();
         t->ForceSet(scope->v8StringData("_mongo"), args[0]);
         t->ForceSet(scope->v8StringData("_db"), args[1]);
         t->ForceSet(scope->v8StringData("_collection"), args[2]);
@@ -535,9 +586,9 @@ namespace mongo {
                 prop->ToObject()->HasRealNamedProperty(v8::String::New("_fullName"))) {
                 // need to check every time that the collection did not get sharded
                 if (haveLocalShardingInfo(toSTLString(
-                        prop->ToObject()->GetRealNamedProperty(v8::String::New("_fullName")))))
-                    return v8::ThrowException(
-                            v8::String::New("can't use sharded collection from db.eval"));
+                        prop->ToObject()->GetRealNamedProperty(v8::String::New("_fullName"))))) {
+                    return v8AssertionException("can't use sharded collection from db.eval");
+                }
             }
             return prop;
         } else if (sname.length() == 0 || sname[0] == '_') {
@@ -595,8 +646,7 @@ namespace mongo {
                 Scope::validateObjectIdString(s);
             }
             catch (const MsgAssertionException& m) {
-                string error = m.toString();
-                return v8::ThrowException(v8::String::New(error.c_str()));
+                return v8AssertionException(m.toString());
             }
             oid.init(s);
         }
@@ -612,9 +662,7 @@ namespace mongo {
             return newInstance(f, args);
         }
 
-        if (args.Length() != 2 && args.Length() != 0) {
-            return v8::ThrowException(v8::String::New("DBRef needs 2 arguments"));
-        }
+        argumentCheck(args.Length() == 2 || args.Length() == 0, "DBRef needs 2 arguments")
 
         if (args.Length() == 2) {
             it->ForceSet(scope->v8StringData("$ref"), args[0]);
@@ -631,9 +679,7 @@ namespace mongo {
             return newInstance(f, args);
         }
 
-        if (args.Length() != 2) {
-            return v8::ThrowException(v8::String::New("DBPointer needs 2 arguments"));
-        }
+        argumentCheck(args.Length() == 2, "DBPointer needs 2 arguments")
 
         it->ForceSet(scope->v8StringData("ns"), args[0]);
         it->ForceSet(scope->v8StringData("id"), args[1]);
@@ -658,7 +704,7 @@ namespace mongo {
             it->ForceSet(scope->v8StringData("i"), args[1]);
         }
         else {
-            return v8::ThrowException(v8::String::New("Timestamp needs 0 or 2 arguments"));
+            return v8AssertionException("Timestamp needs 0 or 2 arguments");
         }
 
         it->SetInternalField(0, v8::Uint32::New(Timestamp));
@@ -697,11 +743,13 @@ namespace mongo {
             data = new char[rlen];
             memcpy(data, tmp, rlen);
             len = v8::Number::New(rlen);
-        } else if (args.Length() == 0) {
+        }
+        else if (args.Length() == 0) {
             // this is called by subclasses that will fill properties
             return it;
-        } else {
-            return v8::ThrowException(v8::String::New("BinData needs 2 or 3 arguments"));
+        }
+        else {
+            return v8AssertionException("BinData needs 2 or 3 arguments");
         }
 
         it->ForceSet(scope->v8StringData("len"), len);
@@ -769,13 +817,9 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> uuidInit(V8Scope* scope, const v8::Arguments& args) {
-        if (args.Length() != 1) {
-            return v8::ThrowException(v8::String::New("UUIS needs 1 argument"));
-        }
+        argumentCheck(args.Length() == 1, "UUID needs 1 argument")
         v8::String::Utf8Value utf(args[0]);
-        if(utf.length() != 32) {
-            return v8::ThrowException(v8::String::New("UUIS string must have 32 characters"));
-        }
+        argumentCheck(utf.length() == 32, "UUID string must have 32 characters")
 
         v8::Function* f = scope->getNamedCons("BinData");
         v8::Local<v8::Object> it = f->NewInstance();
@@ -783,13 +827,9 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> md5Init(V8Scope* scope, const v8::Arguments& args) {
-        if (args.Length() != 1) {
-            return v8::ThrowException(v8::String::New("MD5 needs 1 argument"));
-        }
+        argumentCheck(args.Length() == 1, "MD5 needs 1 argument")
         v8::String::Utf8Value utf(args[0]);
-        if(utf.length() != 32) {
-            return v8::ThrowException(v8::String::New("MD5 string must have 32 characters"));
-        }
+        argumentCheck(utf.length() == 32, "MD5 string must have 32 characters")
 
         v8::Function* f = scope->getNamedCons("BinData");
         v8::Local<v8::Object> it = f->NewInstance();
@@ -797,9 +837,7 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> hexDataInit(V8Scope* scope, const v8::Arguments& args) {
-        if (args.Length() != 2) {
-            return v8::ThrowException(v8::String::New("HexData needs 2 arguments"));
-        }
+        argumentCheck(args.Length() == 2, "HexData needs 2 arguments")
         v8::String::Utf8Value utf(args[1]);
         v8::Function* f = scope->getNamedCons("BinData");
         v8::Local<v8::Object> it = f->NewInstance();
@@ -813,9 +851,8 @@ namespace mongo {
             return newInstance(f, args);
         }
 
-        if (args.Length() != 0 && args.Length() != 1 && args.Length() != 3) {
-            return v8::ThrowException(v8::String::New("NumberLong needs 0, 1 or 3 arguments"));
-        }
+        argumentCheck(args.Length() == 0 || args.Length() == 1 || args.Length() == 3,
+                      "NumberLong needs 0, 1 or 3 arguments")
 
         if (args.Length() == 0) {
             it->ForceSet(scope->v8StringData("floatApprox"), v8::Number::New(0));
@@ -832,9 +869,8 @@ namespace mongo {
                 try {
                     n = parseLL(numStr);
                 }
-                catch (const AssertionException& ) {
-                    return v8::ThrowException(
-                            v8::String::New("could not convert string to long long"));
+                catch (const AssertionException& e) {
+                    return v8AssertionException(e.what());
                 }
                 unsigned long long val = n;
                 // values above 2^53 are not accurately represented in JS
@@ -904,9 +940,7 @@ namespace mongo {
             return newInstance(f, args);
         }
 
-        if (args.Length() != 0 && args.Length() != 1) {
-            return v8::ThrowException(v8::String::New("NumberInt needs 0, 1 argument"));
-        }
+        argumentCheck(args.Length() == 0 && args.Length() == 1, "NumberInt needs 0 or 1 arguments")
 
         if (args.Length() == 0) {
             it->SetHiddenValue(v8::String::New("__NumberInt"), v8::Number::New(0));
@@ -937,12 +971,11 @@ namespace mongo {
     }
 
     v8::Handle<v8::Value> bsonsize(V8Scope* scope, const v8::Arguments& args) {
-        if (args.Length() != 1)
-            return v8::ThrowException(v8::String::New("bsonsize needs 1 argument"));
-        if (args[0]->IsNull())
+        argumentCheck(args.Length() == 1, "bsonsize needs 1 argument")
+        if (args[0]->IsNull()) {
             return v8::Number::New(0);
-        if (!args[0]->IsObject())
-            return v8::ThrowException(v8::String::New("argument to bsonsize has to be an object"));
+        }
+        argumentCheck(args[0]->IsObject(), "argument to bsonsize has to be an object")
         return v8::Number::New(scope->v8ToMongo(args[0]->ToObject()).objsize());
     }
 
