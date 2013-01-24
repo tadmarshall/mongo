@@ -51,8 +51,8 @@ namespace mongo {
 
     std::string toSTLString(const v8::TryCatch* try_catch) {
         stringstream ss;
-        v8::String::Utf8Value exception(try_catch->Exception());
-        ss << *exception;
+        v8::String::Utf8Value exceptionText(try_catch->Exception());
+        ss << *exceptionText;
         v8::Handle<v8::Message> message = try_catch->Message();
         if (!message.IsEmpty()) {
             v8::String::Utf8Value filename(message->GetScriptResourceName());
@@ -72,16 +72,16 @@ namespace mongo {
 
     std::ostream& operator<<(std::ostream& s, const v8::TryCatch* try_catch) {
         v8::HandleScope handle_scope;
-        v8::String::Utf8Value exception(try_catch->Exception());
+        v8::String::Utf8Value exceptionText(try_catch->Exception());
         v8::Handle<v8::Message> message = try_catch->Message();
 
         if (message.IsEmpty()) {
-            s << *exception << endl;
+            s << *exceptionText << endl;
         }
         else {
             v8::String::Utf8Value filename(message->GetScriptResourceName());
             int linenum = message->GetLineNumber();
-            cout << *filename << ":" << linenum << " " << *exception << endl;
+            cout << *filename << ":" << linenum << " " << *exceptionText << endl;
 
             v8::String::Utf8Value sourceline(message->GetSourceLine());
             cout << *sourceline << endl;
@@ -264,10 +264,6 @@ namespace mongo {
         scope->injectV8Function("_scopedThreadInject", ScopedThreadInject, global);
     }
 
-    /** Throw a V8 exception from Mongo callback code; message text will be preceded by "Error: ".
-     *  @param   errorMessage Error message text.
-     *  @return  Empty handle to be returned from callback function.
-     */
     v8::Handle<v8::Value> v8AssertionException(const char* errorMessage) {
         return v8::ThrowException(v8::Exception::Error(v8::String::New(errorMessage)));
     }

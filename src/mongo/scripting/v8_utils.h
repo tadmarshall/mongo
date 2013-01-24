@@ -45,6 +45,12 @@ namespace mongo {
                      v8::Handle<v8::Context>& context);
 
     /** Throw a V8 exception from Mongo callback code; message text will be preceded by "Error: ".
+     *   Note: this function should be used for text that did not originate from the JavaScript
+     *         engine.  Errors from the JavaScript engine will already have a prefix such as
+     *         ReferenceError, TypeError or SyntaxError.
+     *   Note: call only from a native function called from JavaScript.  The ThrowException routine
+     *         will note a JavaScript exception that will be "thrown" in JavaScript when we return
+     *         from the native function.
      *  @param   errorMessage Error message text.
      *  @return  Empty handle to be returned from callback function.
      */

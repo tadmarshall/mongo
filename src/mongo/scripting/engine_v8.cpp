@@ -20,7 +20,6 @@
 #include "mongo/scripting/v8_db.h"
 #include "mongo/scripting/v8_utils.h"
 #include "mongo/util/mongoutils/str.h"
-#include "mongo/util/net/sock.h"
 
 using namespace mongoutils;
 
@@ -568,7 +567,7 @@ namespace mongo {
 
     v8::Handle<v8::Value> V8Scope::nativeCallback(V8Scope* scope, const v8::Arguments &args) {
         BSONObj ret;
-        string exception;
+        string exceptionText;
         v8::HandleScope handle_scope;
         try {
             v8::Local<v8::External> f =
@@ -583,14 +582,10 @@ namespace mongo {
             ret = function(nativeArgs, data->Value());
         }
         catch (const std::exception &e) {
-            exception = e.what();
+            exceptionText = e.what();
         }
-        catch (...) {
-            exception = "unknown exception";
-        }
-
-        if (!exception.empty()) {
-            return v8AssertionException(string("exception during callback: ") + exception);
+        if (!exceptionText.empty()) {
+            return v8AssertionException(exceptionText);
         }
         return handle_scope.Close(scope->mongoToV8Element(ret.firstElement()));
     }
@@ -608,14 +603,14 @@ namespace mongo {
                 v8::External::Cast(*args.Callee()->Get(v8::String::New("_v8_function")));
         v8Function function = (v8Function)(f->Value());
         v8::Handle<v8::Value> ret;
-        string exception;
+        string exceptionText;
 
         try {
             // execute the native function
             ret = function(scope, args);
         }
         catch (const DBException& e) {
-            exception = e.what();
+            exceptionText = e.what();
         }
         catch (const std::exception& e) {
             log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
@@ -626,8 +621,8 @@ namespace mongo {
             // execution terminated
             return v8::Undefined();
 
-        if (!exception.empty()) {
-            return v8AssertionException(exception);
+        if (!exceptionText.empty()) {
+            return v8AssertionException(exceptionText);
         }
         return handle_scope.Close(ret);
     }
@@ -814,14 +809,14 @@ namespace mongo {
         }
 
         if (!nativeEpilogue()) {
-            _error = string("JavaScript execution terminated");
+            _error = "JavaScript execution terminated";
             return handle_scope.Close(v8::Handle<v8::Function>());
         }
 
         v8::Local<v8::Value> result = script->Run();
 
         if (!nativePrologue()) {
-            _error = string("JavaScript execution terminated");
+            _error = "JavaScript execution terminated";
             return handle_scope.Close(v8::Handle<v8::Function>());
         }
 
@@ -890,7 +885,7 @@ namespace mongo {
             v8recv = _global;
 
         if (!nativeEpilogue()) {
-            _error = string("JavaScript execution terminated (before call)");
+            _error = "JavaScript execution terminated";
             log() << _error << endl;
             return 1;
         }
@@ -906,7 +901,7 @@ namespace mongo {
             _engine->getDeadlineMonitor()->stopDeadline(this);
 
         if (!nativePrologue()) {
-            _error = string("JavaScript execution interrupted");
+            _error = "JavaScript execution interrupted";
             log() << _error << endl;
             return 1;
         }
@@ -916,7 +911,7 @@ namespace mongo {
                 _error = toSTLString(&try_catch);
             }
             else {
-                _error = string("JavaScript execution failed");
+                _error = "JavaScript execution failed";
             }
             if (hasOutOfMemoryException()) {
                 _error += " -- v8 is out of memory";
@@ -952,7 +947,7 @@ namespace mongo {
         }
 
         if (!nativeEpilogue()) {
-            _error = string("JavaScript execution terminated (before call)");
+            _error = "JavaScript execution terminated";
             if (reportError)
                 log() << _error << endl;
             if (assertOnError)
@@ -983,7 +978,7 @@ namespace mongo {
                 _error = toSTLString(&try_catch);
             }
             else {
-                _error = string("JavaScript execution failed");
+                _error = "JavaScript execution failed";
             }
             if (hasOutOfMemoryException()) {
                 _error += " -- v8 is out of memory";
@@ -1183,14 +1178,14 @@ namespace mongo {
         uassert(16670, errStr, !compiled.IsEmpty());
 
         if (!nativeEpilogue()) {
-            _error = string("JavaScript execution terminated during newFunction compilation");
+            _error = "JavaScript execution terminated";
             return handle_scope.Close(v8::Handle<v8::Value>());
         }
 
         v8::Local<v8::Value> ret = compiled->Run();
 
         if (!nativePrologue()) {
-            _error = string("JavaScript execution terminated");
+            _error = "JavaScript execution terminated";
             if (!ret.IsEmpty())
                 return handle_scope.Close(ret);
             return handle_scope.Close(v8::Handle<v8::Value>());

@@ -186,7 +186,7 @@ namespace mongo {
 
         v8::Local<v8::Object> mongo = args.This();
 
-        string exception;
+        string exceptionText;
         try {
             auto_ptr<mongo::DBClientCursor> cursor;
             int nToReturn = (int)(args[3]->ToNumber()->Value());
@@ -211,16 +211,13 @@ namespace mongo {
             return c;
         }
         catch (const DBException& e) {
-            exception = e.what();
+            exceptionText = e.what();
         }
         catch (const std::exception& e) {
             log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed(16702);
         }
-        catch (...) {
-            exception = "unknown exception";
-        }
-        return v8AssertionException(exception);
+        return v8AssertionException(exceptionText);
     }
 
     v8::Handle<v8::Value> mongoInsert(V8Scope* scope, const v8::Arguments& args) {
@@ -236,7 +233,7 @@ namespace mongo {
 
         v8::Handle<v8::Integer> flags = args[2]->ToInteger();
 
-        string exception;
+        string exceptionText;
         if(args[1]->IsArray()){
             v8::Local<v8::Array> arr = v8::Array::Cast(*args[1]);
             vector<BSONObj> bos;
@@ -260,7 +257,7 @@ namespace mongo {
                 conn->insert(ns.get(), bos, flags->Int32Value());
             }
             catch (const DBException& e) {
-                exception = e.what() + string(" on bulk insert");
+                exceptionText = e.what();
             }
             catch (const std::exception& e) {
                 log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
@@ -281,15 +278,15 @@ namespace mongo {
                 conn->insert(ns.get(), o);
             }
             catch (const DBException& e) {
-                exception = e.what() + string(" on insert");
+                exceptionText = e.what();
             }
             catch (const std::exception& e) {
                 log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
                 fassertFailed(16704);
             }
         }
-        if (!exception.empty()) {
-            v8AssertionException(exception);
+        if (!exceptionText.empty()) {
+            v8AssertionException(exceptionText);
         }
         return v8::Undefined();
     }
@@ -313,20 +310,20 @@ namespace mongo {
             justOne = args[2]->BooleanValue();
         }
 
-        string exception;
+        string exceptionText;
         try {
             conn->remove(ns.get(), o, justOne);
         }
         catch (const DBException& e) {
-            exception = e.what() + string(" on remove");
+            exceptionText = e.what();
         }
         catch (const std::exception& e) {
             log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed(16708);
         }
 
-        if (!exception.empty()) {
-            v8AssertionException(exception);
+        if (!exceptionText.empty()) {
+            v8AssertionException(exceptionText);
         }
         return v8::Undefined();
     }
@@ -349,21 +346,21 @@ namespace mongo {
         bool upsert = args.Length() > 3 && args[3]->IsBoolean() && args[3]->ToBoolean()->Value();
         bool multi = args.Length() > 4 && args[4]->IsBoolean() && args[4]->ToBoolean()->Value();
 
-        string exception;
+        string exceptionText;
         try {
             BSONObj q1 = scope->v8ToMongo(q);
             BSONObj o1 = scope->v8ToMongo(o);
             conn->update(ns.get(), q1, o1, upsert, multi);
         }
         catch (const DBException& e) {
-            exception = e.what();
+            exceptionText = e.what();
         }
         catch (const std::exception& e) {
             log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed(16706);
         }
-        if (!exception.empty()) {
-            return v8AssertionException(exception);
+        if (!exceptionText.empty()) {
+            return v8AssertionException(exceptionText);
         }
         return v8::Undefined();
     }
@@ -376,14 +373,21 @@ namespace mongo {
         string password = toSTLString(args[2]);
         string errmsg = "";
 
+        string exceptionText;
         try {
             if (conn->auth(db, username, password, errmsg)) {
                 return v8::Boolean::New(true);
             }
+            return v8AssertionException(errmsg);
         }
-        catch (...) {
+        catch (const DBException& e) {
+            exceptionText = e.what();
         }
-        return v8AssertionException(errmsg);
+        catch (const std::exception& e) {
+            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
+            fassertFailed(16715);
+        }
+        return v8AssertionException(exceptionText);
     }
 
     v8::Handle<v8::Value> mongoLogout(V8Scope* scope, const v8::Arguments& args) {
@@ -391,20 +395,20 @@ namespace mongo {
         DBClientBase* conn = getConnection(args);
         const string db = toSTLString(args[0]);
 
-        string exception;
+        string exceptionText;
         BSONObj ret;
         try {
             conn->logout(db, ret);
         }
         catch (const DBException& e) {
-            exception = e.what();
+            exceptionText = e.what();
         }
         catch (const std::exception& e) {
             log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
             fassertFailed(16705);
         }
-        if (!exception.empty()) {
-            return v8AssertionException(exception);
+        if (!exceptionText.empty()) {
+            return v8AssertionException(exceptionText);
         }
         return scope->mongoToLZV8(ret, false);
     }
