@@ -940,7 +940,7 @@ namespace mongo {
             return newInstance(f, args);
         }
 
-        argumentCheck(args.Length() == 0 && args.Length() == 1, "NumberInt needs 0 or 1 arguments")
+        argumentCheck(args.Length() == 0 || args.Length() == 1, "NumberInt needs 0 or 1 arguments")
 
         if (args.Length() == 0) {
             it->SetHiddenValue(v8::String::New("__NumberInt"), v8::Number::New(0));

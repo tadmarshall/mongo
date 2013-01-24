@@ -49,6 +49,6 @@ namespace mongo {
      *  @return  Empty handle to be returned from callback function.
      */
     v8::Handle<v8::Value> v8AssertionException(const char* errorMessage);
-    v8::Handle<v8::Value> v8AssertionException(std::string& errorMessage);
+    v8::Handle<v8::Value> v8AssertionException(const std::string& errorMessage);
 }
 

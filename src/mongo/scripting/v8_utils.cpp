@@ -271,7 +271,7 @@ namespace mongo {
     v8::Handle<v8::Value> v8AssertionException(const char* errorMessage) {
         return v8::ThrowException(v8::Exception::Error(v8::String::New(errorMessage)));
     }
-    v8::Handle<v8::Value> v8AssertionException(std::string& errorMessage) {
+    v8::Handle<v8::Value> v8AssertionException(const std::string& errorMessage) {
         return v8AssertionException(errorMessage.c_str());
     }
 }
