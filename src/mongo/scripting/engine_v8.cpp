@@ -576,13 +576,16 @@ namespace mongo {
             v8::Local<v8::External> data =
                     v8::External::Cast(*args.Callee()->Get(v8::String::New("_native_data")));
             BSONObjBuilder b;
-            for(int i = 0; i < args.Length(); ++i)
+            for (int i = 0; i < args.Length(); ++i)
                 scope->v8ToMongoElement(b, str::stream() << i, args[i]);
             BSONObj nativeArgs = b.obj();
             ret = function(nativeArgs, data->Value());
         }
         catch (const std::exception &e) {
             exceptionText = e.what();
+        }
+        catch (...) {
+            exceptionText = "unknown exception in V8Scope::nativeCallback";
         }
         if (!exceptionText.empty()) {
             return v8AssertionException(exceptionText);
@@ -609,12 +612,11 @@ namespace mongo {
             // execute the native function
             ret = function(scope, args);
         }
-        catch (const DBException& e) {
+        catch (const std::exception& e) {
             exceptionText = e.what();
         }
-        catch (const std::exception& e) {
-            log() << "unhandled exception: " << e.what() << ", throwing Fatal Assertion" << endl;
-            fassertFailed(16707);
+        catch (...) {
+            exceptionText = "unknown exception in V8Scope::v8Callback";
         }
 
         if (!scope->nativeEpilogue())
@@ -1113,6 +1115,7 @@ namespace mongo {
         v8::Handle<v8::FunctionTemplate> db = createV8Function(dbInit);
         db->InstanceTemplate()->SetNamedPropertyHandler(collectionGetter, collectionSetter);
         _global->ForceSet(v8StringData("DB"), db->GetFunction());
+
         v8::Handle<v8::FunctionTemplate> dbCollection = createV8Function(collectionInit);
         dbCollection->InstanceTemplate()->SetNamedPropertyHandler(collectionGetter,
                                                                   collectionSetter);
@@ -1129,19 +1132,19 @@ namespace mongo {
         injectV8Function("DBPointer", dbPointerInit, _global);
 
         _global->ForceSet(v8StringData("BinData"),
-                         getBinDataFunctionTemplate(this)->GetFunction());
+                          getBinDataFunctionTemplate(this)->GetFunction());
         _global->ForceSet(v8StringData("UUID"),
-                         createV8Function(uuidInit)->GetFunction());
+                          createV8Function(uuidInit)->GetFunction());
         _global->ForceSet(v8StringData("MD5"),
-                         createV8Function(md5Init)->GetFunction());
+                          createV8Function(md5Init)->GetFunction());
         _global->ForceSet(v8StringData("HexData"),
-                         createV8Function(hexDataInit)->GetFunction());
+                          createV8Function(hexDataInit)->GetFunction());
         _global->ForceSet(v8StringData("NumberLong"),
-                         getNumberLongFunctionTemplate(this)->GetFunction());
+                          getNumberLongFunctionTemplate(this)->GetFunction());
         _global->ForceSet(v8StringData("NumberInt"),
-                         getNumberIntFunctionTemplate(this)->GetFunction());
+                          getNumberIntFunctionTemplate(this)->GetFunction());
         _global->ForceSet(v8StringData("Timestamp"),
-                         getTimestampFunctionTemplate(this)->GetFunction());
+                          getTimestampFunctionTemplate(this)->GetFunction());
 
         BSONObjBuilder b;
         b.appendMaxKey("");
