@@ -58,7 +58,7 @@ assert.soon( function(){
 } , "balance didn't happen" , 1000 * 60 * 6 , 5000 );
 
 jsTest.log("Stopping balancer");
-sh.stopBalancer();
+s.stopBalancer();
 
 jsTest.log("Balancer stopped, checking dbhashes");
 for ( i=0; i<s._rs.length; i++ ){
