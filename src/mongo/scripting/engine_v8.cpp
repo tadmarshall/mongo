@@ -96,25 +96,31 @@ namespace mongo {
             return handle_scope.Close(info.This()->GetRealNamedProperty(name));
         }
 
-        string key = toSTLString(name);
-        BSONHolder* holder = unwrapHolder(info.Holder());
-        if (holder->_removed.count(key))
-            return handle_scope.Close(v8::Handle<v8::Value>());
+        v8::Handle<v8::Value> val;
+        try {
+            string key = toSTLString(name);
+            BSONHolder* holder = unwrapHolder(info.Holder());
+            if (holder->_removed.count(key))
+                return handle_scope.Close(v8::Handle<v8::Value>());
 
-        BSONObj obj = holder->_obj;
-        BSONElement elmt = obj.getField(key.c_str());
-        if (elmt.eoo())
-            return handle_scope.Close(v8::Handle<v8::Value>());
+            BSONObj obj = holder->_obj;
+            BSONElement elmt = obj.getField(key.c_str());
+            if (elmt.eoo())
+                return handle_scope.Close(v8::Handle<v8::Value>());
 
-        v8::Local<v8::External> scp = v8::External::Cast(*info.Data());
-        V8Scope* scope = (V8Scope*)(scp->Value());
-        v8::Handle<v8::Value> val = scope->mongoToV8Element(elmt, false);
-        info.This()->ForceSet(name, val, v8::DontEnum);
+            v8::Local<v8::External> scp = v8::External::Cast(*info.Data());
+            V8Scope* scope = (V8Scope*)(scp->Value());
+            val = scope->mongoToV8Element(elmt, false);
+            info.This()->ForceSet(name, val, v8::DontEnum);
 
-        if (elmt.type() == mongo::Object || elmt.type() == mongo::Array) {
-          // if accessing a subobject, it may get modified and base obj would not know
-          // have to set base as modified, which means some optim is lost
-          unwrapHolder(info.Holder())->_modified = true;
+            if (elmt.type() == mongo::Object || elmt.type() == mongo::Array) {
+              // if accessing a subobject, it may get modified and base obj would not know
+              // have to set base as modified, which means some optim is lost
+              unwrapHolder(info.Holder())->_modified = true;
+            }
+        }
+        catch (const std::exception& e) {
+            return v8AssertionException(e.what());
         }
         return handle_scope.Close(val);
     }
