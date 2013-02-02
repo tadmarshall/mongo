@@ -888,8 +888,7 @@ namespace mongo {
 
         if (!nativeEpilogue()) {
             _error = "JavaScript execution terminated";
-            log() << _error << endl;
-            return 1;
+            uasserted(16706, _error);
         }
 
         if (timeoutMs)
@@ -904,25 +903,28 @@ namespace mongo {
 
         if (!nativePrologue()) {
             _error = "JavaScript execution interrupted";
-            log() << _error << endl;
-            return 1;
+            uasserted(16707, _error);
         }
 
         if (result.IsEmpty()) {
             if (try_catch.HasCaught() && try_catch.CanContinue()) {
+                // normal exception
                 _error = toSTLString(&try_catch);
+                uasserted(16708, _error);
+            }
+            else if (hasOutOfMemoryException()) {
+                // out of memory exception (treated as terminal)
+                _error = "JavaScript execution failed -- v8 is out of memory";
+                massert(16709, _error, false);
             }
             else {
+                // terminal exception (due to empty handle, termination, etc.)
                 _error = "JavaScript execution failed";
+                uasserted(16710, _error);
             }
-            if (hasOutOfMemoryException()) {
-                _error += " -- v8 is out of memory";
-            }
-            log() << _error << endl;
-            return 1;
         }
 
-        if (! ignoreReturn) {
+        if (!ignoreReturn) {
             _global->ForceSet(v8::String::New("return"), result);
         }
 

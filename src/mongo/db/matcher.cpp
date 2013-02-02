@@ -101,17 +101,10 @@ namespace mongo {
             _scope->setBoolean( "fullObject" , true ); // this is a hack b/c fullObject used to be relevant
                 
 
-            int err = _scope->invoke( _func , 0, &obj , 1000 * 60 , false );
-            if ( err == -3 ) { // INVOKE_ERROR
-                stringstream ss;
-                ss << "error on invocation of $where function:\n"
-                   << _scope->getError();
-                uassert( 10071 , ss.str(), false);
-            }
-            else if ( err != 0 ) {   // ! INVOKE_SUCCESS
-                uassert( 10072 , "unknown error in invocation of $where function", false);
-            }
-            
+            int err = _scope->invoke(_func, 0, &obj, 1000 * 60 , false);
+            uassert(10071,
+                    string("error on invocation of $where function: ") + _scope->getError(),
+                    0 == err);
             return _scope->getBoolean( "return" ) != 0;
         }
         
