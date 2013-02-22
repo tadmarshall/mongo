@@ -113,12 +113,24 @@ namespace mongo {
     */
     Client& Client::initThread(const char *desc, AbstractMessagingPort *mp) {
 #if defined(_DEBUG)
+  #if defined(_WIN32)
+    #if defined(_M_AMD64)
+        // Windows XP provides a 256 byte stack for the Ctrl-C thread, and debug builds
+        // allocate space for all structures declared within a function even if they are
+        // unused, so we can't use the sizeof(void*) method to exclude StackChecker
+        {
+            StackChecker sc;
+            sc.init();
+        }
+    #endif
+  #else
         {
             if( sizeof(void*) == 8 ) {
                 StackChecker sc;
                 sc.init();
             }
         }
+  #endif
 #endif
         verify( currentClient.get() == 0 );
         Client *c = new Client(desc, mp);
