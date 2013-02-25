@@ -907,7 +907,7 @@ int _main( int argc, char* argv[], char **envp ) {
            f.close();
         }
 
-        if ( !nodb ) {
+        if ( !nodb && !mongo::cmdLine.quiet && isatty(0) ) {
             scope->exec( "shellHelper( 'show', 'startupWarnings' )", "(shellwarnings", false, true, false );
         }
 

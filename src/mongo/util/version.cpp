@@ -178,6 +178,12 @@ namespace mongo {
 
         bool warned = false;
         {
+            log() << startupWarningsLog;
+            log() << "** NOTE: This is a Windows version of MongoDB." << startupWarningsLog;
+            log() << "**       Not recommended for anything." << startupWarningsLog;
+            warned = true;
+        }
+        {
             const char * foo = strchr( versionString , '.' ) + 1;
             int bar = atoi( foo );
             if ( ( 2 * ( bar / 2 ) ) != bar ) {
