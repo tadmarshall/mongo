@@ -58,6 +58,10 @@ namespace mongo {
             return ((now() - _old) * microsPerSecond) / _countsPerSecond;
         }
 
+        inline unsigned long long nanos() const {
+            return ((now() - _old) * nanosPerSecond) / _countsPerSecond;
+        }
+
         inline void reset() { _old = now(); }
 
         /**

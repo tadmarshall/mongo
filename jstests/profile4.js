@@ -61,6 +61,7 @@ try {
     // check read lock stats are set
     t.find();
     o = lastOp();
+    print("o.lockStats: " + tojson(o.lockStats));
     assert.eq('query', o.op);
     assert.eq( 0, o.lockStats.timeLockedMicros.w );
     assert.lt( 0, o.lockStats.timeLockedMicros.r );

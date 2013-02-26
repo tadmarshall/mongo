@@ -297,7 +297,9 @@ namespace mongo {
     }
     
     long long Lock::ScopedLock::acquireFinished( LockStat* stat ) {
-        long long acquisitionTime = _timer.micros();
+        //long long acquisitionTime = _timer.micros();
+        //long long acquisitionTime = _timer.nanos();
+        long long acquisitionTime = 1;
         _timer.reset();
         _stat = stat;
         cc().curop()->lockStat().recordAcquireTimeMicros( _type , acquisitionTime );
