@@ -10,7 +10,7 @@
 // (at the end of the document check) and comparing it with the migrations logged earlier.
 
 jsTest.log("Setting up new ShardingTest");
-var st = new ShardingTest( "mrShardedOutput", 2, 1, 1, { chunksize : 1 } );
+var st = new ShardingTest( {shards: 2, mongos: 1, other: { chunksize : 1, mongosOptions: { verbose: 3 }, shardOptions: { verbose: 1 } } }  );
 
 var config = st.getDB("config");
 st.adminCommand( { enablesharding: "test" } );

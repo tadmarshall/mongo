@@ -578,9 +578,11 @@ namespace mongo {
                         dbconPtr.reset(new ShardConnection(*(group.shard), ns, group.manager));
                         ShardConnection& dbcon = *dbconPtr;
 
-                        LOG(5)
+                        LOG(3)
                                 << "inserting "
                                 << group.inserts.size()
+                                << " id "
+                                << group.inserts[0]
                                 << " documents to shard "
                                 << group.shard
                                 << " at version "
