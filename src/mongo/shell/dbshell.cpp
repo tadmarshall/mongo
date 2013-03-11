@@ -299,6 +299,126 @@ bool isUseCmd( const std::string& code ) {
     return cmd == "use";
 }
 
+#if 1
+
+enum ParseState {
+    Balanced = 0,
+    DoubleQuotedString,
+    SingleQuotedString,
+    SingleLineComment,
+    MultiLineComment,
+    Parentheses,
+    SquareBrackets,
+    WavyBraces,
+    Regex
+};
+
+bool isBalanced(const std::string& code) {
+    if (isUseCmd(code)) {
+        return true;  // don't balance "use <dbname>" in case dbname contains special chars
+    }
+
+    std::vector<ParseState> ps;
+    ps.reserve(10);
+    ps.push_back(Balanced);
+
+    for (size_t i = 0; i < code.size(); ++i) {
+
+        switch (ps.back()) {
+
+        case Balanced:
+            break;
+        }
+
+    }
+
+    int curlyBrackets = 0;
+    int squareBrackets = 0;
+    int parens = 0;
+    bool danglingOp = false;
+
+    for ( size_t i=0; i<code.size(); i++ ) {
+
+        switch( code[i] ) {
+
+        case '/':
+            if ( i + 1 < code.size() && code[i+1] == '/' ) {
+                while ( i  <code.size() && code[i] != '\n' )
+                    i++;
+            }
+            continue;
+
+        case '{':
+            curlyBrackets++;
+            break;
+
+        case '}':
+            if ( curlyBrackets <= 0 )
+                return true;
+            curlyBrackets--;
+            break;
+
+        case '[':
+            squareBrackets++;
+            break;
+
+        case ']':
+            if ( squareBrackets <= 0 )
+                return true;
+            squareBrackets--;
+            break;
+
+        case '(':
+            parens++;
+            break;
+
+        case ')':
+            if ( parens <= 0 )
+                return true;
+            parens--;
+            break;
+
+        case '"':
+            i++;
+            while ( i < code.size() && code[i] != '"' ) i++;
+            break;
+
+        case '\'':
+            i++;
+            while ( i < code.size() && code[i] != '\'' ) i++;
+            break;
+
+        case '\\':
+            if ( i + 1 < code.size() && code[i+1] == '/' ) i++;
+            break;
+
+        case '+':
+        case '-':
+            if ( i + 1 < code.size() && code[i+1] == code[i] ) {
+                i++;
+                continue; // postfix op (++/--) can't be a dangling op
+            }
+            break;
+        }
+
+        if ( i >= code.size() ) {
+            danglingOp = false;
+            break;
+        }
+
+        if ( isOpSymbol( code[i] ) ) {
+            danglingOp = true;
+        }
+        else if ( !std::isspace( static_cast<unsigned char>( code[i] ) ) ) {
+            danglingOp = false;
+        }
+    }
+
+    return curlyBrackets == 0 && squareBrackets == 0 && parens == 0 && !danglingOp;
+}
+
+#else
+
 bool isBalanced( const std::string& code ) {
     if (isUseCmd( code ))
         return true;  // don't balance "use <dbname>" in case dbname contains special chars
@@ -368,6 +488,9 @@ bool isBalanced( const std::string& code ) {
 
     return curlyBrackets == 0 && squareBrackets == 0 && parens == 0 && !danglingOp;
 }
+
+#endif
+
 
 struct BalancedTest : public mongo::StartupTest {
 public:
