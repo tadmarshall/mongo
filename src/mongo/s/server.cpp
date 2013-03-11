@@ -48,6 +48,7 @@
 #include "mongo/s/config_upgrade.h"
 #include "mongo/util/stacktrace.h"
 #include "mongo/util/exception_filter_win32.h"
+#include "mongo/util/text.h"
 
 #if defined(_WIN32)
 # include "../util/ntservice.h"
@@ -498,10 +499,10 @@ namespace mongo {
 }  // namespace mongo
 #endif
 
-int main(int argc, char* argv[], char** envp) {
+int mongoSMain(int argc, char* argv[], char** envp) {
     static StaticObserver staticObserver;
     if (argc < 1)
-        ::_exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
 
     mongosCommand = argv[0];
 
@@ -510,7 +511,7 @@ int main(int argc, char* argv[], char** envp) {
     CmdLine::censor(argc, argv);
     try {
         int exitCode = _main();
-        ::_exit(exitCode);
+        return exitCode;
     }
     catch(SocketException& e) {
         cout << "uncaught SocketException in mongos main:" << endl;
@@ -527,8 +528,21 @@ int main(int argc, char* argv[], char** envp) {
     catch(...) {
         cout << "uncaught unknown exception in mongos main" << endl;
     }
-    ::_exit(20);
+    return 20;
 }
+
+#if defined(_WIN32)
+int wmain(int argc, wchar_t* argvW[], wchar_t* envpW[]) {
+    WindowsCommandLine wcl(argc, argvW, envpW);
+    int exitCode = mongoSMain(argc, wcl.argv(), wcl.envp());
+    ::_exit(exitCode);
+}
+#else
+int main(int argc, char* argv[], char** envp) {
+    int exitCode = mongoSMain(argc, argv, envp);
+    ::_exit(exitCode);
+}
+#endif
 
 #undef exit
 
