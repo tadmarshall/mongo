@@ -25,12 +25,26 @@
 #include "mongo/dbtests/framework.h"
 #include "mongo/util/exception_filter_win32.h"
 #include "mongo/util/startup_test.h"
+#include "mongo/util/text.h"
 
-int main( int argc, char** argv, char** envp ) {
+int dbtestsMain( int argc, char** argv, char** envp ) {
     static StaticObserver StaticObserver;
     setWindowsUnhandledExceptionFilter();
     Command::testCommandsEnabled = 1;
     mongo::runGlobalInitializersOrDie(argc, argv, envp);
     StartupTest::runTests();
-    _exit(mongo::dbtests::runDbTests( argc, argv, "/tmp/unittest" ));
+    return mongo::dbtests::runDbTests( argc, argv, "/tmp/unittest" );
 }
+
+#if defined(_WIN32)
+int wmain(int argc, wchar_t* argvW[], wchar_t* envpW[]) {
+    WindowsCommandLine wcl(argc, argvW, envpW);
+    int exitCode = dbtestsMain(argc, wcl.argv(), wcl.envp());
+    ::_exit(exitCode);
+}
+#else
+int main(int argc, char* argv[], char** envp) {
+    int exitCode = dbtestsMain(argc, argv, envp);
+    ::_exit(exitCode);
+}
+#endif
