@@ -725,10 +725,18 @@ void show_help_text(po::options_description options) {
 
 static int mongoDbMain(int argc, char* argv[], char** envp);
 
+#if defined(_WIN32)
+int wmain(int argc, wchar_t* argvW[], wchar_t* envpW[]) {
+    WindowsCommandLine wcl(argc, argvW, envpW);
+    int exitCode = mongoDbMain(argc, wcl.argv(), wcl.envp());
+    ::_exit(exitCode);
+}
+#else
 int main(int argc, char* argv[], char** envp) {
     int exitCode = mongoDbMain(argc, argv, envp);
     ::_exit(exitCode);
 }
+#endif
 
 static void buildOptionsDescriptions(po::options_description *pVisible,
                                      po::options_description *pHidden,
