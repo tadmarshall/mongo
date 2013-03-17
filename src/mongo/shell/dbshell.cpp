@@ -299,6 +299,29 @@ bool isUseCmd( const std::string& code ) {
     return cmd == "use";
 }
 
+/**
+ * Skip over a quoted string, including quotes escaped with backslash
+ * 
+ * @param code      String
+ * @param start     Starting position within string, always > 0
+ * @param quote     Quote character (single or double quote)
+ * @return          Position of ending quote, or code.size() if no quote found
+ */
+size_t skipOverString(const std::string& code, size_t start, char quote) {
+    size_t pos = start;
+    while (pos < code.size()) {
+        pos = code.find(quote, pos);
+        if (pos == std::string::npos) {
+            return code.size();
+        }
+        if (start == pos || code[pos - 1] != '\\') {
+            break;
+        }
+        ++pos;
+    }
+    return pos;
+}
+
 bool isBalanced( const std::string& code ) {
     if (isUseCmd( code ))
         return true;  // don't balance "use <dbname>" in case dbname contains special chars
@@ -340,12 +363,11 @@ bool isBalanced( const std::string& code ) {
             parens--;
             break;
         case '"':
-            i++;
-            while ( i < code.size() && code[i] != '"' ) i++;
-            break;
         case '\'':
-            i++;
-            while ( i < code.size() && code[i] != '\'' ) i++;
+            i = skipOverString(code, i + 1, code[i]);
+            if (i >= code.size()) {
+                return true;            // Do not let unterminated strings enter multi-line mode
+            }
             break;
         case '\\':
             if ( i + 1 < code.size() && code[i+1] == '/' ) i++;
