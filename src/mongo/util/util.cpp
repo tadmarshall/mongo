@@ -1,5 +1,3 @@
-// @file util.cpp
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,15 +13,16 @@
  *    limitations under the License.
  */
 
-#include "pch.h"
-#include "goodies.h"
+#include "mongo/pch.h"
+
+#include "mongo/platform/atomic_word.h"
+#include "mongo/util/file_allocator.h"
+#include "mongo/util/goodies.h"
+#include "mongo/util/mongoutils/str.h"
 #include "mongo/util/stacktrace.h"
 #include "mongo/util/startup_test.h"
-#include "file_allocator.h"
-#include "time_support.h"
-#include "mongoutils/str.h"
-#include "timer.h"
-#include "platform/atomic_word.h"
+#include "mongo/util/time_support.h"
+#include "mongo/util/timer.h"
 
 namespace mongo {
 
@@ -56,9 +55,6 @@ namespace mongo {
 #pragma pack(pop)
 
     void setWinThreadName(const char *name) {
-        /* is the sleep here necessary???
-           Sleep(10);
-           */
         THREADNAME_INFO info;
         info.dwType = 0x1000;
         info.szName = name;
@@ -75,7 +71,7 @@ namespace mongo {
     void setThreadName(const char *name) {
         if ( ! name ) 
             name = "NONE";
-        
+
         _threadName.reset( new string(name) );
         
 #if defined( DEBUG ) && defined( _WIN32 )
