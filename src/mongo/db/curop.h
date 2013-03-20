@@ -235,8 +235,8 @@ namespace mongo {
         ProgressMeter& getProgressMeter() { return _progressMeter; }
         CurOp *parent() const { return _wrapped; }
         void kill(bool* pNotifyFlag = NULL); 
-        bool killPendingStrict() const { return _killPending.load(); }
-        bool killPending() const { return _killPending.loadRelaxed(); }
+        bool killPendingStrict() const { return 0 != _killPending.load(); }
+        bool killPending() const { return 0 != _killPending.loadRelaxed(); }
         void yielded() { _numYields++; }
         int numYields() const { return _numYields; }
         void suppressFromCurop() { _suppressFromCurop = true; }

@@ -1,5 +1,3 @@
-// @file sock.h
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +15,12 @@
 
 #pragma once
 
-#include "mongo/pch.h"
+//#include "mongo/pch.h"
 
 #include <stdio.h>
+#include <string>
+#include <utility>
+#include <vector>
 
 #ifndef _WIN32
 
@@ -68,11 +69,11 @@ namespace mongo {
 
 #endif // _WIN32
 
-    string makeUnixSockPath(int port);
+    std::string makeUnixSockPath(int port);
 
     // If an ip address is passed in, just return that.  If a hostname is passed
     // in, look up its ip and return that.  Returns "" on failure.
-    string hostbyname(const char *hostname);
+    std::string hostbyname(const char *hostname);
 
     void enableIPv6(bool state=true);
     bool IPv6Enabled();
@@ -93,7 +94,7 @@ namespace mongo {
         template <typename T> T& as() { return *(T*)(&sa); }
         template <typename T> const T& as() const { return *(const T*)(&sa); }
         
-        string toString(bool includePort=true) const;
+        std::string toString(bool includePort=true) const;
 
         /** 
          * @return one of AF_INET, AF_INET6, or AF_UNIX
@@ -102,7 +103,7 @@ namespace mongo {
 
         unsigned getPort() const;
 
-        string getAddr() const;
+        std::string getAddr() const;
 
         bool isLocalHost() const;
 
@@ -123,13 +124,13 @@ namespace mongo {
     extern SockAddr unknownAddress; // ( "0.0.0.0", 0 )
 
     /** this is not cache and does a syscall */
-    string getHostName();
+    std::string getHostName();
     
     /** this is cached, so if changes during the process lifetime
      * will be stale */
-    string getHostNameCached();
+    std::string getHostNameCached();
 
-    string prettyHostName();
+    std::string prettyHostName();
 
     /**
      * thrown by Socket and SockAddr
@@ -139,7 +140,7 @@ namespace mongo {
         const enum Type { CLOSED , RECV_ERROR , SEND_ERROR, RECV_TIMEOUT, SEND_TIMEOUT, FAILED_STATE, CONNECT_ERROR } _type;
         
         SocketException( Type t , const std::string& server , int code = 9001 , const std::string& extra="" ) 
-            : DBException( (string)"socket exception ["  + _getStringType( t ) + "] for " + server, code ),
+            : DBException( (std::string)"socket exception ["  + _getStringType( t ) + "] for " + server, code ),
               _type(t),
               _server(server),
               _extra(extra)
@@ -148,12 +149,12 @@ namespace mongo {
         virtual ~SocketException() throw() {}
 
         bool shouldPrint() const { return _type != CLOSED; }
-        virtual string toString() const;
+        virtual std::string toString() const;
         virtual const std::string* server() const { return &_server; }
     private:
 
         // TODO: Allow exceptions better control over their messages
-        static string _getStringType( Type t ){
+        static std::string _getStringType( Type t ){
             switch (t) {
                 case CLOSED:        return "CLOSED";
                 case RECV_ERROR:    return "RECV_ERROR";
@@ -166,13 +167,12 @@ namespace mongo {
             }
         }
 
-        string _server;
-        string _extra;
+        std::string _server;
+        std::string _extra;
     };
 
-
     /**
-     * thin wrapped around file descriptor and system calls
+     * thin wrapper around file descriptor and system calls
      * todo: ssl
      */
     class Socket : boost::noncopyable {
@@ -196,7 +196,7 @@ namespace mongo {
         void close();
         
         void send( const char * data , int len, const char *context );
-        void send( const vector< pair< char *, int > > &data, const char *context );
+        void send( const std::vector< std::pair< char *, int > > &data, const char *context );
 
         // recv len or throw SocketException
         void recv( char * data , int len );
@@ -206,7 +206,7 @@ namespace mongo {
         void setLogLevel( int ll ) { _logLevel = ll; }
 
         SockAddr remoteAddr() const { return _remote; }
-        string remoteString() const { return _remote.toString(); }
+        std::string remoteString() const { return _remote.toString(); }
         unsigned remotePort() const { return _remote.getPort(); }
 
         void clearCounters() { _bytesIn = 0; _bytesOut = 0; }
@@ -242,7 +242,7 @@ namespace mongo {
         void _init();
 
         /** sends dumbly, just each buffer at a time */
-        void _send( const vector< pair< char *, int > > &data, const char *context );
+        void _send( const std::vector< std::pair< char *, int > > &data, const char *context );
 
         /** raw send, same semantics as ::send */
         int _send( const char * data , int len );
