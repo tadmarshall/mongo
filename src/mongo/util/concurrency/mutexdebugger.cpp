@@ -1,5 +1,3 @@
-// vars.cpp
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,9 +13,10 @@
  *    limitations under the License.
  */
 
-#include "pch.h"
-#include "mutex.h"
-#include "value.h"
+#include "mongo/pch.h"
+
+#include "mongo/util/concurrency/mutex.h"
+#include "mongo/util/concurrency/value.h"
 
 namespace mongo {
 
@@ -44,16 +43,16 @@ namespace mongo {
 
     void MutexDebugger::programEnding() {
         if( logLevel>=1 && followers.size() ) {
-            std::cout << followers.size() << " mutexes in program" << endl;
+            std::cout << followers.size() << " mutexes in program" << std::endl;
             for( map< mid, set<mid> >::iterator i = followers.begin(); i != followers.end(); i++ ) {
-                cout << i->first;
+                std::cout << i->first;
                 if( maxNest[i->first] > 1 )
-                    cout << " maxNest:" << maxNest[i->first];
-                cout << '\n';
+                    std::cout << " maxNest:" << maxNest[i->first];
+                std::cout << '\n';
                 for( set<mid>::iterator j = i->second.begin(); j != i->second.end(); j++ )
-                    cout << "  " << *j << '\n';
+                    std::cout << "  " << *j << '\n';
             }
-            cout.flush();
+            std::cout.flush();
         }
     }
 

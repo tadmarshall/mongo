@@ -20,7 +20,7 @@
 
 #pragma once
 
-#include "spin_lock.h"
+#include "mongo/util/concurrency/spin_lock.h"
 
 namespace mongo {
 
