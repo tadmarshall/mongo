@@ -1,5 +1,3 @@
-// stat_util.h
-
 /**
  *    Copyright (C) 2008 10gen Inc.
  *
@@ -19,18 +17,18 @@
 #pragma once
 
 #include "mongo/pch.h"
-#include "../db/jsobj.h"
+
+#include "mongo/db/jsobj.h"
 
 namespace mongo {
 
-
     struct NamespaceInfo {
         string ns;
-        
+
         // these need to be in millis
         long long read;
         long long write;
-        
+
         string toString() const {
             stringstream ss;
             ss << ns << " r: " << read << " w: " << write;
@@ -41,18 +39,18 @@ namespace mongo {
 
     struct NamespaceDiff {
         string ns;
-        
+
         long long read;
         long long write;
-        
+
         NamespaceDiff( NamespaceInfo prev , NamespaceInfo now ) {
             ns = prev.ns;
             read = now.read - prev.read;
             write = now.write - prev.write;
         }
-        
+
         long long total() const { return read + write; }
-        
+
         bool operator<(const NamespaceDiff& r) const {
             return total() < r.total();
         }
@@ -69,13 +67,13 @@ namespace mongo {
          * @param seconds - seconds between calls to serverStatus
          * @param all - show all fields
          */
-        StatUtil( double seconds = 1 , bool all = false );
+        StatUtil( double seconds = 1, bool all = false );
 
         /**
          * @param a older serverStatus
          * @param b newer serverStatus
          */
-        BSONObj doRow( const BSONObj& a , const BSONObj& b );
+        BSONObj doRow( const BSONObj& a, const BSONObj& b );
 
         double getSeconds() const { return _seconds; }
         bool getAll() const { return _all; }
@@ -85,32 +83,29 @@ namespace mongo {
 
         static NamespaceStats parseServerStatusLocks( const BSONObj& serverStatus );
         static vector<NamespaceDiff> computeDiff( const NamespaceStats& prev , const NamespaceStats& current );
+
     private:
+        double percent( const char * outof, const char * val, const BSONObj& a, const BSONObj& b );
 
+        double diff( const string& nam, const BSONObj& a, const BSONObj& b );
 
-        double percent( const char * outof , const char * val , const BSONObj& a , const BSONObj& b );
-        
-        double diff( const string& name , const BSONObj& a , const BSONObj& b );
+        void _appendMem( BSONObjBuilder& result , const string& name, unsigned width, double sz );
 
-        void _appendMem( BSONObjBuilder& result , const string& name , unsigned width , double sz );
-
-        void _appendNet( BSONObjBuilder& result , const string& name , double diff );
+        void _appendNet( BSONObjBuilder& result, const string& name, double diff );
 
         template<typename T>
-        void _append( BSONObjBuilder& result , const string& name , unsigned width , const T& t ) {
+        void _append( BSONObjBuilder& result , const string& name, unsigned widt, const T& t ) {
             if ( name.size() > width )
                 width = name.size();
             result.append( name , BSON( "width" << (int)width << "data" << t ) );
         }
 
-        bool _in( const BSONElement& me , const BSONElement& arr );
+        bool _in( const BSONElement& me, const BSONElement& arr );
 
-        
         // -------
 
         double _seconds;
         bool _all;
-        
+
     };
 }
-
