@@ -1,5 +1,3 @@
-// text.h
-
 /*
  *    Copyright 2010 10gen Inc.
  *
@@ -18,8 +16,8 @@
 
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "mongo/base/disallow_copying.h"
 
@@ -43,7 +41,7 @@ namespace mongo {
         void split( std::vector<std::string>& l );
 
         std::vector<std::string> split();
-        
+
         static std::vector<std::string> split( const std::string& big , const std::string& splitter );
 
         static std::string join( const std::vector<std::string>& l , const std::string& split );
