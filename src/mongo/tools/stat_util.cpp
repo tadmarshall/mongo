@@ -1,5 +1,3 @@
-// stat_util.cpp
-
 /**
  *    Copyright (C) 2008 10gen Inc.
  *
@@ -16,7 +14,7 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "stat_util.h"
+#include "mongo/tools/stat_util.h"
 #include "mongo/util/mongoutils/str.h"
 
 using namespace mongoutils;
@@ -348,4 +346,3 @@ namespace mongo {
         return data;
     }
 }
-

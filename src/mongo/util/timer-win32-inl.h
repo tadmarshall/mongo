@@ -35,7 +35,7 @@ namespace mongo {
 
     unsigned long long Timer::now() const {
         LARGE_INTEGER i;
-        fassert(16161, QueryPerformanceCounter(&i));
+        fassert(16161, FALSE != QueryPerformanceCounter(&i));
         return i.QuadPart;
     }
 
