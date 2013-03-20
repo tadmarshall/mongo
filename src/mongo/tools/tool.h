@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <iostream>
 #include <string>
+#include <vector>
 
 #include <boost/program_options.hpp>
 
@@ -26,8 +28,8 @@
 #include <io.h>
 #endif
 
-#include "db/instance.h"
-#include "db/matcher.h"
+#include "mongo/db/instance.h"
+#include "mongo/db/matcher.h"
 
 using std::string;
 
@@ -43,8 +45,8 @@ namespace mongo {
             ALL = REMOTE_SERVER | LOCAL_SERVER | SPECIFY_DBCOL
         };
 
-        Tool( string name , DBAccess access=ALL, string defaultDB="test" ,
-              string defaultCollection="", bool usesstdout=true);
+        Tool( std::string name , DBAccess access=ALL, std::string defaultDB="test" ,
+              std::string defaultCollection="", bool usesstdout=true);
         virtual ~Tool();
 
         int main( int argc , char ** argv );
@@ -59,23 +61,23 @@ namespace mongo {
             _positonalOptions.add( name , pos );
         }
 
-        string getParam( string name , string def="" ) {
+        std::string getParam( std::string name , std::string def="" ) {
             if ( _params.count( name ) )
-                return _params[name.c_str()].as<string>();
+                return _params[name.c_str()].as<std::string>();
             return def;
         }
-        int getParam( string name , int def ) {
+        int getParam( std::string name , int def ) {
             if ( _params.count( name ) )
                 return _params[name.c_str()].as<int>();
             return def;
         }
-        bool hasParam( string name ) {
+        bool hasParam( std::string name ) {
             return _params.count( name );
         }
 
-        string getNS() {
+        std::string getNS() {
             if ( _coll.size() == 0 ) {
-                cerr << "no collection specified!" << endl;
+                std::cerr << "no collection specified!" << std::endl;
                 throw -1;
             }
             return _db + "." + _coll;
@@ -105,16 +107,16 @@ namespace mongo {
 
         mongo::DBClientBase &conn( bool slaveIfPaired = false );
 
-        string _name;
+        std::string _name;
 
-        string _db;
-        string _coll;
-        string _fileName;
+        std::string _db;
+        std::string _coll;
+        std::string _fileName;
 
-        string _username;
-        string _password;
-        string _authenticationDatabase;
-        string _authenticationMechanism;
+        std::string _username;
+        std::string _password;
+        std::string _authenticationDatabase;
+        std::string _authenticationMechanism;
 
         bool _usesstdout;
         bool _noconnection;
@@ -123,11 +125,10 @@ namespace mongo {
         void addFieldOptions();
         void needFields();
 
-        vector<string> _fields;
+        std::vector<std::string> _fields;
         BSONObj _fieldsObj;
 
-
-        string _host;
+        std::string _host;
 
     protected:
 
