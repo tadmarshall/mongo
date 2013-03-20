@@ -1,5 +1,3 @@
-// message.h
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,9 +15,13 @@
 
 #pragma once
 
-#include "sock.h"
-#include "../../bson/util/atomic_int.h"
-#include "hostandport.h"
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "mongo/bson/util/atomic_int.h"
+#include "mongo/util/net/hostandport.h"
+#include "mongo/util/net/sock.h"
 
 namespace mongo {
 
@@ -201,12 +203,12 @@ namespace mongo {
 
             verify( _freeIt );
             int totalSize = 0;
-            for( vector< pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
+            for( std::vector< std::pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
                 totalSize += i->second;
             }
             char *buf = (char*)malloc( totalSize );
             char *p = buf;
-            for( vector< pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
+            for( std::vector< std::pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
                 memcpy( p, i->first, i->second );
                 p += i->second;
             }
@@ -233,7 +235,7 @@ namespace mongo {
                 if ( _buf ) {
                     free( _buf );
                 }
-                for( vector< pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
+                for( std::vector< std::pair< char *, int > >::const_iterator i = _data.begin(); i != _data.end(); ++i ) {
                     free(i->first);
                 }
             }
@@ -286,8 +288,8 @@ namespace mongo {
         }
 
         void send( MessagingPort &p, const char *context );
-        
-        string toString() const;
+
+        std::string toString() const;
 
     private:
         void _setData( MsgData *d, bool freeIt ) {
@@ -297,13 +299,12 @@ namespace mongo {
         // if just one buffer, keep it in _buf, otherwise keep a sequence of buffers in _data
         MsgData * _buf;
         // byte buffer(s) - the first must contain at least a full MsgData unless using _buf for storage instead
-        typedef vector< pair< char*, int > > MsgVec;
+        typedef std::vector< std::pair< char*, int > > MsgVec;
         MsgVec _data;
         bool _freeIt;
     };
 
 
     MSGID nextMessageId();
-
 
 } // namespace mongo
