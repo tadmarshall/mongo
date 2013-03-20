@@ -17,6 +17,7 @@
 #include "mongo/pch.h"
 
 #include <boost/thread.hpp>
+#include <string>
 
 #include "mongo/base/initializer.h"
 #include "mongo/db/dbmessage.h"
@@ -59,7 +60,7 @@ public:
                     if ( m.operation() == dbQuery ) {
                         DbMessage d( m );
                         QueryMessage q( d );
-                        exhaust = q.queryOptions & QueryOption_Exhaust;
+                        exhaust = 0 != (q.queryOptions & QueryOption_Exhaust);
                     }
                     Message response;
                     dest.port().call( m, response );

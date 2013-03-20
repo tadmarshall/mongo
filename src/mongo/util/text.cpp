@@ -1,5 +1,3 @@
-// text.cpp
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +13,9 @@
  *    limitations under the License.
  */
 
-#include "pch.h"
+#include "mongo/pch.h"
+
+#include "mongo/util/text.h"
 
 #include <boost/smart_ptr/scoped_array.hpp>
 #include <sstream>
@@ -25,8 +25,9 @@
 #endif
 
 #include "mongo/platform/basic.h"
+#include "mongo/util/assert_util.h"
+#include "mongo/util/log.h"
 #include "mongo/util/mongoutils/str.h"
-#include "mongo/util/text.h"
 
 using namespace std;
 
