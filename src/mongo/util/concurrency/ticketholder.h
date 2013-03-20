@@ -15,7 +15,7 @@
 #pragma once
 
 #include <boost/thread/condition_variable.hpp>
-#include <iostream>
+#include <ostream>
 
 #include "mongo/util/concurrency/mutex.h"
 
@@ -55,7 +55,8 @@ namespace mongo {
 
                 int used = _outof - _num;
                 if ( used > newSize ) {
-                    std::cout << "can't resize since we're using (" << used << ") more than newSize(" << newSize << ")" << std::endl;
+                    std::cout << "ERROR: can't resize since we're using (" << used
+                              << ") more than newSize(" << newSize << ")" << std::endl;
                     return;
                 }
 
