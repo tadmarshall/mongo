@@ -15,12 +15,12 @@
  *    limitations under the License.
  */
 
-
 #include "mongo/pch.h"
 
-#include "mongo/util/net/listen.h"
+#include <vector>
 
 #include "mongo/base/owned_pointer_vector.h"
+#include "mongo/util/net/listen.h"
 #include "mongo/util/net/message_port.h"
 
 #ifndef _WIN32
