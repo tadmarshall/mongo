@@ -1,0 +1,152 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Boost">
+      <UniqueIdentifier>{f51e7abc-4ccc-40c1-b0ad-b4ebb8207713}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="db">
+      <UniqueIdentifier>{24fc7d61-642c-4bcf-b444-75fce9f3c9c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="bson">
+      <UniqueIdentifier>{a0579f0b-247f-4bd2-b9fd-c2452f9e738b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util">
+      <UniqueIdentifier>{48d070e9-a889-4498-b727-e233c035eedd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="base">
+      <UniqueIdentifier>{2dce3c1e-e917-4d56-9c3d-33527ca6fb56}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\concurrency">
+      <UniqueIdentifier>{3acd99c3-320c-415e-82a4-854dd9a20ad8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="util\net">
+      <UniqueIdentifier>{0335d165-d9cc-4655-a9fd-4fb51e0ca473}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="bridge.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\boost\libs\system\src\error_code.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\boost\libs\thread\src\win32\thread.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\boost\libs\thread\src\win32\tss_dll.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\third_party\boost\libs\thread\src\win32\tss_pe.cpp">
+      <Filter>Boost</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\text.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\assert_util.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\stacktrace.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\log.cpp">
+      <Filter>util</Filter>
+    </ClCompile>
+    <ClCompile Include="..\base\error_codes.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\base\status.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\concurrency\mutexdebugger.cpp">
+      <Filter>util\concurrency</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\cmdline.cpp">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="..\base\descriptor_poller_epoll.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\third_party\boost\boost\thread.hpp">
+      <Filter>Boost</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\bsonobjiterator.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\dbmessage.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\goodies.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\base\initializer.h">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\lockstat.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\bson\bson-inl.h">
+      <Filter>bson</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\text.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\assert_util.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\stacktrace.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\log.h">
+      <Filter>util</Filter>
+    </ClInclude>
+    <ClInclude Include="..\base\error_codes.h">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\base\status.h">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\concurrency\mutexdebugger.h">
+      <Filter>util\concurrency</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\cmdline.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\net\listen.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\net\sock.h">
+      <Filter>util\net</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\client_basic.h">
+      <Filter>db</Filter>
+    </ClInclude>
+    <ClInclude Include="..\base\descriptor_poller.hpp">
+      <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\base\epoll.h">
+      <Filter>base</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\base\error_codes.err">
+      <Filter>base</Filter>
+    </None>
+  </ItemGroup>
+</Project>
