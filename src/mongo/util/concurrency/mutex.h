@@ -1,5 +1,3 @@
-// @file mutex.h
-
 /*    Copyright 2009 10gen Inc.
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,8 +24,8 @@
 #include <boost/thread/xtime.hpp>
 
 #include "mongo/util/assert_util.h"
-#include "mongo/util/heapcheck.h"
 #include "mongo/util/concurrency/threadlocal.h"
+#include "mongo/util/heapcheck.h"
 #include "mongo/util/time_support.h"
 
 #if defined(_DEBUG)
