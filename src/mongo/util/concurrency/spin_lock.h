@@ -1,5 +1,3 @@
-// spin_lock.h
-
 /**
 *    Copyright (C) 2008 10gen Inc.
 *
@@ -22,7 +20,7 @@
 #include "mongo/platform/windows_basic.h"
 #endif
 
-#include "mutex.h"
+#include "mongo/util/concurrency/mutex.h"
 
 namespace mongo {
 
