@@ -52,7 +52,7 @@ namespace mongo {
             return getRemote().isLocalHost();
         }
 
-        virtual bool hasRemote() const { return _messagingPort; }
+        virtual bool hasRemote() const { return _messagingPort != NULL; }
         virtual HostAndPort getRemote() const {
             verify( _messagingPort );
             return _messagingPort->remote();
