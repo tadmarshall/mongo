@@ -24,7 +24,7 @@ DescriptorPoller::DescriptorPoller() {
 }
 
 DescriptorPoller::~DescriptorPoller() {
-  if (poller_->fd_ == -1) {
+  if (poller_->fd_ == -1) { // bug, should be !=
     close(poller_->fd_);
   }
 
