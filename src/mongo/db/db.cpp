@@ -1415,7 +1415,7 @@ namespace mongo {
 
     void setupQuittingSignals() {
         reportEventToSystem = reportEventToSystemImpl;
-        filtLast = SetUnhandledExceptionFilter(exceptionFilter);
+        //filtLast = SetUnhandledExceptionFilter(exceptionFilter);
         massert(10297 , "Couldn't register Windows Ctrl-C handler", SetConsoleCtrlHandler((PHANDLER_ROUTINE) CtrlHandler, TRUE));
         _set_purecall_handler( myPurecallHandler );
     }

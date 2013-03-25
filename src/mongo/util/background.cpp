@@ -76,8 +76,11 @@ namespace mongo {
             status->finished.notify_all();
         }
 
-        if( status->deleteSelf )
+        if( status->deleteSelf ) {
+            log() << "BackgroundJob::jobBody is deleting self" << endl;
             delete this;
+            cout << "BackgroundJob::jobBody has finished deleting self" << endl;
+        }
     }
 
     BackgroundJob& BackgroundJob::go() {
