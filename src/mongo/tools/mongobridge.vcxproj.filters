@@ -34,6 +34,9 @@
     <Filter Include="util\net">
       <UniqueIdentifier>{0335d165-d9cc-4655-a9fd-4fb51e0ca473}</UniqueIdentifier>
     </Filter>
+    <Filter Include="platform">
+      <UniqueIdentifier>{1b3c903b-cfa6-4ee7-beb6-fd23ad76f13a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="bridge.cpp">
@@ -76,6 +79,9 @@
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="..\base\descriptor_poller_epoll.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\base\descriptor_poller_win32.cpp">
       <Filter>base</Filter>
     </ClCompile>
   </ItemGroup>
@@ -142,6 +148,9 @@
     </ClInclude>
     <ClInclude Include="..\base\epoll.h">
       <Filter>base</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\windows_basic.h">
+      <Filter>platform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
