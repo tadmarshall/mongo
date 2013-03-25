@@ -309,7 +309,7 @@ ReplSetTest.prototype.callIsMaster = function() {
 
     }
     catch(err) {
-      print("ReplSetTest Could not call ismaster on node " + i);
+      print("ReplSetTest Could not call ismaster on node " + i + ": " + err.toString());
     }
   }
 
@@ -387,10 +387,17 @@ ReplSetTest.prototype.awaitSecondaryNodes = function( timeout ) {
 ReplSetTest.prototype.getMaster = function( timeout ) {
   var tries = 0;
   var sleepTime = 500;
-  var t = timeout || 000;
+  var tmo = timeout || 60000;
   var master = null;
 
-  master = jsTest.attempt({context: this, timeout: 60000, desc: "Finding master"}, this.callIsMaster);
+  try {
+    master = jsTest.attempt({context: this, timeout: tmo, desc: "Finding master"}, this.callIsMaster);
+  }
+  catch (err) {
+    print("ReplSetTest getMaster failed: " + tojson(err));
+    printStackTrace();
+    throw err;
+  }
   return master;
 }
 

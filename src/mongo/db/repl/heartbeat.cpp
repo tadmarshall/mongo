@@ -193,6 +193,12 @@ namespace mongo {
             // doesn't need protection, all health tasks are created in a single thread
             s_try_offset += 7;
         }
+        ~ReplSetHealthPollTask() {
+            Client* c = currentClient.get();
+            if (c) {
+                c->shutdown();
+            }
+        }
 
         string name() const { return "rsHealthPoll"; }
 
