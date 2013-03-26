@@ -84,6 +84,9 @@
     <ClCompile Include="..\base\descriptor_poller_win32.cpp">
       <Filter>base</Filter>
     </ClCompile>
+    <ClCompile Include="..\base\descriptor_poller_select.cpp">
+      <Filter>base</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\pch.h">
