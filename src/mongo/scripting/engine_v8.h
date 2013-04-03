@@ -64,6 +64,7 @@ namespace mongo {
          */
         void track(v8::Persistent<v8::Value> instanceHandle, _ObjType* instance) {
             TrackedPtr* collectionHandle = new TrackedPtr(instance, this);
+            _container.insert(instance);
             instanceHandle.MakeWeak(collectionHandle, deleteOnCollect);
         }
         /**

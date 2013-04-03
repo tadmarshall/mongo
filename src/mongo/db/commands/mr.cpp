@@ -1108,6 +1108,7 @@ namespace mongo {
             }
 
             bool run(const string& dbname , BSONObj& cmd, int, string& errmsg, BSONObjBuilder& result, bool fromRepl ) {
+                log() << ">>>>>>>>>> Starting MapReduce command" << endl;
                 Timer t;
                 Client& client = cc();
                 CurOp * op = client.curop();
@@ -1302,6 +1303,7 @@ namespace mongo {
                     throw;
                 }
 
+                log() << "<<<<<<<<<< Finished MapReduce command" << endl;
                 return true;
             }
 
