@@ -420,19 +420,13 @@ namespace mongo {
         }
     }
 
-    const bool blockSupported = ProcessInfo::blockCheckSupported();
-
     void Record::appendWorkingSetInfo( BSONObjBuilder& b ) {
-        if ( ! blockSupported ) {
+        if ( ! ProcessInfo::blockCheckSupported() ) {
             b.append( "info", "not supported" );
             return;
         }
         
         ps::appendWorkingSetInfo( b );
-    }
-
-    bool Record::blockCheckSupported() { 
-        return ProcessInfo::blockCheckSupported();
     }
 
     bool Record::likelyInPhysicalMemory() const {
@@ -476,14 +470,14 @@ namespace mongo {
         if (seen || ps::rolling[ps::bigHash(region)].access( region , offset , false ) ) {
         
 #ifdef _DEBUG
-            if ( blockSupported && ! ProcessInfo::blockInMemory(data) ) {
+            if ( ProcessInfo::blockCheckSupported() && ! ProcessInfo::blockInMemory(data) ) {
                 warning() << "we think data is in ram but system says no"  << endl;
             }
 #endif
             return true;
         }
 
-        if ( ! blockSupported ) {
+        if ( ! ProcessInfo::blockCheckSupported() ) {
             // this means we don't fallback to system call 
             // and assume things aren't in memory
             // possible we yield too much - but better than not yielding through a fault
