@@ -1635,6 +1635,7 @@ namespace mongo {
         }
         // go down until find smallest/biggest >=/<= target
         while( 1 ) {
+            globalIndexCounters->btree( reinterpret_cast<const char*>(bucket) );
             int l = 0;
             int h = bucket->n - 1;
 
