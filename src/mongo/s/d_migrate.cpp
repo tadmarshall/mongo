@@ -278,7 +278,7 @@ namespace mongo {
     public:
 
         MigrateFromStatus() : _mutex("MigrateFromStatus"),
-			      _cleanupTickets(1) /* only one cleanup thread at once */ {
+                  _cleanupTickets(1) /* only one cleanup thread at once */ {
             _active = false;
             _inCriticalSection = false;
             _memoryUsed = 0;
