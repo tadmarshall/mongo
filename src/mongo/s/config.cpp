@@ -362,6 +362,15 @@ namespace mongo {
                     ChunkVersion currentVersion =
                         ChunkVersion::fromBSON(newest, ChunkType::DEPRECATED_lastmod());
 
+#if 1
+                    // Only reload if the version we found is newer than our own in the same
+                    // epoch
+                    if( currentVersion._combined <= ci.getCM()->getVersion()._combined &&
+                        ci.getCM()->getVersion().hasCompatibleEpoch( currentVersion ) )
+                    {
+                        return ci.getCM();
+                    }
+#else
                     // Only reload if the version we found is newer than our own in the same
                     // epoch
                     if( currentVersion <= ci.getCM()->getVersion() &&
@@ -369,6 +378,7 @@ namespace mongo {
                     {
                         return ci.getCM();
                     }
+#endif
                 }
                 
             }
