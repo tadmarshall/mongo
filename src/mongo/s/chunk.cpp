@@ -1460,7 +1460,7 @@ namespace mongo {
                << " " << conn.getServerAddress()
                << "  " << ns
                << "  " << cmd
-               << " " << &conn
+               << " " << conn.toString()
                << (manager.get() ? string(str::stream() << " " << manager->getSequenceNumber()) :
                                    "")
                << endl;
