@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "mongo/base/counter.h"
 #include "mongo/client/connpool.h"
 #include "mongo/client/dbclientcursor.h"
 #include "mongo/client/distlock.h"
@@ -278,7 +279,7 @@ namespace mongo {
     public:
 
         MigrateFromStatus() : _mutex("MigrateFromStatus"),
-			      _cleanupTickets(1) /* only one cleanup thread at once */ {
+                  _cleanupTickets(1) /* only one cleanup thread at once */ {
             _active = false;
             _inCriticalSection = false;
             _memoryUsed = 0;
@@ -397,7 +398,15 @@ namespace mongo {
             if ( ! isInRange( it , _min , _max , _shardKeyPattern ) )
                 return;
 
+            _raceCheck.increment();
+            if (_raceCheck.get() != 1) {
+                fassertFailed(98762);
+            }
+
             _reload.push_back( ide.wrap() );
+
+            _raceCheck.decrement();
+
             _memoryUsed += ide.size() + 5;
         }
 
@@ -445,8 +454,15 @@ namespace mongo {
             {
                 Client::ReadContext cx( _ns );
 
+                _raceCheck.increment();
+                if (_raceCheck.get() != 1) {
+                    fassertFailed(98763);
+                }
+
                 xfer( &_deleted , b , "deleted" , size , false );
                 xfer( &_reload , b , "reload" , size , true );
+
+                _raceCheck.decrement();
             }
 
             b.append( "size" , size );
@@ -709,6 +725,8 @@ namespace mongo {
 
         bool _getActive() const { scoped_lock l(_mutex); return _active; }
         void _setActive( bool b ) { scoped_lock l(_mutex); _active = b; }
+
+        Counter64 _raceCheck;   // debugging mrShardedOutput.js (etc.) failures
 
     } migrateFromStatus;
 
@@ -1219,7 +1237,7 @@ namespace mongo {
 
             // Before we get into the critical section of the migration, let's double check
             // that the config servers are reachable and the lock is in place.
-            log() << "About to check if it is safe to enter critical section";
+            log() << "About to check if it is safe to enter critical section" << endl;
 
             string lockHeldMsg;
             bool lockHeld = dlk.isLockHeld( 30.0 /* timeout */, &lockHeldMsg );
@@ -1230,7 +1248,7 @@ namespace mongo {
                 return false;
             }
 
-            log() << "About to enter migrate critical section";
+            log() << "About to enter migrate critical section" << endl;;
 
             {
                 // 5.a

@@ -103,7 +103,7 @@ namespace mongo {
         int msgId = (int)(_m.header()->id);
 
         Timer t;
-        LOG(3) << "Request::process begin ns: " << getns()
+        LOG(4) << "Request::process begin ns: " << getns()
                << " msg id: " << msgId
                << " op: " << op
                << " attempt: " << attempt
@@ -133,7 +133,7 @@ namespace mongo {
             s->writeOp( op, *this );
         }
 
-        LOG(3) << "Request::process end ns: " << getns()
+        LOG(4) << "Request::process end ns: " << getns()
                << " msg id: " << msgId
                << " op: " << op
                << " attempt: " << attempt
