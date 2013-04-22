@@ -294,7 +294,7 @@ namespace mongo {
 
         context.getClient()->setLastOp( ts );
 
-        LOG( 6 ) << "logging op:" << BSONObj::make(r) << endl;
+        LOG( 3 ) << "logging op:" << BSONObj::make(r) << endl;
     } 
 
     static void (*_logOp)(const char *opstr, const char *ns, const char *logNS, const BSONObj& obj, BSONObj *o2, bool *bb, bool fromMigrate ) = _logOpOld;
