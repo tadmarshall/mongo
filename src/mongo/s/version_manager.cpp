@@ -222,9 +222,12 @@ namespace mongo {
                                     "version is zero" ) ) << endl;
         }
 
-        LOG(2) << " have to set shard version for conn: " << conn->getServerAddress() << " ns:" << ns
-               << " my last seq: " << sequenceNumber << "  current: " << officialSequenceNumber
-               << " version: " << version << " manager: " << manager.get()
+        LOG(2) << "  have to set shard version for conn: " << conn->getServerAddress()
+               << " ns: " << ns
+               << " my last seq: " << sequenceNumber
+               << " current: " << officialSequenceNumber
+               << " version: " << version
+               << " manager: " << *manager.get()
                << endl;
 
         const string versionableServerAddress(conn->getServerAddress());
