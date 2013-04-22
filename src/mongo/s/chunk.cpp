@@ -514,11 +514,11 @@ namespace mongo {
 
     string Chunk::toString() const {
         stringstream ss;
-        ss << ChunkType::ns() << ":" << _manager->getns() <<
-              ChunkType::shard()   << ": " << _shard.toString() <<
-              ChunkType::DEPRECATED_lastmod() << ": " << _lastmod.toString() <<
-              ChunkType::min()     << ": " << _min <<
-              ChunkType::max()     << ": " << _max;
+        ss << ChunkType::ns()                 << ": " << _manager->getns()   << ", "
+           << ChunkType::shard()              << ": " << _shard.toString()   << ", "
+           << ChunkType::DEPRECATED_lastmod() << ": " << _lastmod.toString() << ", "
+           << ChunkType::min()                << ": " << _min                << ", "
+           << ChunkType::max()                << ": " << _max;
         return ss.str();
     }
 
@@ -1460,7 +1460,7 @@ namespace mongo {
                << " " << conn.getServerAddress()
                << "  " << ns
                << "  " << cmd
-               << " " << &conn
+               << " " << conn.toString()
                << (manager.get() ? string(str::stream() << " " << manager->getSequenceNumber()) :
                                    "")
                << endl;
