@@ -37,18 +37,12 @@
 #include "mongo/db/repl/rs.h"
 #include "mongo/db/repl/write_concern.h"
 #include "mongo/db/stats/counters.h"
+#include "mongo/s/d_logic.h"
 #include "mongo/util/elapsed_tracker.h"
 #include "mongo/util/file.h"
 #include "mongo/util/startup_test.h"
 
 namespace mongo {
-
-    // from d_migrate.cpp
-    void logOpForSharding( const char * opstr,
-                           const char * ns,
-                           const BSONObj& obj,
-                           BSONObj * patt,
-                           const BSONObj* fullObj );
 
     // cached copies of these...so don't rename them, drop them, etc.!!!
     static NamespaceDetails *localOplogMainDetails = 0;
@@ -300,7 +294,7 @@ namespace mongo {
 
         context.getClient()->setLastOp( ts );
 
-        LOG( 6 ) << "logging op:" << BSONObj::make(r) << endl;
+        LOG( 3 ) << "logging op:" << BSONObj::make(r) << endl;
     } 
 
     static void (*_logOp)(const char *opstr, const char *ns, const char *logNS, const BSONObj& obj, BSONObj *o2, bool *bb, bool fromMigrate ) = _logOpOld;
