@@ -1258,7 +1258,7 @@ namespace mongo {
             }
             else{
 
-                LOG(3) << "write: " << ns << endl;
+                LOG(4) << "write: " << ns << endl;
 
                 DbMessage& d = r.d();
 
