@@ -28,7 +28,7 @@ public:
   // for all the events in PollEvents by all the subsequent calls to
   // Poll().
   void setEvent(int fd, Descriptor* descr);
-  void setEvent(HANDLE h, Descriptor* descr);
+  void setEvent(SOCKET s, Descriptor* descr);
 
   // Returns the number of ready descriptors and prepare to issue
   // 'getEvents()' for each of them.
