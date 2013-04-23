@@ -34,7 +34,8 @@ DescriptorPoller::~DescriptorPoller() {
 void DescriptorPoller::create() {
 }
 
-void DescriptorPoller::setEvent(SOCKET s, Descriptor* descr) {
+void DescriptorPoller::setEvent(int fd, Descriptor* descr) {
+  SOCKET s = static_cast<SOCKET>(fd);
   WSAEVENT newEvent = WSACreateEvent();
   if (newEvent == WSA_INVALID_EVENT) {
     perror("Can't create WSAEVENT for socket");
