@@ -1,24 +1,19 @@
 #if defined(_WIN32)
 
 #include "mongo/platform/windows_basic.h"
+#include "mongo/base/descriptor_poller.hpp"
 
-#include <cstdio>
-#include <cstdlib>
-#include <errno.h>
-//#include <sys/epoll.h>
-//#include <unistd.h>
-
-#include "descriptor_poller.hpp"
+#include <vector>
 
 namespace base {
 
 struct DescriptorPoller::InternalPoller {
-  static const int MAX_FDS_PER_POLL = 1024;
+  std::vector<SOCKET> sockets_;
+  std::vector<WSAEVENT> events_;
+  std::vector<int> eventFlags_;
+  std::vector<Descriptor*> descriptors_;
 
-  int fd_;
-  struct epoll_event events_[MAX_FDS_PER_POLL];
-
-  InternalPoller() : fd_(-1) {}
+  InternalPoller() {}
 };
 
 DescriptorPoller::DescriptorPoller() {
@@ -26,71 +21,95 @@ DescriptorPoller::DescriptorPoller() {
 }
 
 DescriptorPoller::~DescriptorPoller() {
-  if (poller_->fd_ == -1) { // bug, should be !=
-    close(poller_->fd_);
+  for (size_t i = 0; i < poller_->sockets_.size(); ++i) {
+    CloseHandle(poller_->events_[i]);
   }
-
+  poller_->sockets_.clear();
+  poller_->events_.clear();
+  poller_->eventFlags_.clear();
+  poller_->descriptors_.clear();
   delete poller_;
 }
 
 void DescriptorPoller::create() {
-  poller_->fd_ = epoll_create(InternalPoller::MAX_FDS_PER_POLL);
-  if (poller_->fd_ < 0) {
-    perror("Can't create epoll");
-    exit(1);
-  }
 }
 
-void DescriptorPoller::setEvent(int fd, Descriptor* descr) {
-  struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLPRI | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLET;
-  ev.data.ptr = reinterpret_cast<void*>(descr);
-  int rc = epoll_ctl(poller_->fd_, EPOLL_CTL_ADD, fd, &ev);
-  if (rc != 0) {
-    perror("Can't add epoll descriptor: ");
+void DescriptorPoller::setEvent(SOCKET s, Descriptor* descr) {
+  WSAEVENT newEvent = WSACreateEvent();
+  if (newEvent == WSA_INVALID_EVENT) {
+    perror("Can't create WSAEVENT for socket");
     exit(1);
   }
+  int status = WSAEventSelect(s, newEvent, FD_READ | FD_WRITE | FD_CLOSE);
+  if (status == SOCKET_ERROR) {
+    perror("WSAEventSelect failed");
+    exit(1);
+  }
+  poller_->sockets_.push_back(s);
+  poller_->events_.push_back(newEvent);
+  poller_->descriptors_.push_back(descr);
 }
 
 int DescriptorPoller::poll() {
-  int res;
-  for (;;) {
+  memset(poller_->eventFlags_.data(), 0, (sizeof(int) * poller_->eventFlags_.size()));
+  DWORD res = WSAWaitForMultipleEvents(poller_->events_.size(), 
+                                       poller_->events_.data(), 
+                                       FALSE,  /* don't wait for all the events */
+                                       100,    /* ms */
+                                       FALSE); /* do not allow I/O interruptions */
 
-    res = epoll_wait(poller_->fd_, 
-                     poller_->events_, InternalPoller::MAX_FDS_PER_POLL, 
-                     100 /* ms */);
-
-    if (res >= 0) {
-      break;
-    }
-
-    // An accepted error here is epoll breaking out because of an
-    // interrupt.
-    if (errno == EINTR) {
-      continue;
-    } else {
-      perror("Error in epoll_wait ");
+  if (res == WSA_WAIT_TIMEOUT) {
+    return 0;
+  }
+  if (res == WSA_WAIT_FAILED) {
+    perror("WSAWaitForMultipleEvents returned WSA_WAIT_FAILED");
+    exit(1);
+  }
+  if (res < WSA_WAIT_EVENT_0 || res >= (WSA_WAIT_EVENT_0 + poller_->events_.size())) {
+    perror("WSAWaitForMultipleEvents returned unexpected result");
+    exit(1);
+  }
+  DWORD eventIndex = res - WSA_WAIT_EVENT_0;
+  WSANETWORKEVENTS networkEvents;
+  int eventCount = 0;
+  for (; eventIndex < poller_->events_.size(); ++eventIndex) {
+    int status = WSAEnumNetworkEvents(poller_->sockets_[eventIndex], 
+                                      poller_->events_[eventIndex],
+                                      &networkEvents);
+    if (status == SOCKET_ERROR) {
+      perror("WSAEnumNetworkEvents failed");
       exit(1);
     }
+    bool countThis = false;
+    for (int i = 0; i < FD_MAX_EVENTS; ++i) {
+      if (networkEvents.iErrorCode[i] != 0) {
+        poller_->eventFlags_[eventIndex] |= DP_ERROR;
+        countThis = true;
+        break;
+      }
+    }
+    if (networkEvents.lNetworkEvents & FD_CLOSE) {
+      poller_->eventFlags_[eventIndex] |= DP_ERROR;
+      countThis = true;
+    }
+    if (networkEvents.lNetworkEvents & FD_READ) {
+      poller_->eventFlags_[eventIndex] |= DP_READ_READY;
+      countThis = true;
+    }
+    if (networkEvents.lNetworkEvents & FD_WRITE) {
+      poller_->eventFlags_[eventIndex] |= DP_WRITE_READY;
+      countThis = true;
+    }
+    if (countThis) {
+      ++eventCount;
+    }
   }
-  return res;
+  return eventCount;
 }
 
 void DescriptorPoller::getEvents(int i, int* events, Descriptor** descr) {
-  *events &= 0x00000000;
-  *descr = reinterpret_cast<Descriptor*>(poller_->events_[i].data.ptr);
-
-  if (poller_->events_[i].events & EPOLLERR) {
-    *events |= DP_ERROR;
-    return;
-  }
-
-  if (poller_->events_[i].events & (EPOLLHUP | EPOLLIN)) {
-    *events |= DP_READ_READY;
-  }
-  if (poller_->events_[i].events & (EPOLLHUP | EPOLLOUT)) {
-    *events |= DP_WRITE_READY;
-  }
+  *events = poller_->eventFlags_[i];
+  *descr = poller_->descriptors_[i];
 }
 
 }  // namespace base
