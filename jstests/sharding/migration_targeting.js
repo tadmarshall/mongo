@@ -1,19 +1,42 @@
-// This test writes documents to a 'foo' collection in two passes.  Checks are made that all
-// inserted records make it into the 'foo' collection.  If the count of documents in the 'foo'
-// collection does not match the number inserted, the test tries to find each document by its
-// insertion number ('i') through mongos.  If not found through mongos, the shards are queried
-// directly and the results are printed.  It should be possible to figure out what the history
-// of the document was by examining the output of printShardingStatus (at the end of the document
-// check) and comparing it with the migrations logged earlier.
+// This test writes documents to a 'foo' collection in two passes.  It specifically tries to
+// trigger a bug by adapting the shard key of the documents it inserts to be in the range of
+// a chunk being migrated.  To do this, it checks the last migration in config.changelog before
+// each insert, and picks a value for the field which is the shard key to be within the range
+// of the chunk being migrated, if any.
+// Checks are made that all inserted records make it into the 'foo' collection.  If the count
+// of documents in the 'foo' collection does not match the number inserted, the test tries to
+// find each document by its insertion number ('i') through mongos.  If not found through mongos,
+// the shards are queried directly and the results are printed.  It should be possible to figure
+// out what the history of the document was by examining the output of printShardingStatus
+// (at the end of the document check) and comparing it with the migrations logged earlier.
 
-// This test is adapted from jstests/sharding/mrShardedOutput.js, mostly by removing the MapReduce.
+// This test is adapted from jstests/sharding/sharded_saves.js.
 
 // Load helper function
 //
 load('jstests/libs/analyze_split_and_migrate_history.js');
 
-jsTest.log("Setting up new ShardingTest('sharded_saves')");
-var st = new ShardingTest({ name: 'sharded_saves', 
+// See if there is a migration in progress.
+// If so, return the chunk being migrated; otherwise, return null.
+//
+var getMigrationTarget = function(key) {
+    var mc = config.getCollection('changelog').
+                    find({ 'what': /moveChunk/, 'ns': 'test.foo'}).
+                    sort({time: -1});
+    if (mc && mc.hasNext()) {
+        var move = mc.next();
+        if (move.what != 'moveChunk.from') {
+            var migrationTarget = {};
+            migrationTarget.min = move.details.min[key];
+            migrationTarget.max = move.details.max[key];
+            return migrationTarget;
+        }
+    }
+    return null;
+}
+
+jsTest.log("Setting up new ShardingTest('migration_targeting')");
+var st = new ShardingTest({ name: 'migration_targeting', 
                             shards: 2, 
                             mongos: 1,
                             other: { 
@@ -38,7 +61,9 @@ st.printChangeLog();
 var numDocs = 0;
 var buildIs32bits = (testDB.serverBuildInfo().bits == 32);
 var numBatch = buildIs32bits ? (30 * 1000) : (100 * 1000);
+                                                                numBatch = 40000;     // HACK!!!!!
 var numChunks = 0;
+var targetCount = 0;
 var docLookup = [];
 var foundText = [ 'not found on either shard',
                   'found on shard0000',
@@ -50,17 +75,33 @@ for (var iter = 0; iter < numIterations; ++iter) {
     jsTest.log('Iteration ' + iter + ': saving new batch of ' + numBatch + ' documents');
 
     // Add some more data for input so that chunks will get split further
+    var targetRange = {};
+    targetRange.min = 0;
+    targetRange.max = 1000;
     for (var i = 0; i < numBatch; ++i) {
         if (i % 1000 == 0) {
             print('\n========> Saved total of ' + (numDocs + i) + ' documents\n');
         }
-        var randomKey = Math.random() * 1000;
+        var target = getMigrationTarget('a');
+        if (target) {
+            targetRange.min = target.min;
+            targetRange.max = target.max;
+            ++targetCount;
+            print('\n========> Targeting document ' + i + ' at migration-in-progess of [' + target.min + ', ' + target.max + ')\n');
+
+        }
+        else {
+            targetRange.min = 0;
+            targetRange.max = 1000;
+        }
+        var randomKey = targetRange.min + (Math.random() * (targetRange.max - targetRange.min));
         var timeNow = new ISODate();
-        var lookupRecord = { v: randomKey, t: timeNow };
+        var lookupRecord = { v: randomKey, t: timeNow, target: target };
         docLookup.push(lookupRecord);
         testDB.foo.save( {a: randomKey, y: str, i: numDocs + i} );
     }
-    print('\n========> Finished saving total of ' + (numDocs + i) + ' documents');
+    print('\n========> Finished saving total of ' + (numDocs + i) +
+          ' documents, ' + targetCount + ' targeted');
 
     var GLE = testDB.getLastError();
     assert.eq(null, GLE, 'Setup FAILURE: testDB.getLastError() returned' + GLE);
@@ -107,9 +148,14 @@ for (var iter = 0; iter < numIterations; ++iter) {
         for (i = 0; i < missingDocuments.length; ++i) {
             var j = missingDocuments[i];
             lookupRecord = docLookup[j];
+            var documentLabel = '' + j;
+            if (lookupRecord.target) {
+                documentLabel += ' {target [' + lookupRecord.target.min +
+                                 ', ' + lookupRecord.target.max + ') }';
+            }
             bufferedOutput.push(analyze_split_and_migrate_history(st.config0.getDB('config'),
                                                                   'test.foo',
-                                                                  '' + j,
+                                                                  documentLabel,
                                                                   'a',
                                                                   lookupRecord.v,
                                                                   lookupRecord.t));
@@ -165,5 +211,32 @@ for (var iter = 0; iter < numIterations; ++iter) {
     }
 }
 
-jsTest.log('SUCCESS!  Stopping ShardingTest "' + st._testName + '"');
+
+print('=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+');
+bufferedOutput = [];
+for (i = 0; i < docLookup.length; ++i) {
+    lookupRecord = docLookup[i];
+    if (!lookupRecord.target) {
+        continue;
+    }
+    documentLabel = '' + i;
+    if (lookupRecord.target) {
+        documentLabel += ' {target [' + lookupRecord.target.min +
+                            ', ' + lookupRecord.target.max + ') }';
+    }
+    bufferedOutput.push(analyze_split_and_migrate_history(st.config0.getDB('config'),
+                                                          'test.foo',
+                                                          documentLabel,
+                                                          'a',
+                                                          lookupRecord.v,
+                                                          lookupRecord.t));
+}
+for (i = 0; i < bufferedOutput.length; ++i) {
+    print(bufferedOutput[i]);
+}
+print('=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+');
+
+
+jsTest.log('SUCCESS!  Stopping ShardingTest "' + st._testName +
+           '".  ' + targetCount + ' documents were targeted, none were dropped.');
 st.stop();
