@@ -102,7 +102,6 @@ namespace mongo {
         // > < operators do not check epoch cases.  Generally if using == we need to handle
         // more complex cases.
         //
-
         bool operator>( const ChunkVersion& otherVersion ) const {
             return this->_combined > otherVersion._combined;
         }
@@ -114,11 +113,15 @@ namespace mongo {
         bool operator<( const ChunkVersion& otherVersion ) const {
             return this->_combined < otherVersion._combined;
         }
-
+#if 1
         bool operator<=( const ChunkVersion& otherVersion ) const {
+            if (this->_combined == otherVersion._combined) {
+                log() << "ALERT! ALERT! ALERT! ALERT! ALERT! Running incorrect test!" << endl;
+                fassertFailed(98764);
+            }
             return this->_combined < otherVersion._combined;
         }
-
+#endif
         //
         // Equivalence comparison types.
         //
