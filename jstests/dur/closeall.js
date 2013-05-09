@@ -89,12 +89,36 @@ function f(variant, quickCommits, paranoid) {
     stopMongod(30001);
 }
 
-for (var variant=0; variant < 4; variant++){
-    for (var quickCommits=0; quickCommits <= 1; quickCommits++){ // false then true
-        for (var paranoid=0; paranoid <= 1; paranoid++){ // false then true
-            f(variant, quickCommits, paranoid);
-            sleep(500);
+// Check server OS and address size so we can skip 32-bit Windows
+//
+var path = "/data/db/closeall";
+var conn = startMongodEmpty("--port", 30001, "--dbpath", path, "--dur", "--master", "--oplogSize", 64);
+var hostInfo;
+var buildInfo;
+assert.soon( function () {
+    hostInfo = conn.getDB("test").runCommand({hostInfo: 1});
+    return (typeof hostInfo) == "object" &&
+           (typeof hostInfo.os) == "object" &&
+           (typeof hostInfo.os.type) == "string";
+}, "FAILED: Unable to get server OS type" );
+assert.soon( function () {
+    buildInfo = conn.getDB("test").runCommand({buildInfo: 1});
+    return (typeof buildInfo) == "object" &&
+           (typeof buildInfo.bits) == "number";
+}, "FAILED: Unable to get server build type" );
+stopMongod(30001);
+
+if (hostInfo.os.type == "Windows" && buildInfo.bits == 32 ) {
+    print("Skipping closeall.js on 32-bit Windows");
+}
+else {
+    for (var variant=0; variant < 4; variant++){
+        for (var quickCommits=0; quickCommits <= 1; quickCommits++){ // false then true
+            for (var paranoid=0; paranoid <= 1; paranoid++){ // false then true
+                f(variant, quickCommits, paranoid);
+                sleep(500);
+            }
         }
     }
+    print("SUCCESS closeall.js");
 }
-print("SUCCESS closeall.js");
