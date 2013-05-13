@@ -478,7 +478,7 @@ namespace mongo {
         const bool seen = ps::PointerTable::seen( ps::PointerTable::getData(), reinterpret_cast<size_t>(data));
         if (seen || ps::rolling[ps::bigHash(region)].access( region , offset , false ) ) {
         
-#ifdef _DEBUG
+#if defined(_DEBUG) && !defined(_WIN32)
             if ( blockSupported && ! ProcessInfo::blockInMemory(data) ) {
                 warning() << "we think data is in ram but system says no"  << endl;
             }
