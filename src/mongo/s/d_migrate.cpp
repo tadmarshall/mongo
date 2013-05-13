@@ -1791,7 +1791,12 @@ namespace mongo {
                 // 5. wait for commit
 
                 state = STEADY;
+                bool transferAfterCommit = false;
                 while ( state == STEADY || state == COMMIT_START ) {
+
+                    // Make sure we do at least one transfer after recv'ing the commit message
+                    if ( state == COMMIT_START ) transferAfterCommit = true;
+
                     BSONObj res;
                     if ( ! conn->runCommand( "admin" , BSON( "_transferMods" << 1 ) , res ) ) {
                         log() << "_transferMods failed in STEADY state: " << res << migrateLog;
@@ -1804,17 +1809,23 @@ namespace mongo {
                     if ( res["size"].number() > 0 && apply( res , &lastOpApplied ) )
                         continue;
 
+		    sleepsecs(1); // try to trigger SERVER-8741
+
                     if ( state == ABORT ) {
                         timing.note( "aborted" );
                         return;
                     }
                     
-                    if ( state == COMMIT_START ) {
+                    // We know we're finished when:
+                    // 1) The from side has told us that it has locked writes (COMMIT_START)
+                    // 2) We've checked at least one more time for un-transmitted mods
+                    if ( state == COMMIT_START && transferAfterCommit == true ) {
                         if ( flushPendingWrites( lastOpApplied ) )
                             break;
                     }
                     
-                    sleepmillis( 10 );
+                    // Only sleep if we aren't committing
+                    if ( state == STEADY ) sleepmillis( 10 );
                 }
 
                 if ( state == FAIL ) {
