@@ -257,6 +257,9 @@
     <Filter Include="db\matcher">
       <UniqueIdentifier>{34a9b62d-26a2-4cad-a49b-493e5576f48f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="db\sorter">
+      <UniqueIdentifier>{1c8df857-c6d5-4eec-8d69-f57957c0e706}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\client\connpool.h">
@@ -2474,6 +2477,9 @@
     </ClInclude>
     <ClInclude Include="..\db\auth\auth_external_state_server_common.h">
       <Filter>db\auth</Filter>
+    </ClInclude>
+    <ClInclude Include="..\db\sorter\sorter.h">
+      <Filter>db\sorter</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -4698,6 +4704,9 @@
     </ClCompile>
     <ClCompile Include="..\db\auth\privilege_set_test.cpp">
       <Filter>db\auth</Filter>
+    </ClCompile>
+    <ClCompile Include="..\db\sorter\sorter.cpp">
+      <Filter>db\sorter</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

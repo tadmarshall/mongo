@@ -19,6 +19,7 @@
 #pragma once
 
 #include "mongoutils/str.h"
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -29,13 +30,13 @@ namespace mongo {
     
     using namespace mongoutils;
 
-    extern string dbpath;
+    extern std::string dbpath;
 
     /** this is very much like a boost::path.  however, we define a new type to get some type
         checking.  if you want to say 'my param MUST be a relative path", use this.
     */
     struct RelativePath {
-        string _p;
+        std::string _p;
 
         bool empty() const { return _p.empty(); }
 
@@ -48,10 +49,11 @@ namespace mongo {
         /** from a full path */
         static RelativePath fromFullPath(boost::filesystem::path f) {
             boost::filesystem::path dbp(dbpath); // normalizes / and backslash
-            string fullpath = f.string();
-            string relative = str::after(fullpath, dbp.string());
+            std::string fullpath = f.string();
+            std::string relative = str::after(fullpath, dbp.string());
             if( relative.empty() ) {
-                log() << "warning file is not under db path? " << fullpath << ' ' << dbp.string() << endl;
+                log() << "warning file is not under db path? " << fullpath
+                      << ' ' << dbp.string() << std::endl;
                 RelativePath rp;
                 rp._p = fullpath;
                 return rp;
@@ -67,13 +69,13 @@ namespace mongo {
             return rp;
         }
 
-        string toString() const { return _p; }
+        std::string toString() const { return _p; }
 
         bool operator!=(const RelativePath& r) const { return _p != r._p; }
         bool operator==(const RelativePath& r) const { return _p == r._p; }
         bool operator<(const RelativePath& r) const { return _p < r._p; }
 
-        string asFullPath() const {
+        std::string asFullPath() const {
             boost::filesystem::path x(dbpath);
             x /= _p;
             return x.string();
@@ -81,7 +83,7 @@ namespace mongo {
 
     };
 
-    inline dev_t getPartition(const string& path){
+    inline dev_t getPartition(const std::string& path){
         struct stat stats;
 
         if (stat(path.c_str(), &stats) != 0){
@@ -91,7 +93,7 @@ namespace mongo {
         return stats.st_dev;
     }
     
-    inline bool onSamePartition(const string& path1, const string& path2){
+    inline bool onSamePartition(const std::string& path1, const std::string& path2){
         dev_t dev1 = getPartition(path1);
         dev_t dev2 = getPartition(path2);
 
@@ -103,14 +105,15 @@ namespace mongo {
         // if called without a fully qualified path it asserts; that makes mongoperf fail. so make a warning. need a better solution longer term.
         // massert(13652, str::stream() << "Couldn't find parent dir for file: " << file.string(), );
         if( !file.has_branch_path() ) {
-            log() << "warning flushMYDirectory couldn't find parent dir for file: " << file.string() << endl;
+            log() << "warning flushMYDirectory couldn't find parent dir for file: "
+                  << file.string() << std::endl;
             return;
         }
 
 
         boost::filesystem::path dir = file.branch_path(); // parent_path in new boosts
 
-        LOG(1) << "flushing directory " << dir.string() << endl;
+        LOG(1) << "flushing directory " << dir.string() << std::endl;
 
         int fd = ::open(dir.string().c_str(), O_RDONLY); // DO NOT THROW OR ASSERT BEFORE CLOSING
         massert(13650, str::stream() << "Couldn't open directory '" << dir.string() << "' for flushing: " << errnoWithDescription(), fd >= 0);

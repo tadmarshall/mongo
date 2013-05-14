@@ -36,6 +36,9 @@
 #include "mongo/db/sorter/sorter.h"
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/shared_ptr.hpp>
+#include <fstream>
+#include <vector>
 
 #include "mongo/base/string_data.h"
 #include "mongo/bson/util/atomic_int.h"
@@ -131,7 +134,7 @@ namespace mongo {
 
             FileIterator(const string& fileName,
                          const Settings& settings,
-                         shared_ptr<FileDeleter> fileDeleter)
+                         boost::shared_ptr<FileDeleter> fileDeleter)
                 : _settings(settings)
                 , _done(false)
                 , _fileName(fileName)
@@ -204,7 +207,7 @@ namespace mongo {
             boost::scoped_ptr<BufReader> _reader;
             string _fileName;
             boost::shared_ptr<FileDeleter> _fileDeleter; // Must outlive _file
-            ifstream _file;
+            std::ifstream _file;
         };
 
         /** Merge-sorts results from 0 or more FileIterators */
@@ -215,7 +218,7 @@ namespace mongo {
             typedef std::pair<Key, Value> Data;
 
 
-            MergeIterator(const vector<shared_ptr<Input> >& iters,
+            MergeIterator(const std::vector<boost::shared_ptr<Input> >& iters,
                           const SortOptions& opts,
                           const Comparator& comp)
                 : _opts(opts)
@@ -308,7 +311,7 @@ namespace mongo {
             class STLComparator { // uses greater rather than less-than to maintain a MinHeap
             public:
                 explicit STLComparator(const Comparator& comp) : _comp(comp) {}
-                bool operator () (ptr<const Stream> lhs, ptr<const Stream> rhs) const {
+                bool operator () (std::ptr<const Stream> lhs, std::ptr<const Stream> rhs) const {
                     // first compare data
                     dassertCompIsSane(_comp, lhs->current(), rhs->current());
                     int ret = _comp(lhs->current(), rhs->current());
