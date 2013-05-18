@@ -575,10 +575,7 @@ namespace mongo {
             dbtempreleasecond unlock;
             if ( unlock.unlocked() ) {
                 if ( haveReadLock ) {
-                    // This sleep helps reader threads yield to writer threads.
-                    // Without this, the underlying reader/writer lock implementations
-                    // are not sufficiently writer-greedy.
-                    sleepmicros(1);
+                    // don't sleep with a read lock
                 }
                 else {
                     if ( micros == -1 )
