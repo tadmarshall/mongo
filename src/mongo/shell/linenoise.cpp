@@ -785,14 +785,23 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     // position at the end of the prompt
 //    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     // position at the end of the prompt, clear to end of screen
+    mongo::sleepsecs(1);
     snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
-    mongo::sleepsecs(2);
+    if ( write( 1, "\007", 1 ) == -1 ) return;
+    mongo::sleepsecs(1);
 //    snprintf( seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1 );  // 1-based on VT100
+    //if ( write( 1, "\007", 1 ) == -1 ) return;
+    //mongo::sleepsecs(1);
     if ( write( 1, "\x1b[J", 3 ) == -1 ) return;
+    if ( write( 1, "\007\007", 2 ) == -1 ) return;
+    mongo::sleepsecs(1);
+    //if ( write( 1, "\x1b[J", 3 ) == -1 ) return;
 
     if ( highlight == -1 ) {  // write unhighlighted text
         if ( write32( 1, buf32, len ) == -1 ) return;
+        if ( write( 1, "\007\007\007", 3 ) == -1 ) return;
+        mongo::sleepsecs(1);
     }
     else {  // highlight the matching brace/bracket/parenthesis
         if ( write32( 1, buf32, highlight ) == -1 ) return;
