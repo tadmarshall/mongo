@@ -25,6 +25,7 @@
 #include "mongo/shell/shell_utils_launcher.h"
 #include "mongo/util/file.h"
 #include "mongo/util/md5.hpp"
+#include "mongo/util/mongoutils/str.h"
 #include "mongo/util/net/sock.h"
 #include "mongo/util/text.h"
 
@@ -97,16 +98,27 @@ namespace mongo {
 
         /** Set process wide current working directory. */
         BSONObj cd(const BSONObj& args, void* data) {
+            if (args.nFields() == 0) {
+                boost::filesystem::path p = boost::filesystem::current_path();
+                return BSON( "" << p.string() );
+            }
+            uassert(16825,
+                    "cd needs one string argument -- cd(directoryPath)",
+                    args.nFields() == 1 && args.firstElement().type() == String);
 #if defined(_WIN32)
-            std::wstring dir = toWideString( args.firstElement().String().c_str() );
-            if( SetCurrentDirectory(dir.c_str()) )
+            std::wstring dir = toWideString(args.firstElement().String().c_str());
+            if (SetCurrentDirectoryW(dir.c_str())) {
                 return BSONObj();
+            }
 #else
-            string dir = args.firstElement().String();
-            if( chdir( dir.c_str() ) == 0 )
+            std::string dir = args.firstElement().String();
+            if (chdir(dir.c_str()) == 0) {
                 return BSONObj();
+            }
 #endif
-            return BSON( "" << "change directory failed" );
+            std::string errorMessage = mongoutils::str::stream() << "cd command failed: "
+                                                                 << errnoWithDescription();
+            return BSON("" << errorMessage);
         }
 
         BSONObj pwd(const BSONObj&, void* data) {
