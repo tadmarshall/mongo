@@ -786,7 +786,7 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
 //    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     // position at the end of the prompt, clear to end of screen
     mongo::sleepsecs(1);
-    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
+    //snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
     if ( write( 1, "\007", 1 ) == -1 ) return;
     mongo::sleepsecs(1);
