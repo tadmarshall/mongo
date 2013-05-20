@@ -118,7 +118,7 @@
 #include <string>
 #include <vector>
 #include <boost/smart_ptr/scoped_array.hpp>
-
+#include "mongo/util/time_support.h"
 using std::string;
 using std::vector;
 
