@@ -786,6 +786,7 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
     // position at the end of the prompt, clear to end of screen
     snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
+    sleepsecs(2);
 //    snprintf( seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1 );  // 1-based on VT100
     if ( write( 1, "\x1b[J", 3 ) == -1 ) return;
 
