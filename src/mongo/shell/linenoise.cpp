@@ -782,10 +782,12 @@ void InputBuffer::refreshLine( PromptBase& pi ) {
         if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
     }
     // position at the end of the prompt
-    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
+//    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     // position at the end of the prompt, clear to end of screen
-//    snprintf( seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1 );  // 1-based on VT100
+    snprintf( seq, sizeof seq, "\x1b[%dG", pi.promptIndentation + 1 );  // 1-based on VT100
     if ( write( 1, seq, strlen( seq ) ) == -1 ) return;
+//    snprintf( seq, sizeof seq, "\x1b[%dG\x1b[J", pi.promptIndentation + 1 );  // 1-based on VT100
+    if ( write( 1, "\x1b[J", 3 ) == -1 ) return;
 
     if ( highlight == -1 ) {  // write unhighlighted text
         if ( write32( 1, buf32, len ) == -1 ) return;
