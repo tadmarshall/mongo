@@ -1585,7 +1585,8 @@ void linenoiseClearScreen( void ) {
     DWORD count;
     FillConsoleOutputCharacterA( screenHandle, ' ', inf.dwSize.X * inf.dwSize.Y, coord, &count );
 #else
-    if ( write( 1, "\x1b[H\x1b[2J", 7 ) <= 0 ) return;
+    if ( write( 1, "\x1b[H\x1b[J", 6 ) <= 0 ) return;
+//    if ( write( 1, "\x1b[H\x1b[2J", 7 ) <= 0 ) return;
 #endif
 }
 
