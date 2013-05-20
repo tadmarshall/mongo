@@ -323,12 +323,18 @@ int strncmp32( UChar32* first32, UChar32* second32, size_t length ) {
  * @return                          Number of bytes written, -1 on error
  */
 int write32( int fileHandle, const UChar32* string32, unsigned int sourceLengthInCharacters ) {
+    if (sourceLengthInCharacters == 0) {
+        return 0;
+    }
     size_t tempBufferBytes = 4 * sourceLengthInCharacters + 1;
     boost::scoped_array<char> tempCharString( new char[ tempBufferBytes ] );
     size_t count = copyString32to8counted( reinterpret_cast<UChar8*>( tempCharString.get() ),
                                            string32,
                                            tempBufferBytes,
                                            sourceLengthInCharacters );
+    if (count == 0) {
+        return 0;
+    }
 #if defined(_WIN32)
     if ( _isatty( fileHandle ) ) {
         bool success = mongo::writeUtf8ToWindowsConsole( tempCharString.get(), count );
