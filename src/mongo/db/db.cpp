@@ -23,6 +23,7 @@
 #include <fstream>
 
 #include "mongo/base/initializer.h"
+#include "mongo/db/auth/authorization_manager.h"
 #include "mongo/db/client.h"
 #include "mongo/db/clientcursor.h"
 #include "mongo/db/cmdline.h"
@@ -42,6 +43,7 @@
 #include "mongo/db/kill_current_op.h"
 #include "mongo/db/module.h"
 #include "mongo/db/pdfile.h"
+#include "mongo/db/range_deleter_service.h"
 #include "mongo/db/repl/repl_start.h"
 #include "mongo/db/repl/replication_server_status.h"
 #include "mongo/db/repl/rs.h"
@@ -672,6 +674,8 @@ namespace mongo {
             // resolve this.
             Client::WriteContext c("admin", dbpath);
         }
+
+        getDeleter()->startWorkers();
 
         // Starts a background thread that rebuilds all incomplete indices. 
         indexRebuilder.go(); 

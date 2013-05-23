@@ -19,7 +19,8 @@
 
 #include "mongo/client/connpool.h"
 #include "mongo/db/auth/authorization_manager.h"
-#include "mongo/db/auth/auth_external_state_s.h"
+#include "mongo/db/auth/authorization_session.h"
+#include "mongo/db/auth/auth_session_external_state_s.h"
 #include "mongo/s/shard.h"
 #include "mongo/s/grid.h"
 #include "request.h"
@@ -76,7 +77,7 @@ namespace mongo {
         Client *c = new Client( fullDesc, mp );
         currentClient.reset(c);
         mongo::lastError.initThread();
-        c->setAuthorizationManager(new AuthorizationManager(new AuthExternalStateMongos()));
+        c->setAuthorizationSession(new AuthorizationSession(new AuthSessionExternalStateMongos()));
         return *c;
     }
 
@@ -127,8 +128,8 @@ namespace mongo {
         if (AuthorizationManager::isAuthEnabled()) {
             std::vector<Privilege> privileges;
             c->addRequiredPrivileges(dbname, cmdObj, &privileges);
-            AuthorizationManager* authManager = client.getAuthorizationManager();
-            if (!authManager->checkAuthForPrivileges(privileges).isOK()) {
+            AuthorizationSession* authSession = client.getAuthorizationSession();
+            if (!authSession->checkAuthForPrivileges(privileges).isOK()) {
                 result.append("note", str::stream() << "not authorized for command: " <<
                                     c->name << " on database " << dbname);
                 appendCommandStatus(result, false, "unauthorized");

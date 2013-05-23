@@ -14,21 +14,15 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mongo/s/range_deleter_stats.h"
+#pragma once
+
+#include "mongo/db/range_deleter.h"
+#include "mongo/db/range_deleter_stats.h"
 
 namespace mongo {
-    const BSONField<int> RangeDeleterStats::TotalDeletesField("totalDeletes");
-    const BSONField<int> RangeDeleterStats::PendingDeletesField("pendingDeletes");
-    const BSONField<int> RangeDeleterStats::InProgressDeletesField("inProgressDeletes");
 
-    BSONObj RangeDeleterStats::toBSON() const {
-        scoped_lock sl(*_lockPtr);
-
-        BSONObjBuilder builder;
-        builder << TotalDeletesField(_totalDeletes);
-        builder << PendingDeletesField(_pendingDeletes);
-        builder << InProgressDeletesField(_inProgressDeletes);
-
-        return builder.obj();
-    }
+    /**
+     * Gets the global instance of the deleter and starts it.
+     */
+    RangeDeleter* getDeleter();
 }

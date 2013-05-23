@@ -24,7 +24,7 @@
 #include "mongo/client/sasl_client_authenticate.h"
 #include "mongo/db/auth/action_set.h"
 #include "mongo/db/auth/action_type.h"
-#include "mongo/db/auth/authorization_manager.h"
+#include "mongo/db/auth/authorization_session.h"
 #include "mongo/db/auth/mongo_authentication_session.h"
 #include "mongo/db/auth/privilege.h"
 #include "mongo/db/client_basic.h"
@@ -152,7 +152,7 @@ namespace mongo {
 
         BSONObj userObj;
         string pwd;
-        Status status = ClientBasic::getCurrent()->getAuthorizationManager()->getPrivilegeDocument(
+        Status status = ClientBasic::getCurrent()->getAuthorizationSession()->getPrivilegeDocument(
                 dbname, PrincipalName(user, dbname), &userObj);
         if (!status.isOK()) {
             log() << status.reason() << std::endl;
@@ -182,11 +182,11 @@ namespace mongo {
             return false;
         }
 
-        AuthorizationManager* authorizationManager =
-            ClientBasic::getCurrent()->getAuthorizationManager();
+        AuthorizationSession* authorizationSession =
+            ClientBasic::getCurrent()->getAuthorizationSession();
         Principal* principal = new Principal(PrincipalName(user, dbname));
         principal->setImplicitPrivilegeAcquisition(true);
-        authorizationManager->addAuthorizedPrincipal(principal);
+        authorizationSession->addAuthorizedPrincipal(principal);
 
         result.append( "dbname" , dbname );
         result.append( "user" , user );
@@ -214,8 +214,9 @@ namespace mongo {
                  string& errmsg,
                  BSONObjBuilder& result,
                  bool fromRepl) {
-            AuthorizationManager* authManager = ClientBasic::getCurrent()->getAuthorizationManager();
-            authManager->logoutDatabase(dbname);
+            AuthorizationSession* authSession =
+                    ClientBasic::getCurrent()->getAuthorizationSession();
+            authSession->logoutDatabase(dbname);
             return true;
         }
     } cmdLogout;

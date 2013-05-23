@@ -101,6 +101,9 @@ env.CppUnitTest('string_map_test', ['util/string_map_test.cpp'],
 env.CppUnitTest('bson_field_test', ['bson/bson_field_test.cpp'],
                 LIBDEPS=['bson'])
 
+env.CppUnitTest('bson_obj_test', ['bson/bson_obj_test.cpp'],
+                LIBDEPS=['bson'])
+
 env.CppUnitTest('bson_validate_test', ['bson/bson_validate_test.cpp'],
                 LIBDEPS=['bson'])
 
@@ -425,6 +428,8 @@ serverOnlyFiles = [ "db/curop.cpp",
                     "db/btree_stats.cpp",
                     "db/clientcursor.cpp",
                     "db/tests.cpp",
+                    "db/range_deleter_db_env.cpp",
+                    "db/range_deleter_service.cpp",
                     "db/repl/repl_start.cpp",
                     "db/repl/rs.cpp",
                     "db/repl/consensus.cpp",
@@ -647,6 +652,27 @@ env.StaticLibrary("geoquery", [ "db/geo/geoquery.cpp", ],
 env.CppUnitTest("hash_test", [ "db/geo/hash_test.cpp" ], LIBDEPS = ["geometry" ])
 env.CppUnitTest("geoparser_test", [ "db/geo/geoparser_test.cpp" ], LIBDEPS = ["geoparser"])
 
+env.StaticLibrary('range_deleter',
+                  [ 'db/range_deleter.cpp',
+                    'db/range_deleter_mock_env.cpp',
+                    'db/range_deleter_stats.cpp'
+                  ],
+                  LIBDEPS = [
+                      '$BUILD_DIR/mongo/s/base', # range_arithmetic.cpp
+                      'base/base',
+                      'bson',
+                      'synchronization'
+                  ])
+
+env.CppUnitTest('range_deleter_test',
+                [ 'db/range_deleter_test.cpp' ],
+                LIBDEPS = [ 'range_deleter' ]);
+
+env.CppUnitTest('range_deleter_stat_test',
+                [ 'db/range_deleter_stat_test.cpp' ],
+                LIBDEPS = [ 'range_deleter' ]);
+
+
 env.StaticLibrary("serveronly", serverOnlyFiles,
                   LIBDEPS=["coreshard",
                            "db/auth/authmongod",
@@ -657,6 +683,7 @@ env.StaticLibrary("serveronly", serverOnlyFiles,
                            "geoparser",
                            "geoquery",
                            "index_set",
+                           'range_deleter',
                            '$BUILD_DIR/third_party/shim_snappy'])
 
 # These files go into mongos and mongod only, not into the shell or any tools.
