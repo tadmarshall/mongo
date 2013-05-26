@@ -2410,7 +2410,7 @@ cscript //Nologo "$(ProjectDir)..\shell\createCPPfromJavaScriptFiles.js" "$(Proj
     <ClCompile Include="auth\auth_server_parameters.cpp" />
     <ClCompile Include="auth\mongo_authentication_session.cpp" />
     <ClCompile Include="auth\principal.cpp" />
-    <ClCompile Include="auth\principal_name.cpp" />
+    <ClCompile Include="auth\user_name.cpp" />
     <ClCompile Include="auth\principal_set.cpp" />
     <ClCompile Include="auth\principal_set_test.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
@@ -3723,7 +3723,7 @@ cscript //Nologo "$(ProjectDir)..\shell\createCPPfromJavaScriptFiles.js" "$(Proj
     <ClInclude Include="auth\auth_index_d.h" />
     <ClInclude Include="auth\mongo_authentication_session.h" />
     <ClInclude Include="auth\principal.h" />
-    <ClInclude Include="auth\principal_name.h" />
+    <ClInclude Include="auth\user_name.h" />
     <ClInclude Include="auth\principal_set.h" />
     <ClInclude Include="auth\privilege.h" />
     <ClInclude Include="auth\privilege_set.h" />
