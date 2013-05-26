@@ -229,9 +229,9 @@ namespace mongo {
          * @param raw, raw string to be parsed
          */
         bool FTSMatcher::_phraseMatches( const string& phrase, const string& haystack ) const {
-#ifdef _WIN32
-            // windows doesn't have strcasestr
-            // for now, doing something very slow, bu correct
+#if defined(_WIN32) || defined(__sunos__)
+            // windows and solaris 10 don't have strcasestr
+            // for now, doing something very slow, but correct
             string p = phrase;
             string h = haystack;
             makeLower( &p );
