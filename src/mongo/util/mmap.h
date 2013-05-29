@@ -21,6 +21,8 @@
 
 namespace mongo {
 
+    extern void* getNextMemoryMappedFileLocation( unsigned long long mmfSize );
+
     extern const size_t g_minOSPageSizeBytes;
     void minOSPageSizeBytesTest(size_t minOSPageSizeBytes);  // lame-o
 

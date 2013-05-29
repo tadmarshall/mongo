@@ -23,6 +23,7 @@
 
 #include "mongo/db/cmdline.h"
 #include "mongo/db/namespace.h"
+#include "mongo/util/concurrency/mutex.h"
 #include "mongo/util/concurrency/rwlock.h"
 #include "mongo/util/map_util.h"
 #include "mongo/util/mongoutils/str.h"
@@ -38,6 +39,36 @@ namespace mongo {
         // check to see if the page size is a power of 2
         fassert( 16327, (minOSPageSizeBytes & (minOSPageSizeBytes - 1)) == 0);
     }
+
+#if defined(_WIN32) || defined(__sunos__)
+
+    static unsigned long long _nextMemoryMappedFileLocation = 256LL * 1024LL * 1024LL * 1024LL;
+    static SimpleMutex _nextMemoryMappedFileLocationMutex( "nextMemoryMappedFileLocationMutex" );
+
+    void* getNextMemoryMappedFileLocation( unsigned long long mmfSize ) {
+        if ( 4 == sizeof(void*) ) {
+            return 0;
+        }
+        SimpleMutex::scoped_lock lk( _nextMemoryMappedFileLocationMutex );
+        static unsigned long long granularity = 0;
+        if ( 0 == granularity ) {
+#if defined(_WIN32)
+            SYSTEM_INFO systemInfo;
+            GetSystemInfo( &systemInfo );
+            granularity = static_cast<unsigned long long>( systemInfo.dwAllocationGranularity );
+#else
+            granularity = ProcessInfo::getPageSize();
+#endif
+            fassert(16830, granularity != 0);
+        }
+        unsigned long long thisMemoryMappedFileLocation = _nextMemoryMappedFileLocation;
+        mmfSize = ( mmfSize + granularity - 1) & ~( granularity - 1 );
+        _nextMemoryMappedFileLocation += mmfSize;
+        return reinterpret_cast<void*>( static_cast<uintptr_t>( thisMemoryMappedFileLocation ) );
+    }
+#else
+    void* getNextMemoryMappedFileLocation( unsigned long long mmfSize ) { return NULL; }
+#endif // #if defined(_WIN32) || defined(__sunos__)
 
 namespace {
     set<MongoFile*> mmfiles;

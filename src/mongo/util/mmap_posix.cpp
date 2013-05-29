@@ -110,7 +110,15 @@ namespace mongo {
         uassert(10447,  str::stream() << "map file alloc failed, wanted: " << length << " filelen: " << filelen << ' ' << sizeof(size_t), filelen == length );
         lseek( fd, 0, SEEK_SET );
 
-        void * view = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+        void* view = mmap(getNextMemoryMappedFileLocation(length),
+                          length,
+                          PROT_READ | PROT_WRITE,
+#if defined(__sunos__)
+                          MAP_FIXED |       // force address on Solaris
+#endif
+                          MAP_SHARED,
+                          fd,
+                          0);
         if ( view == MAP_FAILED ) {
             error() << "  mmap() failed for " << filename << " len:" << length << " " << errnoWithDescription() << endl;
             if ( errno == ENOMEM ) {
@@ -139,8 +147,16 @@ namespace mongo {
     }
 
     void* MemoryMappedFile::createReadOnlyMap() {
-        void * x = mmap( /*start*/0 , len , PROT_READ , MAP_SHARED , fd , 0 );
-        if( x == MAP_FAILED ) {
+        void* view = mmap(getNextMemoryMappedFileLocation(len),
+                          len,
+                          PROT_READ,
+#if defined(__sunos__)
+                          MAP_FIXED |       // force address on Solaris
+#endif
+                          MAP_SHARED,
+                          fd,
+                          0);
+        if( view == MAP_FAILED ) {
             if ( errno == ENOMEM ) {
                 if( sizeof(void*) == 4 )
                     error() << "mmap ro failed with out of memory. You are using a 32-bit build and probably need to upgrade to 64" << endl;
@@ -149,12 +165,20 @@ namespace mongo {
             }
             return 0;
         }
-        return x;
+        return view;
     }
 
     void* MemoryMappedFile::createPrivateMap() {
-        void * x = mmap( /*start*/0 , len , PROT_READ|PROT_WRITE , MAP_PRIVATE|MAP_NORESERVE , fd , 0 );
-        if( x == MAP_FAILED ) {
+        void* view = mmap(getNextMemoryMappedFileLocation(len),
+                          len,
+                          PROT_READ | PROT_WRITE,
+#if defined(__sunos__)
+                          MAP_FIXED |       // force address on Solaris
+#endif
+                          MAP_PRIVATE | MAP_NORESERVE,
+                          fd,
+                          0);
+        if( view == MAP_FAILED ) {
             if ( errno == ENOMEM ) {
                 if( sizeof(void*) == 4 ) {
                     error() << "mmap private failed with out of memory. You are using a 32-bit build and probably need to upgrade to 64" << endl;
@@ -169,8 +193,8 @@ namespace mongo {
             return 0;
         }
 
-        views.push_back(x);
-        return x;
+        views.push_back(view);
+        return view;
     }
 
     void* MemoryMappedFile::remapPrivateView(void *oldPrivateAddr) {
