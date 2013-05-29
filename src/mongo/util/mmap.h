@@ -21,6 +21,12 @@
 
 namespace mongo {
 
+#if defined(_WIN32) || defined(__sunos__)
+    extern void* getNextMemoryMappedFileLocation( unsigned long long mmfSize );
+#else
+    void* getNextMemoryMappedFileLocation( unsigned long long mmfSize ) { return NULL; }
+#endif
+
     extern const size_t g_minOSPageSizeBytes;
     void minOSPageSizeBytesTest(size_t minOSPageSizeBytes);  // lame-o
 

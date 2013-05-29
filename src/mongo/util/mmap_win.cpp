@@ -42,26 +42,6 @@ namespace mongo {
     MAdvise::MAdvise(void *,unsigned, Advice) { }
     MAdvise::~MAdvise() { }
 
-    static unsigned long long _nextMemoryMappedFileLocation = 256LL * 1024LL * 1024LL * 1024LL;
-    static SimpleMutex _nextMemoryMappedFileLocationMutex( "nextMemoryMappedFileLocationMutex" );
-
-    static void* getNextMemoryMappedFileLocation( unsigned long long mmfSize ) {
-        if ( 4 == sizeof(void*) ) {
-            return 0;
-        }
-        SimpleMutex::scoped_lock lk( _nextMemoryMappedFileLocationMutex );
-        static unsigned long long granularity = 0;
-        if ( 0 == granularity ) {
-            SYSTEM_INFO systemInfo;
-            GetSystemInfo( &systemInfo );
-            granularity = static_cast<unsigned long long>( systemInfo.dwAllocationGranularity );
-        }
-        unsigned long long thisMemoryMappedFileLocation = _nextMemoryMappedFileLocation;
-        mmfSize = ( mmfSize + granularity - 1) & ~( granularity - 1 );
-        _nextMemoryMappedFileLocation += mmfSize;
-        return reinterpret_cast<void*>( static_cast<uintptr_t>( thisMemoryMappedFileLocation ) );
-    }
-
     /** notification on unmapping so we can clear writable bits */
     void MemoryMappedFile::clearWritableBits(void *p) {
         for( unsigned i = ((size_t)p)/ChunkSize; i <= (((size_t)p)+len)/ChunkSize; i++ ) {
