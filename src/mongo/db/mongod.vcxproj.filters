@@ -2228,6 +2228,12 @@
     <ClCompile Include="auth\authorization_manager_test.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
+    <ClCompile Include="..\util\dynamic_link_sunos5.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\util\strcasestr_emulation.cpp">
+      <Filter>util\Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\third_party\snappy\config.h">
@@ -4505,6 +4511,12 @@
     </ClInclude>
     <ClInclude Include="..\platform\process_id.h">
       <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\dynamic_link_sunos5.h">
+      <Filter>util\Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\util\strcasestr_emulation.h">
+      <Filter>util\Source Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
