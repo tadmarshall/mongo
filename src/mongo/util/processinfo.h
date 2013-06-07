@@ -173,4 +173,8 @@ namespace mongo {
 
     void printMemInfo( const char * whereContextStr = 0 );
 
+    /**
+    * Read the first line from a file
+    */
+    string readLineFromFile(const char* fname);
 }

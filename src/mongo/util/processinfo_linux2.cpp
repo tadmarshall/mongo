@@ -200,22 +200,6 @@ namespace mongo {
     public:
 
         /**
-        * Read the first 1023 bytes from a file
-        */
-        static string readLineFromFile( const char* fname ) {
-            FILE* f;
-            char fstr[1024] = { 0 };
-
-            f = fopen( fname, "r" );
-            if ( f != NULL ) {
-                if ( fgets( fstr, 1023, f ) != NULL )
-                    fstr[strlen( fstr ) < 1 ? 0 : strlen( fstr ) - 1] = '\0';
-                fclose( f );
-            }
-            return fstr;
-        }
-
-        /**
         * Get some details about the CPU
         */
         static void getCpuInfo(int& procCount, string& freq, string& features) {
@@ -324,7 +308,7 @@ namespace mongo {
                     name.erase( nl );
                 // no standard format for name and version.  use kernel version
                 version = "Kernel ";
-                version += LinuxSysHelper::readLineFromFile("/proc/sys/kernel/osrelease");
+                version += readLineFromFile("/proc/sys/kernel/osrelease");
             }
         }
 
@@ -392,7 +376,7 @@ namespace mongo {
         string cpuFreq, cpuFeatures;
         int cpuCount;
 
-        string verSig = LinuxSysHelper::readLineFromFile( "/proc/version_signature" );
+        string verSig = readLineFromFile( "/proc/version_signature" );
         LinuxSysHelper::getCpuInfo(cpuCount, cpuFreq, cpuFeatures);
         LinuxSysHelper::getLinuxDistro( distroName, distroVersion );
 
@@ -411,7 +395,7 @@ namespace mongo {
         hasNuma = checkNumaEnabled();
         
         BSONObjBuilder bExtra;
-        bExtra.append( "versionString", LinuxSysHelper::readLineFromFile( "/proc/version" ) );
+        bExtra.append( "versionString", readLineFromFile( "/proc/version" ) );
         bExtra.append( "libcVersion", gnu_get_libc_version() );
         if (!verSig.empty())
             // optional
@@ -438,7 +422,7 @@ namespace mongo {
 
             // read the second column of first line to determine numa state
             // ('default' = enabled, 'interleave' = disabled).  Logic from version.cpp's warnings.
-            string line = LinuxSysHelper::readLineFromFile( "/proc/self/numa_maps" ).append( " \0" );
+            string line = readLineFromFile( "/proc/self/numa_maps" ).append( " \0" );
             size_t pos = line.find(' ');
             if ( pos != string::npos && line.substr( pos+1, 10 ).find( "interleave" ) == string::npos )
                 // interleave not found; 

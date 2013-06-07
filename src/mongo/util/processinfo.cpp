@@ -15,13 +15,11 @@
  *    limitations under the License.
  */
 
-#include "mongo/pch.h"
+#include <iostream>
+#include <fstream>
 
 #include "mongo/base/init.h"
 #include "mongo/util/processinfo.h"
-
-#include <iostream>
-#include <fstream>
 
 using namespace std;
 
@@ -59,6 +57,15 @@ namespace mongo {
     MONGO_INITIALIZER(SystemInfo)(InitializerContext* context) {
         ProcessInfo::initializeSystemInfo();
         return Status::OK();
+    }
+
+    string readLineFromFile(const char* fname) {
+        string fstr;
+        ifstream f(fname);
+        if (f.is_open()) {
+            getline(f, fstr);
+        }
+        return fstr;
     }
 
 }
