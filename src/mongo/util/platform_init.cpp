@@ -54,6 +54,9 @@ namespace mongo {
 
 namespace mongo {
 
+    typedef char* (*StrCaseStrFunc)(const char* haystack, const char* needle);
+    //return strcasestr( haystack.c_str(), phrase.c_str() ) > 0;
+
     MONGO_INITIALIZER(SolarisDynamicLinks)(InitializerContext*) {
 
         // try to find some functions (should be in libc.so.1 if found)
@@ -65,7 +68,7 @@ namespace mongo {
         if (libraryHandle == NULL) {
             return Status(ErrorCodes::InternalError, "Library not found");
         }
-        static const char* functionName = "strcasestrXXX";
+        static const char* functionName = "strcasestr";
         void* functionAddress = dlsym(libraryHandle, functionName);
 
         // note whether or not it was found
