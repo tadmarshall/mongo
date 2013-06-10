@@ -19,6 +19,7 @@
 #include "mongo/pch.h"
 
 #include "mongo/db/fts/fts_matcher.h"
+#include "mongo/util/dynamic_link_sunos5.h"
 #include "mongo/util/strcasestr_emulation.h"
 
 namespace mongo {
