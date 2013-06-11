@@ -84,7 +84,7 @@ namespace mongo {
         //      << " found in '" << libraryName << "'" << std::endl;
 
         if (functionAddress != NULL) {
-            pal::dynamic::strcasestr = functionAddress;
+            pal::dynamic::strcasestr = static_cast<StrCaseStrFunc>(functionAddress);
         }
         return Status::OK();
     }
