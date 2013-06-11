@@ -2228,11 +2228,11 @@
     <ClCompile Include="auth\authorization_manager_test.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
-    <ClCompile Include="..\util\dynamic_link_sunos5.cpp">
-      <Filter>util\Source Files</Filter>
+    <ClCompile Include="..\platform\dynamic_link_sunos5.cpp">
+      <Filter>platform</Filter>
     </ClCompile>
-    <ClCompile Include="..\util\strcasestr_emulation.cpp">
-      <Filter>util\Source Files</Filter>
+    <ClCompile Include="..\platform\strcasestr_emulation.cpp">
+      <Filter>platform</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -4512,11 +4512,14 @@
     <ClInclude Include="..\platform\process_id.h">
       <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="..\util\dynamic_link_sunos5.h">
-      <Filter>util\Source Files</Filter>
+    <ClInclude Include="..\platform\dynamic_link_sunos5.h">
+      <Filter>platform</Filter>
     </ClInclude>
-    <ClInclude Include="..\util\strcasestr_emulation.h">
-      <Filter>util\Source Files</Filter>
+    <ClInclude Include="..\platform\strcasestr_emulation.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\strcasestr.h">
+      <Filter>platform</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
