@@ -23,7 +23,7 @@
 
 #pragma once
 
-#if defined(__sunos__)
+//#if defined(__sunos__)
 
 namespace mongo {
 
@@ -39,4 +39,4 @@ namespace mongo {
 
 } // namespace mongo
 
-#endif
+//#endif

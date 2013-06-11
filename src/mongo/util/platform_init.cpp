@@ -50,7 +50,7 @@ namespace mongo {
 
 #endif // _WIN32
 
-#ifdef __sunos__
+//#ifdef __sunos__
 
 namespace mongo {
 
@@ -84,4 +84,4 @@ namespace mongo {
 
 } // namespace mongo
 
-#endif // __sunos__
+//#endif // __sunos__

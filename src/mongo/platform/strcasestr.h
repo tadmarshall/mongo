@@ -23,7 +23,7 @@
  *    call them if available of provide fallback behavior if not available.
  */
 
-#if defined(__sunos__)
+//#if defined(__sunos__)
 
 namespace mongo {
 
@@ -39,4 +39,4 @@ namespace mongo {
 
 } // namespace mongo
 
-#endif
+//#endif
