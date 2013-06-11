@@ -13,6 +13,8 @@
  *    limitations under the License.
  */
 
+#pragma once
+
 #if defined(_WIN32) || defined(__sunos__)
 
 namespace mongo {

@@ -13,6 +13,8 @@
  *    limitations under the License.
  */
 
+#pragma once
+
 /*    Support run-time dynamic linking to functions that may or may not be present.
  *
  *    Some functions are available on Solaris 11 but not on Solaris 10.  In order to
@@ -20,8 +22,6 @@
  *    references to these functions but instead probe for them at run-time and either
  *    call them if available of provide fallback behavior if not available.
  */
-
-#pragma once
 
 #if defined(__sunos__)
 
