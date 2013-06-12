@@ -2231,6 +2231,9 @@
     <ClCompile Include="commands\user_management_commands.cpp">
       <Filter>db\commands</Filter>
     </ClCompile>
+    <ClCompile Include="..\platform\strcasestr.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\third_party\snappy\config.h">
@@ -4507,6 +4510,9 @@
       <Filter>db\Header Files\e to n</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\process_id.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\strcasestr.h">
       <Filter>platform</Filter>
     </ClInclude>
   </ItemGroup>
