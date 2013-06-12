@@ -2228,6 +2228,9 @@
     <ClCompile Include="auth\authorization_manager_test.cpp">
       <Filter>db\auth</Filter>
     </ClCompile>
+    <ClCompile Include="..\platform\strcasestr.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\third_party\snappy\config.h">
@@ -4504,6 +4507,9 @@
       <Filter>db\Header Files\e to n</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\process_id.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\strcasestr.h">
       <Filter>platform</Filter>
     </ClInclude>
   </ItemGroup>
