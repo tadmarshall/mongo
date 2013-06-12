@@ -30,7 +30,8 @@ def add_exe( v ):
 # ------    SOURCE FILE SETUP -----------
 
 env.StaticLibrary('foundation',
-                  [ 'util/assert_util.cpp',
+                  [ 'platform/strcasestr.cpp',
+                    'util/assert_util.cpp',
                     'util/concurrency/mutexdebugger.cpp',
                     'util/debug_util.cpp',
                     'util/exception_filter_win32.cpp',
