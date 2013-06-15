@@ -33,7 +33,7 @@ namespace pal {
     static PosixFadviseFunc posix_fadvise_switcher = mongo::pal::posix_fadvise_emulation;
 
     const int posix_fadvise(int fd, off_t offset, off_t len, int advice) {
-        return posix_fadvise_switcher(haystack, needle);
+        return posix_fadvise_switcher(fd, offset, len, advice);
     }
 
 } // namespace pal
