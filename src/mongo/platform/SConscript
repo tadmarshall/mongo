@@ -3,6 +3,7 @@
 Import("env")
 
 env.Library('platform', [
+        'backtrace.cpp',
         'process_id.cpp',
         'random.cpp',
         'strcasestr.cpp',
