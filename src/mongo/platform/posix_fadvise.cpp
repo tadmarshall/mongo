@@ -25,14 +25,14 @@
 namespace mongo {
 namespace pal {
 
-    const int posix_fadvise_emulation(int fd, off_t offset, off_t len, int advice) {
+    int posix_fadvise_emulation(int fd, off_t offset, off_t len, int advice) {
         return 0;
     }
 
-    typedef const int (*PosixFadviseFunc)(int fd, off_t offset, off_t len, int advice);
+    typedef int (*PosixFadviseFunc)(int fd, off_t offset, off_t len, int advice);
     static PosixFadviseFunc posix_fadvise_switcher = mongo::pal::posix_fadvise_emulation;
 
-    const int posix_fadvise(int fd, off_t offset, off_t len, int advice) {
+    int posix_fadvise(int fd, off_t offset, off_t len, int advice) {
         return posix_fadvise_switcher(fd, offset, len, advice);
     }
 

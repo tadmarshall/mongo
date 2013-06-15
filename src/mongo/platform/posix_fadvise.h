@@ -22,7 +22,7 @@
 
 namespace mongo {
 namespace pal {
-    const int posix_fadvise(int fd, off_t offset, off_t len, int advice);
+    int posix_fadvise(int fd, off_t offset, off_t len, int advice);
 }
     using mongo::pal::posix_fadvise;
 }
