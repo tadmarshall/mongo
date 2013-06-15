@@ -23,20 +23,22 @@
 #include "mongo/base/status.h"
 
 namespace mongo {
-    namespace pal {
+namespace pal {
 
-        const char* posix_fadvise_emulation(int fd, off_t offset, off_t len, int advice) { }
+    const int posix_fadvise_emulation(int fd, off_t offset, off_t len, int advice) {
+        return 0;
+    }
 
-        typedef const char* (*PosixFadviseFunc)(const char* haystack, const char* needle);
-        static PosixFadviseFunc posix_fadvise_switcher = mongo::pal::posix_fadvise_emulation;
+    typedef const int (*PosixFadviseFunc)(int fd, off_t offset, off_t len, int advice);
+    static PosixFadviseFunc posix_fadvise_switcher = mongo::pal::posix_fadvise_emulation;
 
-        const char* posix_fadvise(const char* haystack, const char* needle) {
-            return posix_fadvise_switcher(haystack, needle);
-        }
+    const int posix_fadvise(int fd, off_t offset, off_t len, int advice) {
+        return posix_fadvise_switcher(haystack, needle);
+    }
 
-    } // namespace pal
+} // namespace pal
 
-    // 'strcasestr()' on Solaris will call the emulation if the symbol is not found
+    // 'posix_fadvise()' on Solaris will call the emulation if the symbol is not found
     //
     MONGO_INITIALIZER_GENERAL(SolarisPosixFadvise,
                               MONGO_NO_PREREQUISITES,
