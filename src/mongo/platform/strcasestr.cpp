@@ -30,9 +30,9 @@
 #include <string>
 
 #if defined(__sunos__)
-#define STRCASESTR_NAME strcasestr_emulation
+#define STRCASESTR_EMULATION_NAME strcasestr_emulation
 #else
-#define STRCASESTR_NAME strcasestr
+#define STRCASESTR_EMULATION_NAME strcasestr
 #endif
 
 namespace mongo {
@@ -45,7 +45,7 @@ namespace pal {
      * @param needle        ptr to C-string to try to find within 'haystack'
      * @return              ptr to start of 'needle' within 'haystack' if found, NULL otherwise
      */
-    const char* STRCASESTR_NAME(const char* haystack, const char* needle) {
+    const char* STRCASESTR_EMULATION_NAME(const char* haystack, const char* needle) {
 
         std::string haystackLower(haystack);
         std::transform(haystackLower.begin(),
@@ -65,7 +65,7 @@ namespace pal {
 #if defined(__sunos__)
 
     typedef const char* (*StrCaseStrFunc)(const char* haystack, const char* needle);
-    static StrCaseStrFunc strcasestr_switcher = ::mongo::pal::strcasestr_emulation;
+    static StrCaseStrFunc strcasestr_switcher = mongo::pal::strcasestr_emulation;
 
     const char* strcasestr(const char* haystack, const char* needle) {
         return strcasestr_switcher(haystack, needle);
@@ -89,8 +89,8 @@ namespace mongo {
                               ("default"))(InitializerContext* context) {
         void* functionAddress = dlsym(RTLD_DEFAULT, "strcasestr");
         if (functionAddress != NULL) {
-            ::mongo::pal::strcasestr_switcher =
-                    reinterpret_cast<::mongo::pal::StrCaseStrFunc>(functionAddress);
+            mongo::pal::strcasestr_switcher =
+                    reinterpret_cast<mongo::pal::StrCaseStrFunc>(functionAddress);
         }
         return Status::OK();
     }
