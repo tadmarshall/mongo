@@ -89,7 +89,8 @@ namespace mongo {
                               ("default"))(InitializerContext* context) {
         void* functionAddress = dlsym(RTLD_DEFAULT, "strcasestr");
         if (functionAddress != NULL) {
-            ::mongo::pal::strcasestr_switcher = reinterpret_cast<StrCaseStrFunc>(functionAddress);
+            ::mongo::pal::strcasestr_switcher =
+                    reinterpret_cast<::mongo::pal::StrCaseStrFunc>(functionAddress);
         }
         return Status::OK();
     }
