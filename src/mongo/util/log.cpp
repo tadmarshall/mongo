@@ -24,10 +24,6 @@
 #include "mongo/util/stacktrace.h"
 #include "mongo/util/time_support.h"
 
-#ifdef POSIX_FADV_DONTNEED
-    #include "mongo/platform/posix_fadvise.h"
-#endif
-
 using namespace std;
 
 #ifdef _WIN32

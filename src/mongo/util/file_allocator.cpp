@@ -36,14 +36,11 @@
 #   include <io.h>
 #endif
 
+#include "mongo/platform/posix_fadvise.h"
 #include "mongo/util/mongoutils/str.h"
 #include "mongo/util/paths.h"
 #include "mongo/util/time_support.h"
 #include "mongo/util/timer.h"
-
-#ifdef POSIX_FADV_DONTNEED
-    #include "mongo/platform/posix_fadvise.h"
-#endif
 
 using namespace mongoutils;
 
