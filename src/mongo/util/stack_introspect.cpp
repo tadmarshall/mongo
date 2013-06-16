@@ -110,7 +110,7 @@ namespace mongo {
     
     bool inConstructorChain( bool printOffending ){
         void* b[maxBackTraceFrames];
-        int size = ::backtrace( b, maxBackTraceFrames );
+        int size = backtrace( b, maxBackTraceFrames );
 
         char** strings = 0;
         
@@ -126,7 +126,7 @@ namespace mongo {
             }
 
             if ( ! strings ) 
-                strings = ::backtrace_symbols( b, size );
+                strings = backtrace_symbols( b, size );
 
             string symbol = strings[i];
 
