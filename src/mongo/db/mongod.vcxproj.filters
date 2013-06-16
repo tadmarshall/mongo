@@ -2234,6 +2234,9 @@
     <ClCompile Include="..\platform\strcasestr.cpp">
       <Filter>platform</Filter>
     </ClCompile>
+    <ClCompile Include="..\platform\posix_fadvise.cpp">
+      <Filter>platform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\third_party\snappy\config.h">
@@ -4513,6 +4516,9 @@
       <Filter>platform</Filter>
     </ClInclude>
     <ClInclude Include="..\platform\strcasestr.h">
+      <Filter>platform</Filter>
+    </ClInclude>
+    <ClInclude Include="..\platform\posix_fadvise.h">
       <Filter>platform</Filter>
     </ClInclude>
   </ItemGroup>
