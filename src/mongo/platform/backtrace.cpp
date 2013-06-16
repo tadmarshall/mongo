@@ -45,7 +45,7 @@ namespace pal {
     static BacktraceSymbolsFunc backtrace_symbols_switcher =
             mongo::pal::backtrace_symbols_emulation;
 
-    typedef int (*BacktraceSymbolsFdFunc)(void* const* array, int size, int fd);
+    typedef void (*BacktraceSymbolsFdFunc)(void* const* array, int size, int fd);
     static BacktraceSymbolsFdFunc backtrace_symbols_fd_switcher =
             mongo::pal::backtrace_symbols_fd_emulation;
 
