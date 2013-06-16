@@ -20,11 +20,14 @@
 
 #include "mongo/util/logfile.h"
 
-#include "mongo/platform/posix_fadvise.h"
 #include "mongo/util/mmap.h"
 #include "mongo/util/mongoutils/str.h"
 #include "mongo/util/startup_test.h"
 #include "mongo/util/text.h"
+
+#ifdef POSIX_FADV_DONTNEED
+    #include "mongo/platform/posix_fadvise.h"
+#endif
 
 using namespace mongoutils;
 
