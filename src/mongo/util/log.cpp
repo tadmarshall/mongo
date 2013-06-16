@@ -18,7 +18,6 @@
 
 #include "mongo/pch.h"
 
-#include "mongo/platform/posix_fadvise.h"
 #include "mongo/util/assert_util.h"
 #include "mongo/util/concurrency/threadlocal.h"
 #include "mongo/util/stacktrace.h"
