@@ -83,7 +83,9 @@ namespace {
         for (int i = 0; i < size; ++i) {
             const size_t BUFFER_SIZE = 1024;
             boost::scoped_array<char> stringBuffer(new char[BUFFER_SIZE]);
-            addrtosymstr(reinterpret_cast<uintptr_t*>(array)[i], stringBuffer, BUFFER_SIZE);
+            addrtosymstr(reinterpret_cast<uintptr_t*>(const_cast<void**>(array))[i],
+                         stringBuffer,
+                         BUFFER_SIZE);
             string oneString(stringBuffer);
             size_t thisLength = oneString.length() + 1;
             stringVector.push_back(oneString);
