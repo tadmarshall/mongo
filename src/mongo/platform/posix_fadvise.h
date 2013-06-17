@@ -16,24 +16,26 @@
 #pragma once
 
 #if !defined(_WIN32)
-#if defined(__sunos__)
 
-#include <sys/types.h>
+    #include <fcntl.h>
 
-namespace mongo {
-namespace pal {
-    int posix_fadvise(int fd, off_t offset, off_t len, int advice);
-}
-    using mongo::pal::posix_fadvise;
-}
+    #if defined(__sunos__)
 
-#else
+        #include <sys/types.h>
 
-#include <fcntl.h>
+        namespace mongo {
+        namespace pal {
+            int posix_fadvise(int fd, off_t offset, off_t len, int advice);
+        }
+            using mongo::pal::posix_fadvise;
+        }
 
-namespace mongo {
-    using ::posix_fadvise;
-}
+    #elif defined(POSIX_FADV_DONTNEED)
 
-#endif
+        namespace mongo {
+            using ::posix_fadvise;
+        }
+
+    #endif
+
 #endif
