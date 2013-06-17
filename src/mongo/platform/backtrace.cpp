@@ -87,7 +87,7 @@ namespace {
                          //stringBuffer.get(),
                          //BUFFER_SIZE);
             addrtosymstr(array[i], stringBuffer.get(), BUFFER_SIZE);
-            string oneString(stringBuffer);
+            string oneString(stringBuffer.get());
             size_t thisLength = oneString.length() + 1;
             stringVector.push_back(oneString);
             stringLengths.push_back(thisLength);
