@@ -33,11 +33,8 @@
 
 #include "mongo/db/kill_current_op.h"
 #include "mongo/db/namespace-inl.h"
+#include "mongo/platform/posix_fadvise.h"
 #include "mongo/util/file.h"
-
-#ifdef POSIX_FADV_SEQUENTIAL
-    #include "mongo/platform/posix_fadvise.h"
-#endif
 
 #if MONGO_USE_NEW_SORTER
 namespace mongo {

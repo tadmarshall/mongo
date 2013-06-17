@@ -31,13 +31,10 @@
 #include "mongo/db/auth/authz_manager_external_state_mock.h"
 #include "mongo/db/json.h"
 #include "mongo/db/namespace_details.h"
+#include "mongo/platform/posix_fadvise.h"
 #include "mongo/util/file_allocator.h"
 #include "mongo/util/password.h"
 #include "mongo/util/version.h"
-
-#ifdef POSIX_FADV_SEQUENTIAL
-    #include "mongo/platform/posix_fadvise.h"
-#endif
 
 using namespace std;
 using namespace mongo;
