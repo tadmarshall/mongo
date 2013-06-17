@@ -295,27 +295,31 @@ namespace mongo {
      * @param os    ostream& to receive printed stack backtrace
      */
     void printStackTrace( std::ostream& os ) {
-        
-        void *b[maxBackTraceFrames];
-        
-        int size = backtrace( b, maxBackTraceFrames );
-        for ( int i = 0; i < size; i++ )
-            os << std::hex << b[i] << std::dec << ' ';
+
+        void* addresses[maxBackTraceFrames];
+
+        int addressCount = backtrace(addresses, maxBackTraceFrames);
+        if (addressCount == 0) {
+            const int err = errno;
+            os << "Unable to collect backtrace addresses (" << errnoWithDescription(err) << ")"
+               << std::endl;
+            return;
+        }
+        for (int i = 0; i < addressCount; i++)
+            os << std::hex << addresses[i] << std::dec << ' ';
         os << std::endl;
-        
-        char **strings;
-        
-        strings = backtrace_symbols( b, size );
-        if (strings == NULL) {
+
+        char** backtraceStrings = backtrace_symbols(addresses, addressCount);
+        if (backtraceStrings == NULL) {
             const int err = errno;
             os << "Unable to collect backtrace symbols (" << errnoWithDescription(err) << ")"
                << std::endl;
             return;
         }
-        for ( int i = 0; i < size; i++ )
-            os << ' ' << strings[i] << '\n';
+        for (int i = 0; i < addressCount; i++)
+            os << ' ' << backtraceStrings[i] << '\n';
         os.flush();
-        ::free( strings );
+        free(backtraceStrings);
     }
 }
 
