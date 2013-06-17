@@ -80,7 +80,7 @@ namespace {
         vector<size_t> stringLengths;
         size_t blockSize = size * sizeof(char*);
         size_t blockPtr = blockSize;
-        for (size_t i = 0; i < size; ++i) {
+        for (int i = 0; i < size; ++i) {
             const size_t BUFFER_SIZE = 1024;
             boost::scoped_array<char> stringBuffer = new char[BUFFER_SIZE];
             addrtosymstr(reinterpret_cast<uintptr_t*>(array)[i], stringBuffer, BUFFER_SIZE);
@@ -91,7 +91,7 @@ namespace {
             blockSize += thisLength;
         }
         char** singleBlock = static_cast<char**>(malloc(blockSize));
-        for (size_t i = 0; i < size; ++i) {
+        for (int i = 0; i < size; ++i) {
             singleBlock[i] = reinterpret_cast<char*>(singleBlock) + blockPtr;
             strncpy(singleBlock[i], stringVector[i].c_str(), stringLengths[i]);
             blockPtr += stringLengths[i];
