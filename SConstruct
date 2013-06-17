@@ -580,7 +580,7 @@ elif os.sys.platform.startswith("linux"):
     linux = True
     platform = "linux"
 
-    env.Append( LIBS=['m'] )
+    env.Append( LIBS=['m', 'dl'] )
 
     if os.uname()[4] == "x86_64" and not force32:
         linux64 = True
@@ -1225,7 +1225,7 @@ def doConfigure(myenv):
     if (conf.CheckCXXHeader( "execinfo.h" ) and
         conf.CheckDeclaration('backtrace', includes='#include <execinfo.h>') and
         conf.CheckDeclaration('backtrace_symbols', includes='#include <execinfo.h>') and
-        conf.CheckDeclaration('backtrace_symbols_fd', includes='#include <execinfo.h>')):
+        conf.CheckDeclaration('backtrace_symbols_fd2', includes='#include <execinfo.h>')):
 
         conf.env.Append( CPPDEFINES=[ "MONGO_HAVE_EXECINFO_BACKTRACE" ] )
 
