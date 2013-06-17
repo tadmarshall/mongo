@@ -19,6 +19,7 @@
 #include "mongo/platform/backtrace.h"
 
 #include <dlfcn.h>
+#include <ucontext.h>
 
 #include "mongo/base/init.h"
 #include "mongo/base/status.h"
@@ -26,7 +27,46 @@
 namespace mongo {
 namespace pal {
 
+namespace {
+    class WalkcontextCallback {
+    public:
+        WalkcontextCallback(uintptr_t* array, int size) : _position(0), _count(size), _addresses(array) {}
+        static int callbackFunction(uintptr_t address, int signalNumber, WalkcontextCallback* thisContext) {
+            if (thisContext->_position < thisContext->_count) {
+                thisContext->_addresses[thisContext->_position++] = address;
+                return 0;
+            }
+            return 1;
+        }
+        int getCount() const { return static_cast<int>(_position); }
+    private:
+        size_t _position;
+        size_t _count;
+        uintptr_t* _addresses;
+    };
+}
+
+/* 
+ #include <ucontext.h>
+
+       int walkcontext(const ucontext_t *uptr,
+           int (*operate_func)(uintptr_t, int, void *), void *usrarg);
+
+
+*/
+
+    typedef int (*WalkcontextCallbackFunc)(uintptr_t address, int signalNumber, void* thisContext);
+
     int backtrace_emulation(void** array, int size) {
+        WalkcontextCallback walkcontextCallback(reinterpret_cast<uintptr_t*>(array), size);
+        ucontext_t context;
+        if (getcontext(&context) != 0) {
+            return 0;
+        }
+        int wcReturn = walkcontext(&context, reinterpret_cast<WalkcontextCallbackFunc>(WalkcontextCallback::callbackFunction), reinterpret_cast<void*>(&walkcontextCallback));
+        if (wcReturn == 0) {
+            return walkcontextCallback.getCount();
+        }
         return 0;
     }
 
@@ -69,17 +109,17 @@ namespace pal {
     MONGO_INITIALIZER_GENERAL(SolarisBacktrace,
                               MONGO_NO_PREREQUISITES,
                               ("default"))(InitializerContext* context) {
-        void* functionAddress = dlsym(RTLD_DEFAULT, "backtrace");
+        void* functionAddress = dlsym(RTLD_DEFAULT, "backtraceX");
         if (functionAddress != NULL) {
             mongo::pal::backtrace_switcher =
                     reinterpret_cast<mongo::pal::BacktraceFunc>(functionAddress);
         }
-        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols");
+        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbolsX");
         if (functionAddress != NULL) {
             mongo::pal::backtrace_symbols_switcher =
                     reinterpret_cast<mongo::pal::BacktraceSymbolsFunc>(functionAddress);
         }
-        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols_fd");
+        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols_fdX");
         if (functionAddress != NULL) {
             mongo::pal::backtrace_symbols_fd_switcher =
                     reinterpret_cast<mongo::pal::BacktraceSymbolsFdFunc>(functionAddress);
