@@ -21,8 +21,6 @@
 #include <map>
 #include <vector>
 
-#include "mongo/util/assert_util.h"
-#include "mongo/util/log.h"
 
 #ifdef _WIN32
 #include <boost/filesystem/operations.hpp>
@@ -31,6 +29,7 @@
 #include <stdio.h>
 #include "mongo/platform/windows_basic.h"
 #include <DbgHelp.h>
+#include "mongo/util/log.h"
 #else
 #include "mongo/platform/backtrace.h"
 #endif
@@ -291,9 +290,7 @@ namespace mongo {
 
         int addressCount = backtrace(addresses, maxBackTraceFrames);
         if (addressCount == 0) {
-            const int err = errno;
-            os << "Unable to collect backtrace addresses (" << errnoWithDescription(err) << ")"
-               << std::endl;
+            os << "Unable to collect backtrace addresses" << std::endl;
             return;
         }
         for (int i = 0; i < addressCount; i++)
@@ -302,9 +299,7 @@ namespace mongo {
 
         char** backtraceStrings = backtrace_symbols(addresses, addressCount);
         if (backtraceStrings == NULL) {
-            const int err = errno;
-            os << "Unable to collect backtrace symbols (" << errnoWithDescription(err) << ")"
-               << std::endl;
+            os << "Unable to collect backtrace symbols" << std::endl;
             return;
         }
         for (int i = 0; i < addressCount; i++)
