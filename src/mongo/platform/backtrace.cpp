@@ -24,9 +24,6 @@
 #include <ucontext.h>
 #include <vector>
 
-#include "mongo/base/init.h"
-#include "mongo/base/status.h"
-
 using std::string;
 using std::vector;
 
