@@ -21,6 +21,7 @@
 #include <map>
 #include <vector>
 
+#include "mongo/util/assert_util.h"
 #include "mongo/util/log.h"
 
 #ifdef _WIN32
@@ -30,7 +31,6 @@
 #include <stdio.h>
 #include "mongo/platform/windows_basic.h"
 #include <DbgHelp.h>
-#include "mongo/util/assert_util.h"
 #else
 #include "mongo/platform/backtrace.h"
 #endif
