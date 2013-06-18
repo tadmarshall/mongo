@@ -28,6 +28,7 @@ clientSource = [
     'mongo/db/nonce.cpp',
     'mongo/db/dbmessage.cpp',
     'mongo/pch.cpp',
+    'mongo/platform/backtrace.cpp',
     'mongo/util/assert_util.cpp',
     'mongo/util/background.cpp',
     'mongo/util/base64.cpp',

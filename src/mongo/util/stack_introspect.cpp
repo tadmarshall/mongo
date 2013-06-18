@@ -1,22 +1,37 @@
 // stack_introspect.cpp
 
+/**
+*    Copyright (C) 2012 10gen Inc.
+*
+*    This program is free software: you can redistribute it and/or  modify
+*    it under the terms of the GNU Affero General Public License, version 3,
+*    as published by the Free Software Foundation.
+*
+*    This program is distributed in the hope that it will be useful,
+*    but WITHOUT ANY WARRANTY; without even the implied warranty of
+*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*    GNU Affero General Public License for more details.
+*
+*    You should have received a copy of the GNU Affero General Public License
+*    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "mongo/util/stack_introspect.h"
 
+#if !defined(_WIN32)
+
 #include <cstdlib>
+#include <cxxabi.h>
 #include <iostream>
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
 
+#include "mongo/platform/backtrace.h"
 #include "mongo/util/concurrency/mutex.h"
 #include "mongo/util/text.h"
 
 using namespace std;
-
-#ifdef MONGO_HAVE_EXECINFO_BACKTRACE
-
-#include <execinfo.h>
-#include <cxxabi.h>
 
 namespace mongo {
     
@@ -82,7 +97,7 @@ namespace mongo {
     
     bool inConstructorChain( bool printOffending ){
         void* b[maxBackTraceFrames];
-        int size = ::backtrace( b, maxBackTraceFrames );
+        int size = backtrace( b, maxBackTraceFrames );
 
         char** strings = 0;
         
@@ -98,7 +113,7 @@ namespace mongo {
             }
 
             if ( ! strings ) 
-                strings = ::backtrace_symbols( b, size );
+                strings = backtrace_symbols( b, size );
 
             string symbol = strings[i];
 
@@ -152,5 +167,4 @@ namespace mongo {
     bool inConstructorChainSupported() { return false; }
 }
 
-#endif  // defined(MONGO_HAVE_EXECINFO_BACKTRACE)
-
+#endif  // #if !defined(_WIN32)
