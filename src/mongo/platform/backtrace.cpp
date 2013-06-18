@@ -111,26 +111,26 @@ namespace {
     // 'backtrace()', 'backtrace_symbols()' and 'backtrace_symbols_fd()' on Solaris will call
     // emulation functions if the symbols are not found
     //
-    MONGO_INITIALIZER_GENERAL(SolarisBacktrace,
-                              MONGO_NO_PREREQUISITES,
-                              ("default"))(InitializerContext* context) {
-        void* functionAddress = dlsym(RTLD_DEFAULT, "backtraceX");
-        if (functionAddress != NULL) {
-            mongo::pal::backtrace_switcher =
-                    reinterpret_cast<mongo::pal::BacktraceFunc>(functionAddress);
+    class BacktraceStartupSupport {
+    public:
+        BacktraceStartupSupport() {
+            void* functionAddress = dlsym(RTLD_DEFAULT, "backtrace");
+            if (functionAddress != NULL) {
+                mongo::pal::backtrace_switcher =
+                        reinterpret_cast<mongo::pal::BacktraceFunc>(functionAddress);
+            }
+            functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols");
+            if (functionAddress != NULL) {
+                mongo::pal::backtrace_symbols_switcher =
+                        reinterpret_cast<mongo::pal::BacktraceSymbolsFunc>(functionAddress);
+            }
+            functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols_fd");
+            if (functionAddress != NULL) {
+                mongo::pal::backtrace_symbols_fd_switcher =
+                        reinterpret_cast<mongo::pal::BacktraceSymbolsFdFunc>(functionAddress);
+            }
         }
-        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbolsX");
-        if (functionAddress != NULL) {
-            mongo::pal::backtrace_symbols_switcher =
-                    reinterpret_cast<mongo::pal::BacktraceSymbolsFunc>(functionAddress);
-        }
-        functionAddress = dlsym(RTLD_DEFAULT, "backtrace_symbols_fdX");
-        if (functionAddress != NULL) {
-            mongo::pal::backtrace_symbols_fd_switcher =
-                    reinterpret_cast<mongo::pal::BacktraceSymbolsFdFunc>(functionAddress);
-        }
-        return Status::OK();
-    }
+    } backTraceStartupSupport;
 
 } // namespace mongo
 
