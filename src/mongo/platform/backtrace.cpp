@@ -18,11 +18,18 @@
 
 #include "mongo/platform/backtrace.h"
 
+#include <boost/smart_ptr/scoped_array.hpp>
 #include <dlfcn.h>
+#include <stdio.h>
+#include <string>
 #include <ucontext.h>
+#include <vector>
 
 #include "mongo/base/init.h"
 #include "mongo/base/status.h"
+
+using std::string;
+using std::vector;
 
 namespace mongo {
 namespace pal {
@@ -69,11 +76,70 @@ namespace {
         return 0;
     }
 
+    static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
+        Dl_info_t symbolInfo;
+        if (dladdr(address, &symbolInfo) == 0) {    // no info: "[address]"
+            return snprintf(outputBuffer, outputBufferSize, "[0x%p]", address);
+        }
+        if (symbolInfo.dli_sname == NULL) {
+            return snprintf(outputBuffer,           // no symbol: "filename'offset [address]"
+                            outputBufferSize,
+                            "%s'0x%p [0x%p]",
+                            symbolInfo.dli_fname,
+                            reinterpret_cast<char*>(reinterpret_cast<char*>(address) -
+                                                    reinterpret_cast<char*>(symbolInfo.dli_fbase)),
+                            address);
+        }
+        else {
+            return snprintf(outputBuffer,           // symbol: "filename'symbol+offset [address]"
+                            outputBufferSize,
+                            "%s'%s+0x%p [0x%p]",
+                            symbolInfo.dli_fname,
+                            symbolInfo.dli_sname,
+                            reinterpret_cast<char*>(reinterpret_cast<char*>(address) -
+                                                    reinterpret_cast<char*>(symbolInfo.dli_saddr)),
+                            address);
+        }
+    }
+
     char** backtrace_symbols_emulation(void* const* array, int size) {
-        return NULL;
+        vector<string> stringVector;
+        vector<size_t> stringLengths;
+        size_t blockSize = size * sizeof(char*);
+        size_t blockPtr = blockSize;
+        const size_t BUFFER_SIZE = 1024;
+        boost::scoped_array<char> stringBuffer(new char[BUFFER_SIZE]);
+        for (int i = 0; i < size; ++i) {
+            addrtosymstr(array[i], stringBuffer.get(), BUFFER_SIZE);
+            string oneString(stringBuffer.get());
+            size_t thisLength = oneString.length() + 1;
+            stringVector.push_back(oneString);
+            stringLengths.push_back(thisLength);
+            blockSize += thisLength;
+        }
+        char** singleBlock = static_cast<char**>(malloc(blockSize));
+        if (singleBlock == NULL) {
+            return NULL;
+        }
+        for (int i = 0; i < size; ++i) {
+            singleBlock[i] = reinterpret_cast<char*>(singleBlock) + blockPtr;
+            strncpy(singleBlock[i], stringVector[i].c_str(), stringLengths[i]);
+            blockPtr += stringLengths[i];
+        }
+        return singleBlock;
     }
 
     void backtrace_symbols_fd_emulation(void* const* array, int size, int fd) {
+        const int BUFFER_SIZE = 1024;
+        char stringBuffer[BUFFER_SIZE];
+        for (int i = 0; i < size; ++i) {
+            int len = addrtosymstr(array[i], stringBuffer, BUFFER_SIZE);
+            if (len > BUFFER_SIZE - 1) {
+                len = BUFFER_SIZE - 1;
+            }
+            stringBuffer[len] = '\n';
+            write(fd, stringBuffer, len + 1);
+        }
     }
 
     typedef int (*BacktraceFunc)(void** array, int size);
