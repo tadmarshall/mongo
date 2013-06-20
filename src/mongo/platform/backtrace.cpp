@@ -18,11 +18,17 @@
 
 #include "mongo/platform/backtrace.h"
 
+#include <boost/smart_ptr/scoped_array.hpp>
 #include <dlfcn.h>
+#include <string>
 #include <ucontext.h>
+#include <vector>
 
 #include "mongo/base/init.h"
 #include "mongo/base/status.h"
+
+using std::string;
+using std::vector;
 
 namespace mongo {
 namespace pal {
@@ -70,7 +76,30 @@ namespace {
     }
 
     char** backtrace_symbols_emulation(void* const* array, int size) {
-        return NULL;
+        vector<string> stringVector;
+        vector<size_t> stringLengths;
+        size_t blockSize = size * sizeof(char*);
+        size_t blockPtr = blockSize;
+        for (int i = 0; i < size; ++i) {
+            const size_t BUFFER_SIZE = 1024;
+            boost::scoped_array<char> stringBuffer(new char[BUFFER_SIZE]);
+            //addrtosymstr(reinterpret_cast<uintptr_t*>(const_cast<void**>(array))[i],
+                         //stringBuffer.get(),
+                         //BUFFER_SIZE);
+            addrtosymstr(array[i], stringBuffer.get(), BUFFER_SIZE);
+            string oneString(stringBuffer.get());
+            size_t thisLength = oneString.length() + 1;
+            stringVector.push_back(oneString);
+            stringLengths.push_back(thisLength);
+            blockSize += thisLength;
+        }
+        char** singleBlock = static_cast<char**>(malloc(blockSize));
+        for (int i = 0; i < size; ++i) {
+            singleBlock[i] = reinterpret_cast<char*>(singleBlock) + blockPtr;
+            strncpy(singleBlock[i], stringVector[i].c_str(), stringLengths[i]);
+            blockPtr += stringLengths[i];
+        }
+        return singleBlock;
     }
 
     void backtrace_symbols_fd_emulation(void* const* array, int size, int fd) {
