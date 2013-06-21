@@ -78,7 +78,14 @@ namespace {
 
     static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
 #if 1
-        strncpy(outputBuffer, "stack trace line", outputBufferSize);
+        Dl_info_t symbolInfo;
+        if (dladdr(address, &symbolInfo)) {
+            strncpy(outputBuffer, "FAILED!! to get stack trace line", outputBufferSize);
+            return strlen(outputBuffer);
+            *outputBuffer = '\0';
+            return 0;
+        }
+        strncpy(outputBuffer, "we got a stack trace line", outputBufferSize);
         return strlen(outputBuffer);
 #else
         Dl_info_t symbolInfo;
