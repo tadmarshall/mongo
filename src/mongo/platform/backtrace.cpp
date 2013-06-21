@@ -34,6 +34,9 @@ namespace {
             : _position(0),
               _count(size),
               _addresses(array) {}
+
+        // This callback function is called from C code, and so must not throw exceptions
+        //
         static int callbackFunction(uintptr_t address,
                                     int signalNumber,
                                     WalkcontextCallback* thisContext) {
@@ -62,7 +65,8 @@ namespace {
         int wcReturn = walkcontext(
                 &context,
                 reinterpret_cast<WalkcontextCallbackFunc>(WalkcontextCallback::callbackFunction),
-                reinterpret_cast<void*>(&walkcontextCallback));
+                //reinterpret_cast<void*>(&walkcontextCallback));
+                static_cast<void*>(&walkcontextCallback));
         if (wcReturn == 0) {
             return walkcontextCallback.getCount();
         }
