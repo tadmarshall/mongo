@@ -77,30 +77,29 @@ namespace {
     }
 
     static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
-#if 0
         Dl_info_t symbolInfo;
-        if (dladdr(address, &symbolInfo) == 0) {
-            strncpy(outputBuffer, "FAILED!! to get stack trace line", outputBufferSize);
-            return strlen(outputBuffer);
-            *outputBuffer = '\0';
-            return 0;
-        }
-        strncpy(outputBuffer, "we got a stack trace line", outputBufferSize);
-        return strlen(outputBuffer);
-#else
-        Dl_info_t symbolInfo;
-        if (dladdr(address, &symbolInfo) == 0) {
+        if (dladdr(address, &symbolInfo) == 0) {    // no info: "[address]"
             return snprintf(outputBuffer, outputBufferSize, "[0x%p]", address);
         }
-        return snprintf(outputBuffer,
-                        outputBufferSize,
-                        "%s'%s+0x%p [0x%p]",
-                        symbolInfo.dli_fname,
-                        symbolInfo.dli_sname,
-                        reinterpret_cast<char*>(address) -
-                                reinterpret_cast<char*>(symbolInfo.dli_saddr),
-                        address);
-#endif
+        if (symbolInfo.dli_sname == NULL) {
+            return snprintf(outputBuffer,           // no symbol: "filename'offset [address]"
+                            outputBufferSize,
+                            "%s'0x%x [0x%p]",
+                            symbolInfo.dli_fname,
+                            reinterpret_cast<char*>(address) -
+                                    reinterpret_cast<char*>(symbolInfo.dli_fbase),
+                            address);
+        }
+        else {
+            return snprintf(outputBuffer,           // symbol: "filename'symbol+offset [address]"
+                            outputBufferSize,
+                            "%s'%s+0x%x [0x%p]",
+                            symbolInfo.dli_fname,
+                            symbolInfo.dli_sname,
+                            reinterpret_cast<char*>(address) -
+                                    reinterpret_cast<char*>(symbolInfo.dli_saddr),
+                            address);
+        }
     }
 
     char** backtrace_symbols_emulation(void* const* array, int size) {
@@ -131,6 +130,16 @@ namespace {
     }
 
     void backtrace_symbols_fd_emulation(void* const* array, int size, int fd) {
+        const size_t BUFFER_SIZE = 1024;
+        char stringBuffer[BUFFER_SIZE];
+        for (int i = 0; i < size; ++i) {
+            int len = addrtosymstr(array[i], stringBuffer, BUFFER_SIZE);
+            if (len >= BUFFER_SIZE) {
+                len = BUFFER_SIZE - 1;
+            }
+            stringBuffer[len] = '\n';
+            write(fd, stringBuffer, len + 1);
+        }
     }
 
     typedef int (*BacktraceFunc)(void** array, int size);
