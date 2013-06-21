@@ -87,7 +87,7 @@ namespace {
                         "%s'%s+0x%x [0x%x]",
                         symbolInfo.dli_fname,
                         symbolInfo.dli_sname,
-                        address - symbolInfo.dli_saddr,
+                        reinterpret_cast<char*>(address) - symbolInfo.dli_saddr,
                         address);
     }
 
