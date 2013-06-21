@@ -84,20 +84,20 @@ namespace {
         if (symbolInfo.dli_sname == NULL) {
             return snprintf(outputBuffer,           // no symbol: "filename'offset [address]"
                             outputBufferSize,
-                            "%s'0x%x [0x%p]",
+                            "%s'0x%p [0x%p]",
                             symbolInfo.dli_fname,
-                            reinterpret_cast<char*>(address) -
-                                    reinterpret_cast<char*>(symbolInfo.dli_fbase),
+                            reinterpret_cast<char*>(reinterpret_cast<char*>(address) -
+                                                    reinterpret_cast<char*>(symbolInfo.dli_fbase)),
                             address);
         }
         else {
             return snprintf(outputBuffer,           // symbol: "filename'symbol+offset [address]"
                             outputBufferSize,
-                            "%s'%s+0x%x [0x%p]",
+                            "%s'%s+0x%p [0x%p]",
                             symbolInfo.dli_fname,
                             symbolInfo.dli_sname,
-                            reinterpret_cast<char*>(address) -
-                                    reinterpret_cast<char*>(symbolInfo.dli_saddr),
+                            reinterpret_cast<char*>(reinterpret_cast<char*>(address) -
+                                                    reinterpret_cast<char*>(symbolInfo.dli_saddr)),
                             address);
         }
     }
@@ -130,11 +130,11 @@ namespace {
     }
 
     void backtrace_symbols_fd_emulation(void* const* array, int size, int fd) {
-        const size_t BUFFER_SIZE = 1024;
+        const int BUFFER_SIZE = 1024;
         char stringBuffer[BUFFER_SIZE];
         for (int i = 0; i < size; ++i) {
             int len = addrtosymstr(array[i], stringBuffer, BUFFER_SIZE);
-            if (len >= BUFFER_SIZE) {
+            if (len > BUFFER_SIZE - 1) {
                 len = BUFFER_SIZE - 1;
             }
             stringBuffer[len] = '\n';
