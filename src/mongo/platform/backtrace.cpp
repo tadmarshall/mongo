@@ -20,6 +20,7 @@
 
 #include <boost/smart_ptr/scoped_array.hpp>
 #include <dlfcn.h>
+#include <stdio.h>
 #include <string>
 #include <ucontext.h>
 #include <vector>
@@ -75,17 +76,29 @@ namespace {
         return 0;
     }
 
+    static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
+        DL_info symbolInfo;
+        if (dladdr(address, &symbolInfo)) {
+            *outputBuffer = '\0';
+            return 0;
+        }
+        return snprintf(outputBuffer,
+                        outputBufferSize,
+                        "%s'%s+0x%x [0x%x]",
+                        symbolInfo.dli_fname,
+                        symbolInfo.dli_sname,
+                        address - symbolInfo.dli_saddr,
+                        address);
+    }
+
     char** backtrace_symbols_emulation(void* const* array, int size) {
         vector<string> stringVector;
         vector<size_t> stringLengths;
         size_t blockSize = size * sizeof(char*);
         size_t blockPtr = blockSize;
+        const size_t BUFFER_SIZE = 1024;
+        boost::scoped_array<char> stringBuffer(new char[BUFFER_SIZE]);
         for (int i = 0; i < size; ++i) {
-            const size_t BUFFER_SIZE = 1024;
-            boost::scoped_array<char> stringBuffer(new char[BUFFER_SIZE]);
-            //addrtosymstr(reinterpret_cast<uintptr_t*>(const_cast<void**>(array))[i],
-                         //stringBuffer.get(),
-                         //BUFFER_SIZE);
             addrtosymstr(array[i], stringBuffer.get(), BUFFER_SIZE);
             string oneString(stringBuffer.get());
             size_t thisLength = oneString.length() + 1;
@@ -94,6 +107,9 @@ namespace {
             blockSize += thisLength;
         }
         char** singleBlock = static_cast<char**>(malloc(blockSize));
+        if (singleBlock == NULL) {
+            return NULL;
+        }
         for (int i = 0; i < size; ++i) {
             singleBlock[i] = reinterpret_cast<char*>(singleBlock) + blockPtr;
             strncpy(singleBlock[i], stringVector[i].c_str(), stringLengths[i]);
