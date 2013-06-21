@@ -77,7 +77,7 @@ namespace {
     }
 
     static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
-#if 1
+#if 0
         Dl_info_t symbolInfo;
         if (dladdr(address, &symbolInfo) == 0) {
             strncpy(outputBuffer, "FAILED!! to get stack trace line", outputBufferSize);
@@ -90,12 +90,11 @@ namespace {
 #else
         Dl_info_t symbolInfo;
         if (dladdr(address, &symbolInfo) == 0) {
-            *outputBuffer = '\0';
-            return 0;
+            return snprintf(outputBuffer, outputBufferSize, "[0x%p]", address);
         }
         return snprintf(outputBuffer,
                         outputBufferSize,
-                        "%s'%s+0x%x [0x%x]",
+                        "%s'%s+0x%p [0x%p]",
                         symbolInfo.dli_fname,
                         symbolInfo.dli_sname,
                         reinterpret_cast<char*>(address) -
