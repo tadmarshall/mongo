@@ -77,7 +77,7 @@ namespace {
     }
 
     static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
-        DL_info symbolInfo;
+        Dl_info_t symbolInfo;
         if (dladdr(address, &symbolInfo)) {
             *outputBuffer = '\0';
             return 0;
