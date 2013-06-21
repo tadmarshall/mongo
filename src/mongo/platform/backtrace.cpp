@@ -76,7 +76,11 @@ namespace {
         return 0;
     }
 
-    static int addrtosymstr(void* address, char* outputBuffer, int outputBufferSize) {
+    static int addrtosymstr(void* address, char* outputBuffer, int outputBuffer) {
+#if 1
+        strncpy(outputBuffer, outputBuffer, "stack trace line");
+        return strlen(outputBuffer);
+#else
         Dl_info_t symbolInfo;
         if (dladdr(address, &symbolInfo)) {
             *outputBuffer = '\0';
@@ -90,6 +94,7 @@ namespace {
                         reinterpret_cast<char*>(address) -
                                 reinterpret_cast<char*>(symbolInfo.dli_saddr),
                         address);
+#endif
     }
 
     char** backtrace_symbols_emulation(void* const* array, int size) {
