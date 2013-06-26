@@ -18,6 +18,8 @@
 #include "mongo/pch.h"
 
 #include <boost/filesystem/operations.hpp>
+#include <boost/locale.hpp>
+//#include <boost/locale/generator.hpp>
 #include <fstream>
 #include <pcrecpp.h>
 #include <stdio.h>
@@ -663,6 +665,18 @@ int _main( int argc, char* argv[], char **envp ) {
     setupSignals();
 
     mongo::shell_utils::RecordMyLocation( argv[ 0 ] );
+
+    BOOL ansi = AreFileApisANSI();
+
+    CPINFOEX cp;
+    GetCPInfoEx(CP_ACP, 0, &cp);
+
+    // Create and install global locale
+    //std::locale::global(boost::locale::generator().generate(""));
+    // Make boost.filesystem use it
+    //boost::filesystem::path::imbue(std::locale("en_US.UTF-8"));
+    //boost::filesystem::path::imbue(std::locale(""));
+    // Now Works perfectly fine with UTF-8!
 
     string url = "test";
     string dbhost;

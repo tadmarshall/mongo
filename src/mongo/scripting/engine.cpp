@@ -96,10 +96,14 @@ namespace mongo {
 
     bool Scope::execFile(const string& filename, bool printResult, bool reportError,
                          int timeoutMs) {
+#if 1
+        boost::filesystem::path p(filename);
+#else
 #ifdef _WIN32
         boost::filesystem::path p(toWideString(filename.c_str()));
 #else
         boost::filesystem::path p(filename);
+#endif
 #endif
         if (!exists(p)) {
             log() << "file [" << filename << "] doesn't exist" << endl;

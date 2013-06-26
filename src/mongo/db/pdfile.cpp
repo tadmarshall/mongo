@@ -169,7 +169,6 @@ namespace mongo {
     const char FREELIST_NS[] = ".$freelist";
     bool directoryperdb = false;
     string repairpath;
-    string pidfilepath;
 
     DataFileMgr theDataFileMgr;
     DatabaseHolder _dbHolder;
