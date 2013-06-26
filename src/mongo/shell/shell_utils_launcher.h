@@ -27,6 +27,7 @@
 #include <utility>
 
 #include "mongo/bson/bsonobj.h"
+#include "mongo/platform/filesystem.h"
 #include "mongo/platform/process_id.h"
 
 namespace mongo {

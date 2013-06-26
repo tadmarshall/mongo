@@ -2544,6 +2544,9 @@
     <ClInclude Include="..\platform\backtrace.h">
       <Filter>platform</Filter>
     </ClInclude>
+    <ClInclude Include="..\platform\filesystem.h">
+      <Filter>platform</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\client\connpool.cpp">

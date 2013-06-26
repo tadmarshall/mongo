@@ -1154,9 +1154,13 @@ namespace mongo {
         }
 
 #ifdef _WIN32
-        lockFileHandle = CreateFileA( name.c_str(), GENERIC_READ | GENERIC_WRITE,
-            0 /* do not allow anyone else access */, NULL, 
-            OPEN_ALWAYS /* success if fh can open */, 0, NULL );
+        lockFileHandle = CreateFileA(name.c_str(),                      // filename
+                                     GENERIC_READ | GENERIC_WRITE,      // desired access
+                                     0,                                 // share mode
+                                     NULL,                              // security
+                                     OPEN_ALWAYS,                       // create or open
+                                     0,                                 // file attributes
+                                     NULL);                             // template
 
         if (lockFileHandle == INVALID_HANDLE_VALUE) {
             DWORD code = GetLastError();

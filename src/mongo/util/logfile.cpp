@@ -61,18 +61,20 @@ namespace mongo {
 
 namespace mongo {
 
-    LogFile::LogFile(const std::string& name, bool readwrite) : _name(name) {
-        _fd = CreateFile(
-                  toNativeString(name.c_str()).c_str(),
-                  (readwrite?GENERIC_READ:0)|GENERIC_WRITE,
-                  FILE_SHARE_READ,
-                  NULL,
-                  OPEN_ALWAYS,
-                  FILE_FLAG_NO_BUFFERING,
-                  NULL);
+    LogFile::LogFile(const std::string& name, bool readwrite)
+            : _name(name) {
+        _fd = CreateFileW(toWideString(name.c_str()).c_str(),               // filename
+                          (readwrite ? GENERIC_READ : 0) | GENERIC_WRITE,   // desired access
+                          FILE_SHARE_READ,                                  // share mode
+                          NULL,                                             // security
+                          OPEN_ALWAYS,                                      // create or open
+                          FILE_FLAG_NO_BUFFERING,                           // file attributes
+                          NULL);                                            // template
         if( _fd == INVALID_HANDLE_VALUE ) {
             DWORD e = GetLastError();
-            uasserted(13518, str::stream() << "couldn't open file " << name << " for writing " << errnoWithDescription(e));
+            uasserted(13518,
+                      str::stream() << "couldn't open file " << name
+                                    << " for writing: " << errnoWithDescription(e));
         }
         SetFilePointer(_fd, 0, 0, FILE_BEGIN);
     }

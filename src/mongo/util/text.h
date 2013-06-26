@@ -72,14 +72,6 @@ namespace mongo {
 
     bool writeUtf8ToWindowsConsole( const char* utf8String, unsigned int utf8StringSize );
 
-    /* like toWideString but UNICODE macro sensitive */
-# if !defined(_UNICODE)
-#error temp error 
-    inline std::string toNativeString(const char *s) { return s; }
-# else
-    inline std::wstring toNativeString(const char *s) { return toWideString(s); }
-# endif
-
     class WindowsCommandLine {
         MONGO_DISALLOW_COPYING(WindowsCommandLine);
         char**  _argv;

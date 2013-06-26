@@ -1498,7 +1498,7 @@ namespace mongo {
     void reportEventToSystemImpl(const char *msg) {
         static ::HANDLE hEventLog = RegisterEventSource( NULL, TEXT("mongod") );
         if( hEventLog ) {
-            std::wstring s = toNativeString(msg);
+            std::wstring s = toWideString(msg);
             LPCTSTR txt = s.c_str();
             BOOL ok = ReportEvent(
               hEventLog, EVENTLOG_ERROR_TYPE,

@@ -87,7 +87,7 @@ namespace mongo {
 
     void File::open(const char* filename, bool readOnly, bool direct) {
         _name = filename;
-        _handle = CreateFileW(toNativeString(filename).c_str(),                 // filename
+        _handle = CreateFileW(toWideString(filename).c_str(),                   // filename
                               (readOnly ? 0 : GENERIC_WRITE) | GENERIC_READ,    // desired access
                               FILE_SHARE_WRITE | FILE_SHARE_READ,               // share mode
                               NULL,                                             // security

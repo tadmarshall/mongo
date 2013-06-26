@@ -3531,6 +3531,7 @@ cscript //Nologo "$(ProjectDir)..\shell\createCPPfromJavaScriptFiles.js" "$(Proj
     </ClInclude>
     <ClInclude Include="..\platform\compiler_msvc.h" />
     <ClInclude Include="..\platform\cstdint.h" />
+    <ClInclude Include="..\platform\filesystem.h" />
     <ClInclude Include="..\platform\float_utils.h" />
     <ClInclude Include="..\platform\posix_fadvise.h" />
     <ClInclude Include="..\platform\process_id.h" />
