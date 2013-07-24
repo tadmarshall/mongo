@@ -144,6 +144,7 @@ exampleSourceMap = [
         ('tutorial', 'mongo/client/examples/tutorial.cpp'),
         ('whereExample', 'mongo/client/examples/whereExample.cpp'),
         ('bsondemo', 'mongo/bson/bsondemo/bsondemo.cpp'),
+        ('server8891', 'mongo/client/examples/server8891.cpp'),
         ]
 
 clientHeaderDirectories = [
