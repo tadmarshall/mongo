@@ -268,14 +268,15 @@ namespace mongo {
             BSONObj config = entry["config"].Obj();
 
             // update locally
-            // This updates the slave tracking map, as well as updates
-            // the GhostSlave cache, and updates the tag groups
             slaveTracking.update(id, config, "local.oplog.rs", ot);
-
             if (theReplSet && !theReplSet->isPrimary()) {
                 // pass along if we are not primary
-                LOG(2) << "percolating " << ot.toString() << " from " << entry << endl;
-                theReplSet->syncSourceFeedback.percolate(entry["_id"].OID(), ot);
+                theReplSet->syncSourceFeedback.updateMap(entry["_id"].OID(), ot);
+                // for to be backwards compatible
+                theReplSet->ghost->send(boost::bind(&GhostSync::percolate,
+                                                    theReplSet->ghost,
+                                                    id,
+                                                    ot));
             }
         }
     }
@@ -306,9 +307,8 @@ namespace mongo {
         if (theReplSet && !theReplSet->isPrimary()) {
             // we don't know the slave's port, so we make the replica set keep
             // a map of rids to slaves
-            // pass along if we are not primary
-            LOG(2) << "getmore percolating " << lastOp.toString() << " from " << rid << endl;
-            theReplSet->syncSourceFeedback.percolate(rid["_id"].OID(), lastOp);
+            LOG(2) << "percolating " << lastOp.toString() << " from " << rid << endl;
+            theReplSet->ghost->send( boost::bind(&GhostSync::percolate, theReplSet->ghost, rid, lastOp) );
         }
     }
 

@@ -855,7 +855,8 @@ namespace replset {
         ((ReplSetConfig::MemberCfg)slave.slave->config()).updateGroups(last);
     }
 
-    void GhostSync::percolate(const mongo::OID& rid, const OpTime& last) {
+    void GhostSync::percolate(const BSONObj& id, const OpTime& last) {
+        const OID rid = id["_id"].OID();
         shared_ptr<GhostSlave> slave;
         {
             rwlock lk( _lock , false );
@@ -898,7 +899,7 @@ namespace replset {
                 // so we check tailCheck() as well; see SERVER-8420
                 slave->reader.tailCheck();
                 if (!slave->reader.haveCursor()) {
-                    if (!slave->reader.connect(rid, slave->slave->id(), target->fullName())) {
+                    if (!slave->reader.connect(id, slave->slave->id(), target->fullName())) {
                         // error message logged in OplogReader::connect
                         sleepsecs(1);
                         continue;

@@ -113,10 +113,6 @@ namespace replset {
         void markOplog();
         bool hasCursor();
 
-        // Sets _oplogMarkerTarget and calls connect();
-        // used for both the notifier command and the older OplogReader style notifier
-        bool connectOplogNotifier();
-
         bool isAssumingPrimary();
 
     public:
