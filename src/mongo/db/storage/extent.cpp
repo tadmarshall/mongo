@@ -177,7 +177,7 @@ namespace mongo {
     }
 
     int Extent::maxSize() {
-        return DataFile::maxSize() - DataFileHeader::HeaderSize - 16;
+        return DataFile::maxSize() - DataFileHeader::HeaderSize;
     }
 
 
