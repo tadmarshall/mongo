@@ -767,7 +767,10 @@ namespace mongo {
         }
         else {
             // Unquoted key
-            while (_input < _input_end && isspace(*_input)) ++_input;
+            while (_input < _input_end &&
+                   isspace(*reinterpret_cast<const unsigned char*>(_input))) {
+                ++_input;
+            }
             if (_input >= _input_end) {
                 return parseError("Field name expected");
             }
@@ -909,7 +912,7 @@ namespace mongo {
         if (token == NULL) {
             return false;
         }
-        while (check < _input_end && isspace(*check)) {
+        while (check < _input_end && isspace(*reinterpret_cast<const unsigned char*>(check))) {
             ++check;
         }
         while (*token != '\0') {
