@@ -192,6 +192,10 @@ namespace {
     };
 
     TEST_F(AllNodesDown, ReadFromPrimary) {
+#if 1
+        char* crash = reinterpret_cast<char*>(0x123);
+        *crash = 'A';
+#endif
         MockReplicaSet* replSet = getReplSet();
         DBClientReplicaSet replConn(replSet->getSetName(), replSet->getHosts());
 
